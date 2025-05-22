@@ -1,6 +1,6 @@
 
 "use client";
-import { useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useState, useRef, type ChangeEvent, type KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, SendHorizonal } from 'lucide-react';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'; // For file input
 export function MessageInput() {
   const [messageContent, setMessageContent] = useState('');
   const { addMessage, activeConversation } = useAppContext();
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSendMessage = () => {
     if (messageContent.trim() === '' || !activeConversation) return;
