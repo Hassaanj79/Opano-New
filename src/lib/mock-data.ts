@@ -1,3 +1,4 @@
+
 import type { User, Channel, Message } from '@/types';
 
 export const mockUsers: User[] = [
@@ -8,13 +9,13 @@ export const mockUsers: User[] = [
   { id: 'u5', name: 'Edward Scissorhands', avatarUrl: 'https://placehold.co/40x40.png?text=ES', isOnline: false },
 ];
 
-export const mockCurrentUser: User = mockUsers[0];
+export const mockCurrentUser: User = mockUsers[0]; // Alice Wonderland
 
 export const mockChannels: Channel[] = [
-  { id: 'c1', name: 'general', memberCount: 5, description: 'General team discussions' },
-  { id: 'c2', name: 'random', memberCount: 3, description: 'Random thoughts and fun stuff' },
-  { id: 'c3', name: 'project-phoenix', memberCount: 4, description: 'Discussion about Project Phoenix' },
-  { id: 'c4', name: 'marketing', memberCount: 2, description: 'Marketing strategies and campaigns' },
+  { id: 'c1', name: 'general', memberIds: ['u1', 'u2', 'u3', 'u4', 'u5'], description: 'General team discussions' },
+  { id: 'c2', name: 'random', memberIds: ['u1', 'u3', 'u5'], description: 'Random thoughts and fun stuff' },
+  { id: 'c3', name: 'project-phoenix', memberIds: ['u1', 'u2', 'u4', 'u3'], description: 'Discussion about Project Phoenix' },
+  { id: 'c4', name: 'marketing', memberIds: ['u1', 'u2'], description: 'Marketing strategies and campaigns' },
 ];
 
 export const mockMessages: Record<string, Message[]> = {

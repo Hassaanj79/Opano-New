@@ -2,7 +2,7 @@
 "use client";
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Hash, Sparkles, Users, UserCircle2 } from 'lucide-react';
+import { Hash, Sparkles, UserCircle2 } from 'lucide-react'; // Removed Users icon as it's not used
 import { useState } from 'react';
 import { SummarizeDialog } from './SummarizeDialog';
 
@@ -28,7 +28,7 @@ export function ChatHeader() {
 
   const name = activeConversation.name;
   const description = activeConversation.type === 'channel' 
-    ? `${activeConversation.channel?.memberCount || 0} members` 
+    ? `${activeConversation.channel?.memberIds.length || 0} members` 
     : (activeConversation.recipient?.isOnline ? 'Online' : 'Offline');
 
   return (

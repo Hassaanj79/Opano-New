@@ -14,7 +14,8 @@ interface AppContextType {
   activeConversation: ActiveConversation;
   setActiveConversation: (type: 'channel' | 'dm', id: string) => void;
   messages: Message[];
-  addMessage: (content: string, file?: File) => void; // File object for potential future use
+  addMessage: (content: string, file?: File) => void;
+  addChannel: (name: string, description?: string) => void;
   currentSummary: string | null;
   isLoadingSummary: boolean;
   generateSummary: (channelId: string) => Promise<void>;
@@ -25,8 +26,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser] = useState<User>(mockCurrentUser);
-  const [users] = useState<User[]>(mockUsers.filter(u => u.id !== currentUser.id)); // Exclude current user from DM list
-  const [channels] = useState<Channel[]>(mockChannels);
+  const [users] = useState<User[]>(mockUsers.filter(u => u.id !== currentUser.id));
+  const [channels, setChannels] = useState<Channel[]>(mockChannels);
   const [activeConversation, setActiveConversationState] = useState<ActiveConversation>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentSummary, setCurrentSummary] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   const setActiveConversation = useCallback((type: 'channel' | 'dm', id: string) => {
-    setCurrentSummary(null); // Clear summary when changing conversation
+    setCurrentSummary(null);
     if (type === 'channel') {
       const channel = channels.find(c => c.id === id);
       if (channel) {
@@ -65,12 +66,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       userId: currentUser.id,
       content,
       timestamp: Date.now(),
-      // Basic file handling UI representation
       file: file ? { name: file.name, url: '#', type: file.type.startsWith('image/') ? 'image' : 'document' } : undefined,
     };
     setMessages(prevMessages => [...prevMessages, newMessage]);
-    // In a real app, this would also send to a backend
   }, [activeConversation, currentUser.id]);
+
+  const addChannel = useCallback((name: string, description?: string) => {
+    const newChannel: Channel = {
+      id: `c${Date.now()}`,
+      name,
+      description: description || '',
+      memberIds: [currentUser.id], // Creator is the first member
+    };
+    setChannels(prevChannels => [...prevChannels, newChannel]);
+    // Optionally, make the new channel active:
+    // setActiveConversation('channel', newChannel.id); 
+    toast({ title: "Channel Created", description: `Channel #${name} has been created.` });
+  }, [currentUser.id, toast]);
 
   const generateSummary = useCallback(async (channelId: string) => {
     const channel = channels.find(c => c.id === channelId);
@@ -81,6 +93,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const channelMessages = fetchMockMessages(channelId);
     if (channelMessages.length === 0) {
       toast({ title: "Summary", description: "No messages in this channel to summarize." });
+      setCurrentSummary("This channel has no messages yet.");
       return;
     }
 
@@ -89,7 +102,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const result = await summarizeChannelFlow({
         channelName: channel.name,
-        messages: channelMessages.map(m => `${users.find(u => u.id === m.userId)?.name || 'User'}: ${m.content}`),
+        messages: channelMessages.map(m => `${users.find(u => u.id === m.userId)?.name || currentUser.name}: ${m.content}`),
       });
       setCurrentSummary(result.summary);
       toast({ title: "Summary Generated", description: `Summary for #${channel.name} is ready.` });
@@ -100,13 +113,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoadingSummary(false);
     }
-  }, [channels, users, toast]);
+  }, [channels, users, currentUser.name, toast]);
   
   const clearSummary = () => {
     setCurrentSummary(null);
   };
 
-  // Set a default active conversation (e.g., first channel)
   useEffect(() => {
     if (channels.length > 0 && !activeConversation) {
       setActiveConversation('channel', channels[0].id);
@@ -123,6 +135,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setActiveConversation,
       messages,
       addMessage,
+      addChannel,
       currentSummary,
       isLoadingSummary,
       generateSummary,

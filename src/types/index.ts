@@ -1,3 +1,4 @@
+
 export type User = {
   id: string;
   name: string;
@@ -8,7 +9,7 @@ export type User = {
 export type Channel = {
   id: string;
   name: string;
-  memberCount: number;
+  memberIds: string[]; // Changed from memberCount
   description?: string;
 };
 
