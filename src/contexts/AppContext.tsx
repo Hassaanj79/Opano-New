@@ -15,7 +15,7 @@ interface AppContextType {
   setActiveConversation: (type: 'channel' | 'dm', id: string) => void;
   messages: Message[];
   addMessage: (content: string, file?: File) => void;
-  addChannel: (name: string, description?: string) => void;
+  addChannel: (name: string, description?: string, memberIds?: string[]) => void;
   currentSummary: string | null;
   isLoadingSummary: boolean;
   generateSummary: (channelId: string) => Promise<void>;
@@ -26,7 +26,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser] = useState<User>(mockCurrentUser);
-  const [users] = useState<User[]>(mockUsers.filter(u => u.id !== currentUser.id));
+  const [users] = useState<User[]>(mockUsers.filter(u => u.id !== currentUser.id)); // Other users
+  const [allUsersWithCurrent] = useState<User[]>(mockUsers); // All users including current
   const [channels, setChannels] = useState<Channel[]>(mockChannels);
   const [activeConversation, setActiveConversationState] = useState<ActiveConversation>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -42,12 +43,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setActiveConversationState({ type, id, name: channel.name, channel });
       }
     } else {
-      const user = users.find(u => u.id === id);
+      const user = allUsersWithCurrent.find(u => u.id === id); // Search in all users for DM recipient
       if (user) {
         setActiveConversationState({ type, id, name: user.name, recipient: user });
       }
     }
-  }, [channels, users]);
+  }, [channels, allUsersWithCurrent]);
 
   useEffect(() => {
     if (activeConversation) {
@@ -66,23 +67,29 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       userId: currentUser.id,
       content,
       timestamp: Date.now(),
-      file: file ? { name: file.name, url: '#', type: file.type.startsWith('image/') ? 'image' : 'document' } : undefined,
+      file: file ? { name: file.name, url: 'https://placehold.co/200x150.png', type: file.type.startsWith('image/') ? 'image' : 'document' } : undefined,
     };
+    
+    // In a real app, you would persist this message to your backend
+    // For mock data, we can add it to a global or context-managed store if needed,
+    // but for this example, we'll just update the local state.
+    // If mockMessages was designed to be mutable and shared, you'd update it here.
+    // For now, this only updates the `messages` state for the current view.
+
     setMessages(prevMessages => [...prevMessages, newMessage]);
   }, [activeConversation, currentUser.id]);
 
-  const addChannel = useCallback((name: string, description?: string) => {
+  const addChannel = useCallback((name: string, description?: string, memberIds: string[] = []) => {
     const newChannel: Channel = {
       id: `c${Date.now()}`,
       name,
       description: description || '',
-      memberIds: [currentUser.id], // Creator is the first member
+      memberIds: Array.from(new Set([currentUser.id, ...memberIds])), // Creator + selected, unique IDs
     };
     setChannels(prevChannels => [...prevChannels, newChannel]);
-    // Optionally, make the new channel active:
-    // setActiveConversation('channel', newChannel.id); 
+    setActiveConversation('channel', newChannel.id); 
     toast({ title: "Channel Created", description: `Channel #${name} has been created.` });
-  }, [currentUser.id, toast]);
+  }, [currentUser.id, toast, setActiveConversation]);
 
   const generateSummary = useCallback(async (channelId: string) => {
     const channel = channels.find(c => c.id === channelId);
@@ -90,7 +97,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Error", description: "Channel not found.", variant: "destructive" });
       return;
     }
-    const channelMessages = fetchMockMessages(channelId);
+    const channelMessages = fetchMockMessages(channelId); // These are specific to this channel
     if (channelMessages.length === 0) {
       toast({ title: "Summary", description: "No messages in this channel to summarize." });
       setCurrentSummary("This channel has no messages yet.");
@@ -102,7 +109,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const result = await summarizeChannelFlow({
         channelName: channel.name,
-        messages: channelMessages.map(m => `${users.find(u => u.id === m.userId)?.name || currentUser.name}: ${m.content}`),
+        // Make sure to use allUsersWithCurrent to find sender names correctly
+        messages: channelMessages.map(m => `${allUsersWithCurrent.find(u => u.id === m.userId)?.name || 'Unknown User'}: ${m.content}`),
       });
       setCurrentSummary(result.summary);
       toast({ title: "Summary Generated", description: `Summary for #${channel.name} is ready.` });
@@ -113,12 +121,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoadingSummary(false);
     }
-  }, [channels, users, currentUser.name, toast]);
+  }, [channels, allUsersWithCurrent, toast]);
   
   const clearSummary = () => {
     setCurrentSummary(null);
   };
 
+  // Set initial active conversation to the first channel if none is active
   useEffect(() => {
     if (channels.length > 0 && !activeConversation) {
       setActiveConversation('channel', channels[0].id);
@@ -129,7 +138,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AppContext.Provider value={{
       currentUser,
-      users,
+      users, // This remains other users for lists like DMs
       channels,
       activeConversation,
       setActiveConversation,
