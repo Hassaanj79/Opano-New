@@ -879,12 +879,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (conversation) {
       setCallingWith(conversation);
       setIsCallActive(true);
-      // Here you might also want to send a system message to the chat
-      // indicating a call has started, e.g., "Hassaan started a call."
-      // For now, it just activates the dialog.
       setTimeout(() => {
         toast({ title: "Starting Call", description: `Calling ${conversation.name}... (Simulated)` });
       }, 0);
+
+      const callMessageContent = `${currentUser.name} started a call.`;
+      const systemMessage: Message = {
+        id: `sys-call-start-${Date.now()}`,
+        userId: 'system',
+        content: callMessageContent,
+        timestamp: Date.now(),
+        isSystemMessage: true,
+      };
+
+      if (allMockMessages[conversation.id]) {
+        allMockMessages[conversation.id].push(systemMessage);
+      } else {
+        allMockMessages[conversation.id] = [systemMessage];
+      }
+
+      if (activeConversation?.id === conversation.id) {
+        setMessages(prevMessages => [...prevMessages, systemMessage]);
+      }
     }
   };
 
@@ -893,6 +909,25 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setTimeout(() => {
             toast({ title: "Call Ended", description: `Call with ${callingWith.name} ended. (Simulated)` });
         }, 0);
+
+      const callMessageContent = `Call with ${callingWith.name} ended.`;
+      const systemMessage: Message = {
+        id: `sys-call-end-${Date.now()}`,
+        userId: 'system',
+        content: callMessageContent,
+        timestamp: Date.now(),
+        isSystemMessage: true,
+      };
+      
+      if (allMockMessages[callingWith.id]) {
+        allMockMessages[callingWith.id].push(systemMessage);
+      } else {
+        allMockMessages[callingWith.id] = [systemMessage];
+      }
+      
+      if (activeConversation?.id === callingWith.id) {
+        setMessages(prevMessages => [...prevMessages, systemMessage]);
+      }
     }
     setIsCallActive(false);
     setCallingWith(null);
@@ -960,3 +995,6 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+
+    
