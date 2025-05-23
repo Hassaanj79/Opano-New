@@ -157,9 +157,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       ...replyData,
     };
     setMessages(prevMessages => [...prevMessages, newMessage]);
-    if (activeConversation) {
-        const currentMockMessages = mockMessages[activeConversation.id] || [];
-        mockMessages[activeConversation.id] = [...currentMockMessages, newMessage];
+    if (activeConversation && mockMessages[activeConversation.id]) {
+        mockMessages[activeConversation.id] = [...mockMessages[activeConversation.id], newMessage];
+    } else if (activeConversation) {
+        mockMessages[activeConversation.id] = [newMessage];
     }
     setReplyingToMessage(null); // Clear reply context after sending
   }, [activeConversation, currentUser.id, replyingToMessage, allUsersWithCurrent]);
@@ -170,7 +171,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       name,
       description: description || '',
       memberIds: Array.from(new Set([currentUser.id, ...memberIds])),
-      isPrivate,
+      isPrivate, // Use the passed isPrivate value
     };
     setChannels(prevChannels => {
       const updatedChannels = [...prevChannels, newChannel];
@@ -187,7 +188,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const creationSystemMessage: Message = {
         id: `sys-create-${Date.now()}`,
         userId: 'system',
-        content: `${creatorName} created the channel #${name}.`,
+        content: `${creatorName} created the ${isPrivate ? 'private ' : ''}channel #${name}.`,
         timestamp: Date.now(),
         isSystemMessage: true,
     };
@@ -220,10 +221,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addMembersToChannel = useCallback((channelId: string, userIdsToAdd: string[]) => {
     let channelName = '';
+    let isPrivateChannel = false;
     setChannels(prevChannels => {
       return prevChannels.map(channel => {
         if (channel.id === channelId) {
           channelName = channel.name;
+          isPrivateChannel = channel.isPrivate || false;
           const newMemberIds = Array.from(new Set([...channel.memberIds, ...userIdsToAdd]));
           const updatedChannel = { ...channel, memberIds: newMemberIds };
 
@@ -246,7 +249,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         .filter((name): name is string => !!name);
 
     if (addedUserNames.length > 0) {
-        const systemMessageContent = `${currentUser.name} added ${addedUserNames.join(', ')} to #${channelName}.`;
+        const systemMessageContent = `${currentUser.name} added ${addedUserNames.join(', ')} to ${isPrivateChannel ? 'the private channel ' : ''}#${channelName}.`;
         const systemMessage: Message = {
             id: `sys-add-${Date.now()}`,
             userId: 'system', 
@@ -338,7 +341,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({
         title: "Sending Invitation...",
         description: `Attempting to send an invitation email to ${email}.`,
-        duration: 5000, // Duration can be kept for toasts that are purely informational
+        duration: 5000, 
       });
     },0);
 
@@ -652,4 +655,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-

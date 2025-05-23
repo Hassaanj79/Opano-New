@@ -29,6 +29,7 @@ export function AddChannelDialog({ isOpen, onOpenChange }: AddChannelDialogProps
   const [channelName, setChannelName] = useState('');
   const [channelDescription, setChannelDescription] = useState('');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [isPrivateChannel, setIsPrivateChannel] = useState(false); // New state for privacy
   const { addChannel, users: allUsers, currentUser } = useAppContext();
 
   const availableUsers = allUsers.filter(user => user.id !== currentUser.id);
@@ -45,12 +46,13 @@ export function AddChannelDialog({ isOpen, onOpenChange }: AddChannelDialogProps
     setChannelName('');
     setChannelDescription('');
     setSelectedUserIds([]);
+    setIsPrivateChannel(false); // Reset privacy state
   }
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (channelName.trim()) {
-      addChannel(channelName.trim(), channelDescription.trim(), selectedUserIds);
+      addChannel(channelName.trim(), channelDescription.trim(), selectedUserIds, isPrivateChannel); // Pass isPrivateChannel
       resetForm();
       onOpenChange(false);
     }
@@ -70,7 +72,7 @@ export function AddChannelDialog({ isOpen, onOpenChange }: AddChannelDialogProps
           <DialogHeader>
             <DialogTitle>Create New Channel</DialogTitle>
             <DialogDescription>
-              Enter the name, description, and select members for your new channel.
+              Enter the name, description, select members, and set privacy for your new channel.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -99,6 +101,23 @@ export function AddChannelDialog({ isOpen, onOpenChange }: AddChannelDialogProps
                 placeholder="e.g. Discussions about the new Project Alpha initiative."
               />
             </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="channel-private" className="text-right">
+                Privacy
+              </Label>
+              <div className="col-span-3 flex items-center space-x-2">
+                <Checkbox
+                    id="channel-private"
+                    checked={isPrivateChannel}
+                    onCheckedChange={(checked) => setIsPrivateChannel(Boolean(checked))}
+                />
+                <Label htmlFor="channel-private" className="text-sm font-normal cursor-pointer">
+                    Make this channel private
+                </Label>
+              </div>
+            </div>
+
             {availableUsers.length > 0 && (
             <div className="grid grid-cols-4 items-start gap-4">
               <Label className="text-right pt-2">
