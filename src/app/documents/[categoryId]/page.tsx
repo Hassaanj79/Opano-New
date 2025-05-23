@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AddDocumentDialog } from '@/components/dialogs/AddDocumentDialog';
 import { CreateTextDocumentDialog } from '@/components/dialogs/CreateTextDocumentDialog';
 import { LinkExternalDocumentDialog } from '@/components/dialogs/LinkExternalDocumentDialog';
+import { ViewDocumentDialog } from '@/components/dialogs/ViewDocumentDialog'; // New Dialog
 
 export default function CategoryDetailPage() {
   const params = useParams();
@@ -35,6 +36,9 @@ export default function CategoryDetailPage() {
   const [isLinkExternalDialogOpen, setIsLinkExternalDialogOpen] = useState(false);
   const [deletingDocInfo, setDeletingDocInfo] = useState<{categoryId: string, docId: string} | null>(null);
 
+  const [isViewDocDialogOpen, setIsViewDocDialogOpen] = useState(false);
+  const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
+
   useEffect(() => {
     if (categoryId) {
       const foundCategory = findDocumentCategoryById(categoryId);
@@ -43,18 +47,30 @@ export default function CategoryDetailPage() {
   }, [categoryId, findDocumentCategoryById]);
 
   const handleDocumentClick = (doc: Document) => {
-    if ((doc.docType === 'file' || doc.docType === 'url') && doc.fileUrl) {
-      window.open(doc.fileUrl, '_blank');
+    if (doc.docType === 'file') {
+      if ((doc.type.startsWith('image/') || doc.type === 'application/pdf') && doc.fileUrl) {
+        setViewingDocument(doc);
+        setIsViewDocDialogOpen(true);
+      } else if (doc.fileUrl) {
+        window.open(doc.fileUrl, '_blank');
+        toast({
+          title: "Opening Document",
+          description: `"${doc.name}" will be downloaded or opened by your system, as in-app preview is not supported for this file type.`,
+          duration: 5000,
+        });
+      }
     } else if (doc.docType === 'text') {
       toast({
         title: `Text Document: ${doc.name}`,
         description: (
-          <pre className="mt-2 w-full whitespace-pre-wrap rounded-md bg-slate-950 p-4 font-mono text-xs text-slate-50 max-h-40 overflow-y-auto">
+          <pre className="mt-2 w-full whitespace-pre-wrap rounded-md bg-slate-950 p-4 font-mono text-xs text-slate-50 max-h-80 overflow-y-auto">
             {doc.textContent}
           </pre>
         ),
         duration: 10000,
       });
+    } else if (doc.docType === 'url' && doc.fileUrl) {
+      window.open(doc.fileUrl, '_blank');
     }
   };
 
@@ -65,7 +81,7 @@ export default function CategoryDetailPage() {
     // Toast is handled by AppContext
   };
 
-  if (category === undefined) { // Still loading or not found initially
+  if (category === undefined) { 
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-6">
             <FolderOpen className="h-16 w-16 mb-4 text-muted-foreground" />
@@ -74,7 +90,7 @@ export default function CategoryDetailPage() {
     );
   }
 
-  if (category === null) { // Category explicitly not found
+  if (category === null) { 
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-6">
             <FolderOpen className="h-16 w-16 mb-4 text-destructive" />
@@ -169,7 +185,7 @@ export default function CategoryDetailPage() {
         )}
       </div>
 
-      {category && ( // Ensure category is not null before rendering dialogs
+      {category && (
         <>
             <AddDocumentDialog
                 isOpen={isAddFileDialogOpen}
@@ -188,6 +204,11 @@ export default function CategoryDetailPage() {
                 onOpenChange={setIsLinkExternalDialogOpen}
                 category={category}
                 onAddLinkedDocument={(catId, name, url) => addLinkedDocumentToCategory(catId, name, url)}
+            />
+            <ViewDocumentDialog
+                isOpen={isViewDocDialogOpen}
+                onOpenChange={setIsViewDocDialogOpen}
+                document={viewingDocument}
             />
         </>
       )}
