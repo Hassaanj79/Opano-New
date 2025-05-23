@@ -3,8 +3,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Briefcase, Megaphone, Settings, PlusCircle, FileText, Edit3, Trash2, DollarSign } from "lucide-react"; // Added DollarSign
-import Link from "next/link"; // Import Link for potential future use, though not used for navigation in this step
+import { Users, Briefcase, Megaphone, Settings, PlusCircle, FileText, Edit3, Trash2, DollarSign } from "lucide-react";
+import Link from "next/link";
 
 // Define category data directly in the component for now
 const documentCategories = [
@@ -18,7 +18,7 @@ const documentCategories = [
     id: "cat2",
     name: "DevOps",
     description: "Infrastructure documentation, deployment guides, and CI/CD processes.",
-    icon: Settings, // Using Settings as a proxy for DevOps tooling/gears
+    icon: Settings,
   },
   {
     id: "cat3",
@@ -30,10 +30,10 @@ const documentCategories = [
     id: "cat4",
     name: "Human Resources",
     description: "Employee handbook, policies, onboarding materials, and benefits information.",
-    icon: Briefcase, // Using Briefcase as a proxy for HR/company-related documents
+    icon: Briefcase,
   },
   {
-    id: "cat5", // New category
+    id: "cat5",
     name: "Sales",
     description: "Sales scripts, pricing information, proposal templates, and CRM guides.",
     icon: DollarSign,
@@ -50,6 +50,13 @@ const mockDocuments = [
 export default function DocumentsPage() {
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
+      <div className="flex justify-start mb-4">
+        <Button variant="outline">
+          <PlusCircle className="mr-2 h-4 w-4" />
+          New Category
+        </Button>
+      </div>
+
       <header className="mb-6 md:mb-8">
         <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Document Management</h1>
         <p className="mt-1 text-sm text-muted-foreground">
