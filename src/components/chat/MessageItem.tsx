@@ -5,13 +5,14 @@ import { useAppContext } from '@/contexts/AppContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, ImageIcon, Smile, MoreHorizontal, Edit3, Trash2, ThumbsUp, Heart, Brain, PartyPopper, AlertCircle } from 'lucide-react'; 
+import { FileText, ImageIcon, Smile, MoreHorizontal, Edit3, Trash2, ThumbsUp, Heart, Brain, PartyPopper, AlertCircle, Users } from 'lucide-react'; 
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Textarea } from '../ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { UserProfilePopover } from './UserProfilePopover'; // Import the new component
 
 interface MessageItemProps {
   message: Message;
@@ -65,14 +66,19 @@ export function MessageItem({ message }: MessageItemProps) {
     toast({ title: "Message Deleted" });
   };
 
+  const avatarElement = <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />;
+
   return (
     <div className={cn(
       "group flex gap-2.5 py-1.5 px-4 hover:bg-muted/20 relative",
       isCurrentUserSender ? "justify-end" : "justify-start"
     )}>
-      {!isCurrentUserSender && (
-        <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />
+      {!isCurrentUserSender && sender && (
+        <UserProfilePopover user={sender} popoverSide="right" popoverAlign="start">
+          {avatarElement}
+        </UserProfilePopover>
       )}
+      {!isCurrentUserSender && !sender && avatarElement} {/* Fallback if sender is somehow undefined */}
       
       <div className={cn(
         "flex flex-col max-w-[70%]",
@@ -217,7 +223,7 @@ export function MessageItem({ message }: MessageItemProps) {
         )}
       </div>
       {isCurrentUserSender && (
-        <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />
+         avatarElement // Show current user's avatar without popover
       )}
     </div>
   );
