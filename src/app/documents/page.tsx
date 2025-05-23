@@ -4,71 +4,131 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Briefcase, Megaphone, Settings, PlusCircle, FileText, Edit3, Trash2, DollarSign, type LucideIcon, FolderKanban } from "lucide-react";
+import { Users, Briefcase, Megaphone, Settings, PlusCircle, FileText, Edit3, Trash2, DollarSign, type LucideIcon, FolderKanban, UploadCloud } from "lucide-react";
 import Link from "next/link";
-import { AddDocumentCategoryDialog } from '@/components/dialogs/AddDocumentCategoryDialog'; // New Dialog
+import { AddDocumentCategoryDialog } from '@/components/dialogs/AddDocumentCategoryDialog';
+import { AddDocumentDialog } from '@/components/dialogs/AddDocumentDialog'; // New Dialog
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { format } from 'date-fns';
+
+export interface Document {
+  id: string;
+  name: string;
+  type: string; // e.g., 'pdf', 'docx', 'png' from file.type
+  lastModified: string; // ISO string or formatted date
+  fileUrl?: string; // For local preview using URL.createObjectURL
+  fileObject?: File; // Store the actual file object if needed for future use (not persisted)
+}
 
 export interface DocumentCategory {
   id: string;
   name: string;
   description: string;
-  icon: LucideIcon; // lucide-react icon component
+  icon: LucideIcon;
+  documents: Document[];
 }
 
-// Initial category data
 const initialDocumentCategories: DocumentCategory[] = [
   {
     id: "cat1",
     name: "Customer Success",
     description: "Resources, playbooks, and templates for helping our customers succeed.",
     icon: Users,
+    documents: [
+        { id: "doc1-1", name: "Onboarding Checklist.pdf", type: "application/pdf", lastModified: format(new Date(2024, 2, 10), "MMM d, yyyy"), fileUrl: "#" },
+        { id: "doc1-2", name: "Q1 Success Playbook.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", lastModified: format(new Date(2024, 2, 12), "MMM d, yyyy"), fileUrl: "#" },
+    ],
   },
   {
     id: "cat2",
     name: "DevOps",
     description: "Infrastructure documentation, deployment guides, and CI/CD processes.",
     icon: Settings,
+    documents: [],
   },
   {
     id: "cat3",
     name: "Marketing",
     description: "Campaign materials, brand guidelines, market research, and analytics.",
     icon: Megaphone,
+    documents: [],
   },
   {
     id: "cat4",
     name: "Human Resources",
     description: "Employee handbook, policies, onboarding materials, and benefits information.",
     icon: Briefcase,
+    documents: [],
   },
   {
     id: "cat5",
     name: "Sales",
     description: "Sales scripts, pricing information, proposal templates, and CRM guides.",
     icon: DollarSign,
+    documents: [],
   },
 ];
-
-// Mock documents for a category - this will be expanded later
-const mockDocuments = [
-    { id: "doc1", name: "Onboarding Checklist.pdf", type: "pdf", lastModified: "2024-03-10" },
-    { id: "doc2", name: "Q1 Campaign Strategy.docx", type: "doc", lastModified: "2024-03-12" },
-];
-
 
 export default function DocumentsPage() {
   const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories);
   const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
+  const [isAddDocumentDialogOpen, setIsAddDocumentDialogOpen] = useState(false);
+  const [currentCategoryForDocument, setCurrentCategoryForDocument] = useState<DocumentCategory | null>(null);
+  const [deletingDocInfo, setDeletingDocInfo] = useState<{categoryId: string, docId: string} | null>(null);
+  const { toast } = useToast();
 
   const handleAddCategory = (name: string, description: string) => {
     const newCategory: DocumentCategory = {
-      id: `cat-${Date.now()}`, // Simple unique ID
+      id: `cat-${Date.now()}`,
       name,
       description,
-      icon: FolderKanban, // Default icon for new categories
+      icon: FolderKanban,
+      documents: [],
     };
     setDocumentCategories(prevCategories => [...prevCategories, newCategory]);
   };
+
+  const handleOpenAddDocumentDialog = (category: DocumentCategory) => {
+    setCurrentCategoryForDocument(category);
+    setIsAddDocumentDialogOpen(true);
+  };
+
+  const handleAddDocument = (categoryId: string, file: File) => {
+    const newDocument: Document = {
+      id: `doc-${Date.now()}`,
+      name: file.name,
+      type: file.type || 'unknown',
+      lastModified: format(new Date(), "MMM d, yyyy"),
+      fileUrl: URL.createObjectURL(file), // Create a temporary URL for preview/download
+      fileObject: file, // Optionally store the file object itself
+    };
+
+    setDocumentCategories(prevCategories =>
+      prevCategories.map(category =>
+        category.id === categoryId
+          ? { ...category, documents: [...category.documents, newDocument] }
+          : category
+      )
+    );
+    toast({ title: "Document Added", description: `"${file.name}" added to ${currentCategoryForDocument?.name}.`});
+  };
+  
+  const handleDeleteDocument = () => {
+    if (!deletingDocInfo) return;
+    const { categoryId, docId } = deletingDocInfo;
+
+    setDocumentCategories(prevCategories =>
+      prevCategories.map(category =>
+        category.id === categoryId
+          ? { ...category, documents: category.documents.filter(doc => doc.id !== docId) }
+          : category
+      )
+    );
+    toast({ title: "Document Deleted", description: "The document has been removed."});
+    setDeletingDocInfo(null);
+  };
+
 
   return (
     <>
@@ -101,31 +161,50 @@ export default function DocumentsPage() {
               </CardHeader>
               <CardContent className="flex-grow flex flex-col pt-2">
                 <div className="border-t border-border pt-3 mt-auto">
-                  <h4 className="text-sm font-medium text-foreground mb-2">Files (0)</h4>
-                  {/* Placeholder for document list - will be built out later */}
-                  {mockDocuments.length > 0 && category.id === "cat1" ? ( // Example: Show mock docs only for first category
-                      <div className="space-y-2 mb-3">
-                          {mockDocuments.map(doc => (
+                  <h4 className="text-sm font-medium text-foreground mb-2">Files ({category.documents.length})</h4>
+                  {category.documents.length > 0 ? (
+                      <div className="space-y-2 mb-3 max-h-48 overflow-y-auto pr-1">
+                          {category.documents.map(doc => (
                               <div key={doc.id} className="flex items-center justify-between p-2 rounded-md border bg-background/70 hover:bg-muted/40 transition-colors">
-                                  <div className="flex items-center gap-2 truncate">
+                                  <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 truncate">
                                       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                                      <span className="text-xs text-foreground truncate">{doc.name}</span>
-                                  </div>
+                                      <span className="text-xs text-foreground truncate hover:underline" title={doc.name}>{doc.name}</span>
+                                  </a>
                                   <div className="flex items-center gap-1 shrink-0">
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary">
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => toast({title: "Edit (Coming Soon)", description: "Editing document details will be available soon."})}>
                                           <Edit3 className="h-3.5 w-3.5" />
                                       </Button>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive">
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => setDeletingDocInfo({categoryId: category.id, docId: doc.id})}>
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              This action cannot be undone. This will permanently delete the document "{doc.name}".
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel onClick={() => setDeletingDocInfo(null)}>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleDeleteDocument}>Delete</AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
                                   </div>
                               </div>
                           ))}
                       </div>
                   ) : (
-                      <p className="text-xs text-muted-foreground italic mb-3">No documents yet in this category.</p>
+                      <div className="text-xs text-muted-foreground italic mb-3 flex flex-col items-center justify-center p-4 border border-dashed rounded-md min-h-[80px]">
+                        <UploadCloud className="h-7 w-7 text-gray-400 mb-1.5"/>
+                        <p>No documents yet.</p>
+                        <p>Click below to add.</p>
+                      </div>
                   )}
-                  <Button variant="outline" size="sm" className="w-full text-xs">
+                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => handleOpenAddDocumentDialog(category)}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add Document
                   </Button>
@@ -140,6 +219,14 @@ export default function DocumentsPage() {
         onOpenChange={setIsAddCategoryDialogOpen}
         onAddCategory={handleAddCategory}
       />
+      {currentCategoryForDocument && (
+        <AddDocumentDialog
+            isOpen={isAddDocumentDialogOpen}
+            onOpenChange={setIsAddDocumentDialogOpen}
+            category={currentCategoryForDocument}
+            onAddDocument={handleAddDocument}
+        />
+      )}
     </>
   );
 }
