@@ -54,8 +54,8 @@ const sendInvitationEmailFlow = ai.defineFlow(
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: gmailEmail,
-        pass: gmailAppPassword,
+        user: gmailEmail, // Use the environment variable
+        pass: gmailAppPassword, // Use the environment variable for the App Password
       },
     });
 
