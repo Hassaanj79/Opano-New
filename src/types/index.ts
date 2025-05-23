@@ -4,19 +4,20 @@ export type User = {
   name: string;
   avatarUrl?: string;
   isOnline: boolean;
+  designation?: string; // Added designation
 };
 
 export type Channel = {
   id: string;
   name: string;
-  memberIds: string[]; // Changed from memberCount
+  memberIds: string[];
   description?: string;
 };
 
 export type MessageFile = {
   name: string;
-  url: string; // For simplicity, direct URL. In reality, might be more complex.
-  type: 'image' | 'document' | 'other'; // To potentially render previews or icons
+  url: string;
+  type: 'image' | 'document' | 'other';
 };
 
 export type Message = {
@@ -31,6 +32,12 @@ export type ActiveConversation = {
   type: 'channel' | 'dm';
   id: string;
   name: string;
-  recipient?: User; // For DMs
-  channel?: Channel; // For channels
+  recipient?: User;
+  channel?: Channel;
 } | null;
+
+export type PendingInvitation = {
+  email: string;
+  token: string;
+  timestamp: number;
+};

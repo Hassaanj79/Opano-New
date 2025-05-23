@@ -1,5 +1,5 @@
 
-import { AppProvider } from "@/contexts/AppContext";
+// AppProvider is now in RootLayout, no longer needed here directly.
 import { ChatterboxSidebar } from "@/components/layout/ChatterboxSidebar";
 import { ChatView } from "@/components/chat/ChatView";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
@@ -7,7 +7,7 @@ import { ChatterboxLogo } from "@/components/ChatterboxLogo";
 
 export default function ChatterboxPage() {
   return (
-    <AppProvider>
+    // <AppProvider> // Removed from here
       <SidebarProvider>
         <ChatterboxSidebar />
         <SidebarInset className="flex flex-col h-svh">
@@ -21,6 +21,6 @@ export default function ChatterboxPage() {
           </div>
         </SidebarInset>
       </SidebarProvider>
-    </AppProvider>
+    // </AppProvider> // Removed from here
   );
 }
