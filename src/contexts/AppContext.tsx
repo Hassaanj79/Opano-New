@@ -5,8 +5,9 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import type { User, Channel, Message, ActiveConversation, PendingInvitation } from '@/types';
 import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages } from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
+import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow'; // Import the new flow
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation'; // For redirecting after join
+import { useRouter } from 'next/navigation'; 
 
 interface AppContextType {
   currentUser: User;
@@ -21,10 +22,10 @@ interface AppContextType {
   isLoadingSummary: boolean;
   generateSummary: (channelId: string) => Promise<void>;
   clearSummary: () => void;
-  sendInvitation: (email: string) => string | null; // Returns token or null
+  sendInvitation: (email: string) => Promise<string | null>; // Updated to Promise
   verifyInviteToken: (token: string) => PendingInvitation | null;
   acceptInvitation: (token: string, userDetails: { name: string; designation: string }) => boolean;
-  pendingInvitations: PendingInvitation[]; // Expose for debugging or advanced scenarios
+  pendingInvitations: PendingInvitation[];
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -124,25 +125,64 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setCurrentSummary(null);
   };
 
-  const sendInvitation = useCallback((email: string): string | null => {
+  const sendInvitation = useCallback(async (email: string): Promise<string | null> => {
     if (allUsersWithCurrent.some(user => user.name.toLowerCase().includes(email.split('@')[0].toLowerCase())) || pendingInvitations.some(inv => inv.email === email)) {
-        // Simplified check: if email's user part matches any existing user name part, or email already invited
       toast({ title: "Invitation Failed", description: `${email} is already a member or has been invited.`, variant: "destructive" });
       return null;
     }
-    const token = btoa(`${email}-${Date.now()}`); // Simple token generation
+    const token = btoa(`${email}-${Date.now()}`);
     const newInvitation: PendingInvitation = { email, token, timestamp: Date.now() };
     setPendingInvitations(prev => [...prev, newInvitation]);
     
-    // Construct the base URL
     const joinUrl = `${window.location.origin}/join/${token}`;
+    const emailSubject = "You're invited to join Chatterbox!";
+    const emailHtmlBody = `
+      <h1>Welcome to Chatterbox!</h1>
+      <p>You've been invited to join the Chatterbox workspace.</p>
+      <p>Please click the link below to complete your registration:</p>
+      <p><a href="${joinUrl}" target="_blank">${joinUrl}</a></p>
+      <p>If you did not expect this invitation, you can safely ignore this email.</p>
+    `;
 
     toast({
-      title: "Invitation Sent (Simulated)",
-      description: `An invitation email would be sent to ${email}. For testing, use this link: ${joinUrl}`,
-      duration: 15000, // Keep toast longer to copy link
+      title: "Sending Invitation...",
+      description: `Attempting to send an invitation email to ${email}.`,
+      duration: 5000,
     });
-    console.log(`Simulated invitation sent to ${email}. Token: ${token}. Join URL: ${joinUrl}`);
+
+    try {
+      const emailResult = await sendInvitationEmail({
+        to: email,
+        subject: emailSubject,
+        htmlBody: emailHtmlBody,
+        joinUrl: joinUrl, // Pass joinUrl to flow for console logging
+      });
+
+      if (emailResult.success) {
+        toast({
+          title: "Invitation Sent!",
+          description: `An invitation email has been sent to ${email}.`,
+          duration: 7000,
+        });
+      } else {
+        toast({
+          title: "Email Sending Failed",
+          description: `Could not send email to ${email}. ${emailResult.error || ''} For testing, use this link (also in console): ${joinUrl}`,
+          variant: "destructive",
+          duration: 15000,
+        });
+        console.error(`Failed to send invitation email to ${email}. Error: ${emailResult.error}. Test Link: ${joinUrl}`);
+      }
+    } catch (flowError) {
+      console.error("Error calling sendInvitationEmail flow:", flowError);
+      toast({
+          title: "Flow Error",
+          description: `An error occurred while trying to send the email. For testing, use this link (also in console): ${joinUrl}`,
+          variant: "destructive",
+          duration: 15000,
+        });
+      console.error(`Flow error sending invitation email to ${email}. Test Link: ${joinUrl}`);
+    }
     return token;
   }, [allUsersWithCurrent, pendingInvitations, toast]);
 
@@ -158,11 +198,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const newUser: User = {
-      id: `u${Date.now()}`, // Simple ID generation
+      id: `u${Date.now()}`,
       name: userDetails.name,
       designation: userDetails.designation,
       avatarUrl: `https://placehold.co/40x40.png?text=${userDetails.name.substring(0,2).toUpperCase()}`,
-      isOnline: true, // New user is online
+      isOnline: true,
     };
 
     setUsers(prevUsers => [...prevUsers, newUser]);
@@ -170,7 +210,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
 
     toast({ title: "Welcome to Chatterbox!", description: `User ${newUser.name} has joined the workspace.` });
-    router.push('/'); // Redirect to main page
+    router.push('/');
     return true;
   }, [verifyInviteToken, toast, router, setUsers, setAllUsersWithCurrent, setPendingInvitations]);
 
