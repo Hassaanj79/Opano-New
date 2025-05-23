@@ -44,19 +44,23 @@ const sendInvitationEmailFlow = ai.defineFlow(
     const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
 
     if (!gmailEmail || !gmailAppPassword) {
-      console.error('Gmail credentials (GMAIL_EMAIL, GMAIL_APP_PASSWORD) are not set in .env file.');
-      return { success: false, error: 'Server configuration error: Email credentials missing.' };
+      console.error('[sendInvitationEmailFlow] Gmail credentials (GMAIL_EMAIL, GMAIL_APP_PASSWORD) are not set or not accessible in the .env file. Please verify your .env file and restart the server.');
+      return { success: false, error: 'Server configuration error: Email credentials missing or not accessible.' };
     }
     
     // For development, log the join URL to console for easy access if email fails or is slow
     console.log(`[sendInvitationEmailFlow] Attempting to send invitation to ${to}. Join URL for testing: ${joinUrl}`);
+    console.log(`[sendInvitationEmailFlow] Using Gmail Email: ${gmailEmail ? 'Loaded' : 'NOT LOADED'}, App Password: ${gmailAppPassword ? 'Loaded' : 'NOT LOADED'}`);
+
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: gmailEmail, // Use the environment variable
-        pass: gmailAppPassword, // Use the environment variable for the App Password
+        user: gmailEmail, 
+        pass: gmailAppPassword,
       },
+      logger: true, // Enable nodemailer logging for more details
+      debug: true, // Enable debug output from nodemailer
     });
 
     const mailOptions = {
@@ -68,11 +72,15 @@ const sendInvitationEmailFlow = ai.defineFlow(
 
     try {
       const info = await transporter.sendMail(mailOptions);
-      console.log('Email sent: ' + info.messageId);
+      console.log('[sendInvitationEmailFlow] Email sent successfully. Message ID: ' + info.messageId);
       return { success: true, messageId: info.messageId };
     } catch (error: any) {
-      console.error('Error sending email:', error);
-      return { success: false, error: error.message || 'Failed to send email.' };
+      console.error('[sendInvitationEmailFlow] Error sending email:', error);
+      console.error('[sendInvitationEmailFlow] Nodemailer error message:', error.message);
+      console.error('[sendInvitationEmailFlow] Nodemailer error code:', error.code);
+      console.error('[sendInvitationEmailFlow] Nodemailer full error object:', JSON.stringify(error, null, 2));
+      return { success: false, error: `Failed to send email. Nodemailer: ${error.message}` };
     }
   }
 );
+
