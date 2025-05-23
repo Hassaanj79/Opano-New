@@ -851,12 +851,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
 
   const searchAllDocuments = useCallback((query: string): Array<{ doc: Document, category: DocumentCategory }> => {
-    if (!query.trim()) return [];
-    const lowerCaseQuery = query.toLowerCase();
+    const trimmedQuery = query.trim().toLowerCase();
     const results: Array<{ doc: Document, category: DocumentCategory }> = [];
+
     documentCategories.forEach(category => {
       category.documents.forEach(doc => {
-        if (doc.name.toLowerCase().includes(lowerCaseQuery)) {
+        // If trimmedQuery is empty, include all documents.
+        // Otherwise, include if document name matches.
+        if (trimmedQuery === '' || doc.name.toLowerCase().includes(trimmedQuery)) {
           results.push({ doc, category });
         }
       });
@@ -923,3 +925,4 @@ export const useAppContext = (): AppContextType => {
 };
 
     
+
