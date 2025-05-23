@@ -34,7 +34,7 @@ export default function MoreOptionsPage() {
           </a>
         </Link>
 
-        <Link href="/documents" passHref legacyBehavior> {/* Changed link */}
+        <Link href="/documents" passHref legacyBehavior>
           <a className="block group">
             <Card className="hover:shadow-xl hover:border-primary/50 transition-all duration-200 cursor-pointer h-full flex flex-col bg-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
