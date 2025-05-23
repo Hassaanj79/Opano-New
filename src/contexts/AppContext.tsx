@@ -3,15 +3,15 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView, DocumentCategory, Document } from '@/types';
-import { 
-    mockUsers, 
-    mockChannels as initialMockChannels, 
-    mockCurrentUser, 
-    getMessagesForConversation as fetchMockMessages, 
-    updateMockMessage, 
-    mockMessages as allMockMessages, 
+import {
+    mockUsers,
+    mockChannels as initialMockChannels,
+    mockCurrentUser,
+    getMessagesForConversation as fetchMockMessages,
+    updateMockMessage,
+    mockMessages as allMockMessages,
     mockDrafts as initialMockDrafts,
-    initialDocumentCategories // Import initial document categories
+    initialDocumentCategories
 } from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { LucideIcon } from 'lucide-react';
 import * as Icons from 'lucide-react';
+import { ToastAction } from '@/components/ui/toast';
 
 
 // Define the shape of the data for updating a user profile
@@ -129,7 +130,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               variant: "destructive",
             });
           }, 0);
-          return; 
+          return;
         }
         setActiveConversationState({ type, id, name: channel.name, channel });
       }
@@ -139,14 +140,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setActiveConversationState({ type, id, name: user.name, recipient: user });
       }
     }
-    setCurrentViewState('chat'); 
-    setReplyingToMessage(null); 
+    setCurrentViewState('chat');
+    setReplyingToMessage(null);
   }, [channels, allUsersWithCurrent, currentUser.id, toast]);
 
   const setActiveSpecialView = useCallback((view: 'replies' | 'activity' | 'drafts') => {
     setCurrentViewState(view);
-    setActiveConversationState(null); 
-    setReplyingToMessage(null); 
+    setActiveConversationState(null);
+    setReplyingToMessage(null);
   }, []);
 
 
@@ -182,11 +183,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       } else if (file.type === 'application/pdf' || file.type.startsWith('text/')) {
         fileType = 'document';
       }
-      
+
       const fileUrl = (fileType === 'audio' || fileType === 'image') ? URL.createObjectURL(file) : 'https://placehold.co/200x150.png';
 
-      messageFile = { 
-        name: file.name, 
+      messageFile = {
+        name: file.name,
         url: fileUrl,
         type: fileType,
       };
@@ -207,7 +208,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } else if (activeConversation) {
         allMockMessages[activeConversation.id] = [newMessage];
     }
-    setReplyingToMessage(null); 
+    setReplyingToMessage(null);
   }, [activeConversation, currentUser.id, replyingToMessage, allUsersWithCurrent]);
 
   const addChannel = useCallback((name: string, description?: string, memberIds: string[] = [], isPrivate: boolean = false) => {
@@ -263,7 +264,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 id: `sys-add-init-${Date.now()}`,
                 userId: 'system',
                 content: addedMembersMessageContent,
-                timestamp: Date.now() + 1, 
+                timestamp: Date.now() + 1,
                 isSystemMessage: true,
             };
             allMockMessages[newChannel.id].push(addedMembersSystemMessage);
@@ -309,7 +310,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const systemMessageContent = `${currentUser.name} added ${addedUserNames.join(', ')} to ${isPrivateChannel ? 'the private channel ' : ''}#${channelName}.`;
         const systemMessage: Message = {
             id: `sys-add-${Date.now()}`,
-            userId: 'system', 
+            userId: 'system',
             content: systemMessageContent,
             timestamp: Date.now(),
             isSystemMessage: true,
@@ -393,12 +394,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       <p><a href="${joinUrl}" target="_blank">${joinUrl}</a></p>
       <p>If you did not expect this invitation, you can safely ignore this email.</p>
     `;
-    
+
     setTimeout(() => {
       toast({
         title: "Sending Invitation...",
         description: `Attempting to send an invitation email to ${email}.`,
-        duration: 5000, 
+        duration: 5000,
       });
     },0);
 
@@ -556,7 +557,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         designation: profileData.designation || prevUser.designation,
         email: profileData.email,
         phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
-        avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
+        avatarDataUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
       };
       setTimeout(() => {
         toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
@@ -600,7 +601,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const allMsgs: Message[] = Object.values(allMockMessages).flat();
     return allMsgs.filter(msg =>
       msg.content.toLowerCase().includes(`@${currentUser.name.toLowerCase()}`) &&
-      msg.userId !== currentUser.id && 
+      msg.userId !== currentUser.id &&
       !msg.isSystemMessage
     ).sort((a, b) => b.timestamp - a.timestamp);
   }, [currentUser.name, currentUser.id]);
@@ -619,7 +620,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (myMessageIds.has(msg.id) && msg.reactions) {
         Object.entries(msg.reactions).forEach(([emoji, reactorIds]) => {
           reactorIds.forEach(reactorId => {
-            if (reactorId !== currentUser.id) { 
+            if (reactorId !== currentUser.id) {
               const reactor = allUsersWithCurrent.find(u => u.id === reactorId);
               if (reactor) {
                 let convId = '';
@@ -632,7 +633,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                         const channel = channels.find(c => c.id === key);
                         if (channel) {
                             convType = 'channel';
-                            convName = channel.name; 
+                            convName = channel.name;
                         } else {
                             const user = allUsersWithCurrent.find(u => u.id === key);
                             if (user) {
@@ -649,7 +650,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   message: msg,
                   reactor,
                   emoji,
-                  timestamp: msg.timestamp, 
+                  timestamp: msg.timestamp,
                   conversationId: convId,
                   conversationType: convType,
                   conversationName: convName,
@@ -677,7 +678,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       documents: [],
     };
     setDocumentCategories(prev => [...prev, newCategory]);
-    // Update mock data store
     initialDocumentCategories.push(newCategory);
     setTimeout(() => {
       toast({ title: "Category Added", description: `Category "${name}" has been created.` });
@@ -694,18 +694,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       fileUrl: URL.createObjectURL(file),
       fileObject: file,
     };
-    setDocumentCategories(prev => prev.map(cat => 
+    setDocumentCategories(prev => prev.map(cat =>
         cat.id === categoryId ? { ...cat, documents: [...cat.documents, newDocument] } : cat
     ));
-    // Update mock data store
     const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
     if (catIndex > -1) initialDocumentCategories[catIndex].documents.push(newDocument);
-    
+
     const category = findDocumentCategoryById(categoryId);
+    const categoryName = category ? category.name : 'Unknown Category';
     setTimeout(() => {
-      toast({ title: "File Document Added", description: `"${file.name}" added to ${category?.name}.` });
-    },0);
-  }, [toast, findDocumentCategoryById]);
+        toast({
+            title: "Document Added",
+            description: `${currentUser.name} added "${newDocument.name}" to the "${categoryName}" category.`,
+            action: (
+                <ToastAction altText="View Category" onClick={() => router.push(`/documents/${categoryId}`)}>
+                    View Category
+                </ToastAction>
+            ),
+        });
+    }, 0);
+  }, [toast, findDocumentCategoryById, currentUser.name, router]);
 
   const addTextDocumentToCategory = useCallback((categoryId: string, docName: string, textContent: string) => {
     const newDocument: Document = {
@@ -716,16 +724,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       lastModified: format(new Date(), "MMM d, yyyy"),
       textContent: textContent,
     };
-    setDocumentCategories(prev => prev.map(cat => 
+    setDocumentCategories(prev => prev.map(cat =>
         cat.id === categoryId ? { ...cat, documents: [...cat.documents, newDocument] } : cat
     ));
     const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
     if (catIndex > -1) initialDocumentCategories[catIndex].documents.push(newDocument);
+
     const category = findDocumentCategoryById(categoryId);
+    const categoryName = category ? category.name : 'Unknown Category';
     setTimeout(() => {
-        toast({ title: "Text Document Created", description: `"${newDocument.name}" created in ${category?.name}.`});
+        toast({
+            title: "Document Created",
+            description: `${currentUser.name} created "${newDocument.name}" in the "${categoryName}" category.`,
+            action: (
+                <ToastAction altText="View Category" onClick={() => router.push(`/documents/${categoryId}`)}>
+                    View Category
+                </ToastAction>
+            ),
+        });
     },0);
-  }, [toast, findDocumentCategoryById]);
+  }, [toast, findDocumentCategoryById, currentUser.name, router]);
 
   const addLinkedDocumentToCategory = useCallback((categoryId: string, docName: string, docUrl: string) => {
     const newDocument: Document = {
@@ -736,21 +754,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       lastModified: format(new Date(), "MMM d, yyyy"),
       fileUrl: docUrl,
     };
-    setDocumentCategories(prev => prev.map(cat => 
+    setDocumentCategories(prev => prev.map(cat =>
         cat.id === categoryId ? { ...cat, documents: [...cat.documents, newDocument] } : cat
     ));
     const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
     if (catIndex > -1) initialDocumentCategories[catIndex].documents.push(newDocument);
+
     const category = findDocumentCategoryById(categoryId);
+    const categoryName = category ? category.name : 'Unknown Category';
     setTimeout(() => {
-        toast({ title: "External Document Linked", description: `"${newDocument.name}" linked in ${category?.name}.`});
+        toast({
+            title: "External Document Linked",
+            description: `${currentUser.name} linked "${newDocument.name}" in the "${categoryName}" category.`,
+            action: (
+                <ToastAction altText="View Category" onClick={() => router.push(`/documents/${categoryId}`)}>
+                    View Category
+                </ToastAction>
+            ),
+        });
     },0);
-  }, [toast, findDocumentCategoryById]);
+  }, [toast, findDocumentCategoryById, currentUser.name, router]);
 
   const deleteDocumentFromCategory = useCallback((categoryId: string, docId: string) => {
-    setDocumentCategories(prev => prev.map(cat => 
-        cat.id === categoryId 
-            ? { ...cat, documents: cat.documents.filter(doc => doc.id !== docId) } 
+    setDocumentCategories(prev => prev.map(cat =>
+        cat.id === categoryId
+            ? { ...cat, documents: cat.documents.filter(doc => doc.id !== docId) }
             : cat
     ));
     const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
@@ -818,3 +846,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
