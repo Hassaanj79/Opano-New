@@ -102,21 +102,23 @@ export function MessageInput() {
         setMentionQuery('');
       }
     } else {
-      setShowMentionPopover(false);
-      setMentionQuery('');
-      setMentionStartPosition(null);
+      // Only reset mention popover if not actively in slash command mode either
+      if (slashCommandStartPosition === null) {
+        setShowMentionPopover(false);
+        setMentionQuery('');
+        setMentionStartPosition(null);
+      }
     }
 
     // /share document logic
     const slashCommandIndex = textBeforeCursor.lastIndexOf(SLASH_COMMAND);
-    // Check if the cursor is at or after the `/share ` command
     if (slashCommandIndex !== -1 && cursorPosition >= slashCommandIndex + SLASH_COMMAND.length) {
         setShowMentionPopover(false); 
         setMentionQuery('');
         
         const query = textBeforeCursor.substring(slashCommandIndex + SLASH_COMMAND.length);
-        setDocSearchQuery(query); // Update query state
-        setSlashCommandStartPosition(slashCommandIndex); // Set start position
+        setDocSearchQuery(query); 
+        setSlashCommandStartPosition(slashCommandIndex); 
         
         const results = searchAllDocuments(query.trim());
         setFilteredDocsForSharing(query.trim() === '' ? results.slice(0, 5) : results);
@@ -124,11 +126,11 @@ export function MessageInput() {
         setActiveDocSearchIndex(0);
     } else {
         // If not in /share mode or cursor is before command end, hide popover
-        if (slashCommandStartPosition !== null) { // Only reset if it was previously active
+        if (slashCommandStartPosition !== null) { 
             setSlashCommandStartPosition(null);
+            setShowDocSearchPopover(false);
+            setDocSearchQuery('');
         }
-        setShowDocSearchPopover(false);
-        setDocSearchQuery('');
     }
   };
 
@@ -158,9 +160,20 @@ export function MessageInput() {
 
   const handleDocShareSelect = (docData: { doc: Document, category: DocumentCategory }) => {
     const { doc, category } = docData;
-    let shareMessage = `Shared document: "${doc.name}" from category "${category.name}".`;
     
-    addMessage(shareMessage); 
+    if (doc.docType === 'file' && doc.fileObject) {
+      addMessage(`Shared file: ${doc.name} (from category: ${category.name})`, doc.fileObject);
+    } else if (doc.docType === 'text' && doc.textContent) {
+      const shareMessage = `Shared text document: "${doc.name}" (from category: ${category.name})\n\n${doc.textContent}`;
+      addMessage(shareMessage);
+    } else if (doc.docType === 'url' && doc.fileUrl) {
+      const shareMessage = `Shared link: "${doc.name}" (from category: ${category.name})\n${doc.fileUrl}`;
+      addMessage(shareMessage);
+    } else {
+      // Fallback if doc structure is unexpected
+      addMessage(`Shared document: "${doc.name}" from category "${category.name}".`);
+    }
+    
     setMessageContent(''); 
     
     setShowDocSearchPopover(false);
@@ -405,6 +418,3 @@ export function MessageInput() {
     </Popover>
   );
 }
-    
-
-    
