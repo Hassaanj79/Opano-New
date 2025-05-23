@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Briefcase, Megaphone, Settings, PlusCircle, FileText, Edit3, Trash2 } from "lucide-react";
+import { Users, Briefcase, Megaphone, Settings, PlusCircle, FileText, Edit3, Trash2, DollarSign } from "lucide-react"; // Added DollarSign
 import Link from "next/link"; // Import Link for potential future use, though not used for navigation in this step
 
 // Define category data directly in the component for now
@@ -31,6 +31,12 @@ const documentCategories = [
     name: "Human Resources",
     description: "Employee handbook, policies, onboarding materials, and benefits information.",
     icon: Briefcase, // Using Briefcase as a proxy for HR/company-related documents
+  },
+  {
+    id: "cat5", // New category
+    name: "Sales",
+    description: "Sales scripts, pricing information, proposal templates, and CRM guides.",
+    icon: DollarSign,
   },
 ];
 
