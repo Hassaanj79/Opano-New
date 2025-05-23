@@ -156,9 +156,9 @@ export default function AttendancePage() {
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full">
+    <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
       {/* User Info Section - Top Left */}
-      <div className="w-full flex justify-start items-center p-4 mb-8 bg-background shadow-md rounded-lg">
+      <div className="w-full flex justify-start items-center p-4 mb-6 border-b border-border">
         <UserAvatar user={currentUser} className="h-10 w-10" />
         <div className="ml-3">
           <h1 className="text-lg font-semibold text-foreground">{currentUser.name}</h1>
@@ -188,7 +188,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Centered Action Buttons Section */}
-      <div className="flex flex-col gap-3 pt-6 mt-auto w-full max-w-lg mx-auto"> {/* Added mt-auto to push to bottom */}
+      <div className="flex flex-col gap-3 pt-6 mt-auto w-full max-w-lg mx-auto pb-4"> {/* Added mt-auto and pb-4 */}
         {status === 'not-clocked-in' && (
           <Button onClick={handleClockIn} size="lg" className="w-full">
             <Play className="mr-2 h-5 w-5" /> Clock In
@@ -233,3 +233,4 @@ export default function AttendancePage() {
     </div>
   );
 }
+
