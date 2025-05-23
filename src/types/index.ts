@@ -12,6 +12,7 @@ export type Channel = {
   name: string;
   memberIds: string[];
   description?: string;
+  isPrivate?: boolean; // Added for lock icon
 };
 
 export type MessageFile = {
@@ -26,6 +27,7 @@ export type Message = {
   content: string;
   timestamp: number; // Unix timestamp
   file?: MessageFile;
+  reactions?: { [emoji: string]: string[] }; // userId array for who reacted
 };
 
 export type ActiveConversation = {
