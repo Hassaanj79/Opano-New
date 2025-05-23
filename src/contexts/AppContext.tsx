@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { User, Channel, Message, ActiveConversation, PendingInvitation } from '@/types';
-import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages } from '@/lib/mock-data'; // Added mockMessages to import
+import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages } from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,7 @@ export type UserProfileUpdateData = {
   designation?: string;
   email: string;
   phoneNumber?: string;
+  avatarDataUrl?: string; // Added for new avatar data
 };
 
 interface AppContextType {
@@ -41,7 +42,7 @@ interface AppContextType {
   deleteMessage: (messageId: string) => void;
   addMembersToChannel: (channelId: string, userIdsToAdd: string[]) => void;
   toggleCurrentUserStatus: () => void;
-  updateUserProfile: (profileData: UserProfileUpdateData) => void; // New
+  updateUserProfile: (profileData: UserProfileUpdateData) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -60,14 +61,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    // Ensure currentUser from state is used to filter/update other user lists
     const updatedOtherUsers = mockUsers.filter(u => u.id !== currentUser.id);
     const updatedAllUsers = mockUsers.map(u => u.id === currentUser.id ? currentUser : u);
     
     setUsers(updatedOtherUsers);
     setAllUsersWithCurrent(updatedAllUsers);
   
-    // Update mockUsers array in mock-data.ts if currentUser changed (e.g., from profile edit)
     const mockUserIndex = mockUsers.findIndex(u => u.id === currentUser.id);
     if (mockUserIndex !== -1) {
       mockUsers[mockUserIndex] = currentUser;
@@ -278,8 +277,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     mockUsers.push(newUser);
-    // The useEffect hook listening to currentUser will update 'users' and 'allUsersWithCurrent'
-    // For immediate UI update before potential re-renders, you might directly call:
     setUsers(prevUsers => [...prevUsers, newUser]);
     setAllUsersWithCurrent(prevAll => [...prevAll, newUser]);
 
@@ -348,7 +345,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setCurrentUser(prevUser => {
       const newStatus = !prevUser.isOnline;
       const updatedCurrentUser = { ...prevUser, isOnline: newStatus };
-      // The useEffect hook will handle updating mockUsers and allUsersWithCurrent
       toast({
         title: "Status Updated",
         description: `You are now ${newStatus ? 'Online' : 'Away'}.`,
@@ -361,10 +357,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setCurrentUser(prevUser => {
       const updatedUser = {
         ...prevUser,
-        ...profileData,
-        avatarUrl: `https://placehold.co/40x40.png?text=${profileData.name.substring(0,2).toUpperCase()}`, // Update avatar too
+        name: profileData.name,
+        designation: profileData.designation || prevUser.designation,
+        email: profileData.email,
+        phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
+        avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl, // Use new dataUrl if provided
       };
-       // The useEffect hook will handle updating mockUsers and allUsersWithCurrent
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
       return updatedUser;
     });
@@ -407,7 +405,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       editMessage,
       deleteMessage,
       toggleCurrentUserStatus,
-      updateUserProfile, // Add new function
+      updateUserProfile,
     }}>
       {children}
     </AppContext.Provider>

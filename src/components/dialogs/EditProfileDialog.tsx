@@ -1,7 +1,8 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +27,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { UserAvatar } from '@/components/UserAvatar'; // For preview
+import { useToast } from '@/hooks/use-toast';
 
 interface EditProfileDialogProps {
   isOpen: boolean;
@@ -37,18 +40,24 @@ const profileFormSchema = z.object({
   designation: z.string().max(50, { message: "Designation must be 50 characters or less."}).optional().or(z.literal('')),
   email: z.string().email({ message: "Invalid email address." }),
   phoneNumber: z.string().max(20, { message: "Phone number must be 20 characters or less."}).optional().or(z.literal('')),
+  avatarDataUrl: z.string().optional(), // For storing the data URL of the new avatar
 });
+
+type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogProps) {
   const { currentUser, updateUserProfile } = useAppContext();
+  const { toast } = useToast();
+  const [avatarPreview, setAvatarPreview] = useState<string | undefined>(currentUser?.avatarUrl);
 
-  const form = useForm<UserProfileUpdateData>({
+  const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: '',
       designation: '',
       email: '',
       phoneNumber: '',
+      avatarDataUrl: '',
     },
   });
 
@@ -59,17 +68,49 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
         designation: currentUser.designation || '',
         email: currentUser.email,
         phoneNumber: currentUser.phoneNumber || '',
+        avatarDataUrl: currentUser.avatarUrl || '', // Initialize with current avatar
       });
+      setAvatarPreview(currentUser.avatarUrl);
     }
   }, [currentUser, isOpen, form]);
 
-  const onSubmit = (data: UserProfileUpdateData) => {
-    updateUserProfile(data);
-    onOpenChange(false); // Close dialog on successful submit
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setAvatarPreview(dataUrl);
+        form.setValue('avatarDataUrl', dataUrl); // Set the data URL in the form
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onSubmit = (data: ProfileFormValues) => {
+    const updateData: UserProfileUpdateData = {
+      name: data.name,
+      designation: data.designation,
+      email: data.email,
+      phoneNumber: data.phoneNumber,
+      avatarDataUrl: data.avatarDataUrl !== currentUser?.avatarUrl ? data.avatarDataUrl : undefined, // Only pass if changed
+    };
+    updateUserProfile(updateData);
+    onOpenChange(false); 
   };
 
   const handleDialogClose = () => {
-    form.reset(); // Reset form when dialog is closed without submitting
+    // Reset preview and form when dialog is closed
+    if (currentUser) {
+        setAvatarPreview(currentUser.avatarUrl);
+        form.reset({
+            name: currentUser.name,
+            designation: currentUser.designation || '',
+            email: currentUser.email,
+            phoneNumber: currentUser.phoneNumber || '',
+            avatarDataUrl: currentUser.avatarUrl || '',
+        });
+    }
     onOpenChange(false);
   };
 
@@ -81,10 +122,25 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
             <DialogHeader>
               <DialogTitle>Edit Profile</DialogTitle>
               <DialogDescription>
-                Update your personal information.
+                Update your personal information and profile picture.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              <FormItem>
+                <FormLabel>Profile Picture</FormLabel>
+                <div className="flex items-center gap-4">
+                  <UserAvatar user={{...currentUser, avatarUrl: avatarPreview}} className="h-16 w-16" />
+                  <Input
+                    id="avatarUpload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="text-sm file:mr-2 file:py-1.5 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                  />
+                </div>
+                <FormMessage>{/* For potential avatar-related errors if needed */}</FormMessage>
+              </FormItem>
+
               <FormField
                 control={form.control}
                 name="name"
