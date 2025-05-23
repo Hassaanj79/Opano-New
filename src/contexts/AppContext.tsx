@@ -28,7 +28,7 @@ interface AppContextType {
   setActiveConversation: (type: 'channel' | 'dm', id: string) => void;
   messages: Message[];
   addMessage: (content: string, file?: File) => void;
-  addChannel: (name: string, description?: string, memberIds?: string[]) => void;
+  addChannel: (name: string, description?: string, memberIds?: string[], isPrivate?: boolean) => void;
   currentSummary: string | null;
   isLoadingSummary: boolean;
   generateSummary: (channelId: string) => Promise<void>;
@@ -96,6 +96,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (type === 'channel') {
       const channel = channels.find(c => c.id === id);
       if (channel) {
+        if (channel.isPrivate && !channel.memberIds.includes(currentUser.id)) {
+          setTimeout(() => {
+            toast({
+              title: "Access Denied",
+              description: `You are not a member of the private channel #${channel.name}.`,
+              variant: "destructive",
+            });
+          }, 0);
+          return; // Do not set active conversation
+        }
         setActiveConversationState({ type, id, name: channel.name, channel });
       }
     } else {
@@ -106,7 +116,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     setCurrentViewState('chat'); // Ensure view is 'chat' when a conversation is selected
     setReplyingToMessage(null); // Clear reply context when changing conversation
-  }, [channels, allUsersWithCurrent]);
+  }, [channels, allUsersWithCurrent, currentUser.id, toast]);
 
   const setActiveSpecialView = useCallback((view: 'replies' | 'activity' | 'drafts') => {
     setCurrentViewState(view);
@@ -154,12 +164,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setReplyingToMessage(null); // Clear reply context after sending
   }, [activeConversation, currentUser.id, replyingToMessage, allUsersWithCurrent]);
 
-  const addChannel = useCallback((name: string, description?: string, memberIds: string[] = []) => {
+  const addChannel = useCallback((name: string, description?: string, memberIds: string[] = [], isPrivate: boolean = false) => {
     const newChannel: Channel = {
       id: `c${Date.now()}`,
       name,
       description: description || '',
       memberIds: Array.from(new Set([currentUser.id, ...memberIds])),
+      isPrivate,
     };
     setChannels(prevChannels => {
       const updatedChannels = [...prevChannels, newChannel];
@@ -467,7 +478,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setCurrentUser(prevUser => {
       const newStatus = !prevUser.isOnline;
       const updatedCurrentUser = { ...prevUser, isOnline: newStatus };
-      // Defer the toast call
       setTimeout(() => {
         toast({
           title: "Status Updated",
