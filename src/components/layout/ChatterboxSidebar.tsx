@@ -10,37 +10,34 @@ import {
   SidebarGroupLabel,
   SidebarSeparator,
   SidebarGroupAction,
-  SidebarInput, // Import SidebarInput
+  SidebarInput,
 } from '@/components/ui/sidebar';
 import { ChannelList } from './ChannelList';
 import { DirectMessageList } from './DirectMessageList';
-import { ChatterboxLogo } from '@/components/ChatterboxLogo';
+import { OpanoLogo } from '@/components/OpanoLogo'; // Changed from ChatterboxLogo
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Settings, PlusCircle, UserPlus, Search } from 'lucide-react'; // Added UserPlus
+import { Settings, PlusCircle, UserPlus, Search } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
 
-export function ChatterboxSidebar() {
+export function ChatterboxSidebar() { // Component name remains for now, internal logo changes
   const { currentUser } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(''); // State for search
+  const [searchTerm, setSearchTerm] = useState('');
 
   return (
     <>
       <Sidebar collapsible="icon" side="left" variant="sidebar" className="border-r border-sidebar-border">
         <SidebarHeader className="p-3 border-b border-sidebar-border">
-          {/* In the image, the logo/workspace name is part of the top-left elements, not a large header */}
-          {/* For now, let's keep ChatterboxLogo compact, or consider replacing with icon-only for collapsed state */}
           <div className="flex items-center justify-between w-full group-data-[collapsible=icon]:justify-center">
-             <ChatterboxLogo /> {/* This will show Chatterbox, image implies workspace name like "Loopz" */}
+             <OpanoLogo /> 
           </div>
         </SidebarHeader>
 
         <SidebarContent className="p-0">
-          {/* Search Bar - Mimicking the image */}
           <div className="p-3 space-y-2">
             <div className="relative group-data-[collapsible=icon]:hidden">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -52,13 +49,9 @@ export function ChatterboxSidebar() {
               />
             </div>
           </div>
-
-          {/* The image has "Replies, Activity, Drafts, More". We don't have these features yet. */}
-          {/* For now, focusing on Channels & DMs */}
           
           <SidebarGroup className="pt-0">
             <div className="flex items-center justify-between w-full px-2">
-              {/* Image shows workspace name "Loopz" here. We can use SidebarGroupLabel or a custom component */}
               <SidebarGroupLabel className="text-xs font-semibold uppercase text-foreground/70 group-data-[collapsible=icon]:hidden">
                 Channels
               </SidebarGroupLabel>
@@ -80,10 +73,6 @@ export function ChatterboxSidebar() {
                 <SidebarGroupLabel className="text-xs font-semibold uppercase text-foreground/70 group-data-[collapsible=icon]:hidden">
                     Direct Messages
                 </SidebarGroupLabel>
-                {/* Optional: Plus button for new DM, not explicitly in image for DMs but common */}
-                {/* <SidebarGroupAction aria-label="New direct message" className="text-muted-foreground hover:text-primary">
-                    <PlusCircle className="h-4 w-4" />
-                </SidebarGroupAction> */}
             </div>
             <DirectMessageList />
           </SidebarGroup>

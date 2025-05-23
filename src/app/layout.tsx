@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Chatterbox',
-  description: 'Real-time messaging and collaboration app.',
+  title: 'Opano', // Changed from Chatterbox
+  description: 'Real-time messaging and collaboration app.', // Kept description general
 };
 
 export default function RootLayout({

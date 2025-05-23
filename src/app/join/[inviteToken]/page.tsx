@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PendingInvitation } from '@/types';
-import { ChatterboxLogo } from '@/components/ChatterboxLogo';
+import { OpanoLogo } from '@/components/OpanoLogo'; // Changed from ChatterboxLogo
 import { useToast } from '@/hooks/use-toast';
 
 export default function JoinPage() {
@@ -67,7 +67,7 @@ export default function JoinPage() {
         <Card className="w-full max-w-md">
           <CardHeader>
             <div className="mx-auto mb-4">
-             <ChatterboxLogo />
+             <OpanoLogo />
             </div>
             <CardTitle className="text-center">Verifying Invitation...</CardTitle>
           </CardHeader>
@@ -85,7 +85,7 @@ export default function JoinPage() {
         <Card className="w-full max-w-md">
           <CardHeader>
              <div className="mx-auto mb-4">
-                <ChatterboxLogo />
+                <OpanoLogo />
              </div>
             <CardTitle className="text-center">Invitation Error</CardTitle>
           </CardHeader>
@@ -106,9 +106,9 @@ export default function JoinPage() {
         <form onSubmit={handleSubmit}>
           <CardHeader>
              <div className="mx-auto mb-4">
-                <ChatterboxLogo />
+                <OpanoLogo />
              </div>
-            <CardTitle className="text-center">Join Chatterbox</CardTitle>
+            <CardTitle className="text-center">Join Opano</CardTitle> 
             <CardDescription className="text-center">
               You've been invited to join the workspace. Please complete your profile.
             </CardDescription>

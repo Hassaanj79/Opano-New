@@ -5,7 +5,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import type { User, Channel, Message, ActiveConversation, PendingInvitation } from '@/types';
 import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages } from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
-import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow'; // Import the new flow
+import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation'; 
 
@@ -22,7 +22,7 @@ interface AppContextType {
   isLoadingSummary: boolean;
   generateSummary: (channelId: string) => Promise<void>;
   clearSummary: () => void;
-  sendInvitation: (email: string) => Promise<string | null>; // Updated to Promise
+  sendInvitation: (email: string) => Promise<string | null>;
   verifyInviteToken: (token: string) => PendingInvitation | null;
   acceptInvitation: (token: string, userDetails: { name: string; designation: string }) => boolean;
   pendingInvitations: PendingInvitation[];
@@ -135,10 +135,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setPendingInvitations(prev => [...prev, newInvitation]);
     
     const joinUrl = `${window.location.origin}/join/${token}`;
-    const emailSubject = "You're invited to join Chatterbox!";
+    const emailSubject = "You're invited to join Opano!"; // Changed from Chatterbox
     const emailHtmlBody = `
-      <h1>Welcome to Chatterbox!</h1>
-      <p>You've been invited to join the Chatterbox workspace.</p>
+      <h1>Welcome to Opano!</h1>
+      <p>You've been invited to join the Opano workspace.</p>
       <p>Please click the link below to complete your registration:</p>
       <p><a href="${joinUrl}" target="_blank">${joinUrl}</a></p>
       <p>If you did not expect this invitation, you can safely ignore this email.</p>
@@ -155,7 +155,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         to: email,
         subject: emailSubject,
         htmlBody: emailHtmlBody,
-        joinUrl: joinUrl, // Pass joinUrl to flow for console logging
+        joinUrl: joinUrl, 
       });
 
       if (emailResult.success) {
@@ -209,7 +209,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setAllUsersWithCurrent(prevAll => [...prevAll, newUser]);
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
 
-    toast({ title: "Welcome to Chatterbox!", description: `User ${newUser.name} has joined the workspace.` });
+    toast({ title: "Welcome to Opano!", description: `User ${newUser.name} has joined the workspace.` }); // Changed from Chatterbox
     router.push('/');
     return true;
   }, [verifyInviteToken, toast, router, setUsers, setAllUsersWithCurrent, setPendingInvitations]);

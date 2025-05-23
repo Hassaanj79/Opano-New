@@ -48,7 +48,6 @@ const sendInvitationEmailFlow = ai.defineFlow(
       return { success: false, error: 'Server configuration error: Email credentials missing or not accessible.' };
     }
     
-    // For development, log the join URL to console for easy access if email fails or is slow
     console.log(`[sendInvitationEmailFlow] Attempting to send invitation to ${to}. Join URL for testing: ${joinUrl}`);
     console.log(`[sendInvitationEmailFlow] Using Gmail Email: ${gmailEmail ? 'Loaded' : 'NOT LOADED'}, App Password: ${gmailAppPassword ? 'Loaded' : 'NOT LOADED'}`);
 
@@ -59,12 +58,12 @@ const sendInvitationEmailFlow = ai.defineFlow(
         user: gmailEmail, 
         pass: gmailAppPassword,
       },
-      logger: true, // Enable nodemailer logging for more details
-      debug: true, // Enable debug output from nodemailer
+      logger: true, 
+      debug: true, 
     });
 
     const mailOptions = {
-      from: `"Chatterbox App" <${gmailEmail}>`,
+      from: `"Opano App" <${gmailEmail}>`, // Changed from Chatterbox
       to: to,
       subject: subject,
       html: htmlBody,
@@ -83,4 +82,3 @@ const sendInvitationEmailFlow = ai.defineFlow(
     }
   }
 );
-
