@@ -3,7 +3,7 @@
 import React, { useState, useRef, type ChangeEvent, type KeyboardEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Paperclip, SendHorizonal, SmilePlus } from 'lucide-react';
+import { Paperclip, SendHorizonal, SmilePlus, X } from 'lucide-react'; // Added X for cancel reply
 import { useAppContext } from '@/contexts/AppContext';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/components/ui/popover';
@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 
 export function MessageInput() {
   const [messageContent, setMessageContent] = useState('');
-  const { users, currentUser, addMessage, activeConversation } = useAppContext();
+  const { users, currentUser, addMessage, activeConversation, replyingToMessage, setReplyingToMessage, allUsersWithCurrent } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -24,11 +24,24 @@ export function MessageInput() {
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const [mentionStartPosition, setMentionStartPosition] = useState<number | null>(null);
 
+  // Focus textarea when replyingToMessage changes (and is not null)
+  useEffect(() => {
+    if (replyingToMessage && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [replyingToMessage]);
+
+
   const handleSendMessage = () => {
     if (messageContent.trim() === '' || !activeConversation) return;
     addMessage(messageContent.trim());
     setMessageContent('');
-    setShowMentionPopover(false); // Close popover on send
+    setShowMentionPopover(false); 
+    // setReplyingToMessage(null); // AppContext's addMessage will handle this
+  };
+
+  const handleCancelReply = () => {
+    setReplyingToMessage(null);
   };
 
   const handleInputChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -38,8 +51,6 @@ export function MessageInput() {
     const cursorPosition = event.target.selectionStart;
     const textBeforeCursor = text.substring(0, cursorPosition);
     
-    // Regex to find @mention at the current cursor position or word boundary
-    // Matches "@" followed by word characters, potentially at the end of the string or followed by non-word char
     const atMatch = textBeforeCursor.match(/@(\w*)$/);
 
     if (atMatch) {
@@ -50,9 +61,9 @@ export function MessageInput() {
         setMentionStartPosition(startPos);
         setMentionQuery(query);
 
-        const mentionableUsers = users.filter(u => u.id !== currentUser.id); // users from context already excludes current user
+        const mentionableUsers = users.filter(u => u.id !== currentUser.id); 
         const filtered = mentionableUsers.filter(user =>
-          user.name.toLowerCase().includes(query.toLowerCase()) && query.length > 0 // Only show if query has text
+          user.name.toLowerCase().includes(query.toLowerCase()) && query.length > 0
         );
 
         if (filtered.length > 0) {
@@ -76,7 +87,6 @@ export function MessageInput() {
 
     const currentText = messageContent;
     const textBeforeMention = currentText.substring(0, mentionStartPosition);
-    // Calculate the end of the @query part accurately
     const endOfMentionQuery = mentionStartPosition + 1 + mentionQuery.length;
     const textAfterMentionQuery = currentText.substring(endOfMentionQuery);
     
@@ -87,12 +97,10 @@ export function MessageInput() {
     setMentionQuery('');
     setMentionStartPosition(null);
     
-    // Set focus and cursor position after the inserted mention
-    // Needs to be deferred to allow React to update the textarea value
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
-        const newCursorPos = mentionStartPosition + 1 + user.name.length + 1; // after @, name, and the trailing space
+        const newCursorPos = mentionStartPosition + 1 + user.name.length + 1; 
         textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
       }
     }, 0);
@@ -119,6 +127,9 @@ export function MessageInput() {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         handleSendMessage();
+      } else if (event.key === 'Escape' && replyingToMessage) {
+        event.preventDefault();
+        handleCancelReply();
       }
     }
   };
@@ -141,9 +152,23 @@ export function MessageInput() {
     return null;
   }
 
+  const originalReplySenderName = replyingToMessage ? allUsersWithCurrent.find(u => u.id === replyingToMessage.userId)?.name : '';
+
   return (
     <Popover open={showMentionPopover} onOpenChange={setShowMentionPopover}>
       <div className="p-3 border-t border-border bg-background relative">
+        {replyingToMessage && (
+          <div className="flex items-center justify-between p-1.5 mb-1.5 text-xs text-muted-foreground bg-muted/50 rounded-md border border-input">
+            <div className="truncate">
+              Replying to <span className="font-medium text-foreground/80">{originalReplySenderName || 'Unknown User'}</span>: 
+              <em className="ml-1 opacity-80">"{replyingToMessage.content.substring(0,50) + (replyingToMessage.content.length > 50 ? '...' : '')}"</em>
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleCancelReply} className="h-6 w-6 text-muted-foreground hover:text-destructive">
+              <X className="h-3.5 w-3.5" />
+              <span className="sr-only">Cancel reply</span>
+            </Button>
+          </div>
+        )}
         <PopoverAnchor asChild>
           <div className="flex items-center gap-2 rounded-lg border border-input p-1.5 focus-within:ring-1 focus-within:ring-ring bg-card">
             <Button type="button" variant="ghost" size="icon" onClick={handleAttachClick} className="text-muted-foreground hover:text-primary h-8 w-8">
@@ -184,14 +209,14 @@ export function MessageInput() {
         </PopoverAnchor>
         {showMentionPopover && filteredMentionUsers.length > 0 && (
           <PopoverContent
-            className="p-1 w-[250px] max-h-60 overflow-y-auto" // Adjust width as needed
+            className="p-1 w-[250px] max-h-60 overflow-y-auto"
             side="top"
             align="start"
-            sideOffset={5}
-            onOpenAutoFocus={(e) => e.preventDefault()} // Prevent focus stealing
-            onCloseAutoFocus={(e) => e.preventDefault()} // Prevent refocusing textarea immediately if not desired
+            sideOffset={replyingToMessage ? 60 : 5} // Adjust offset if reply context is shown
+            onOpenAutoFocus={(e) => e.preventDefault()} 
+            onCloseAutoFocus={(e) => e.preventDefault()} 
           >
-            <ScrollArea className="h-auto max-h-56"> {/* Max height for scroll */}
+            <ScrollArea className="h-auto max-h-56"> 
               <div className="space-y-0.5">
                 {filteredMentionUsers.map((user, index) => (
                   <Button
@@ -202,7 +227,7 @@ export function MessageInput() {
                       index === activeMentionIndex ? "bg-accent text-accent-foreground" : ""
                     )}
                     onClick={() => handleMentionSelect(user)}
-                    onMouseMove={() => setActiveMentionIndex(index)} // Highlight on mouse hover
+                    onMouseMove={() => setActiveMentionIndex(index)} 
                   >
                     <UserAvatar user={user} className="h-6 w-6 mr-2" />
                     <div className="flex flex-col">

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Home, Clock, Folder, MoreHorizontal } from 'lucide-react'; // Changed FileText to Folder, added MoreHorizontal
+import { Home, Clock, Folder, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -9,9 +9,9 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
   { href: '#/history', icon: Clock, label: 'History' },
-  { href: '#/documents', icon: Folder, label: 'Documents' }, // Changed icon
+  { href: '#/documents', icon: Folder, label: 'Documents' },
 ];
-
+// Added Clock icon to the navigation items
 const moreNavItem = { href: '#/more-options', icon: MoreHorizontal, label: 'More Options' }; // New "More" item
 
 export function ThinIconBar() {
@@ -24,7 +24,7 @@ export function ThinIconBar() {
         <YourAppIcon className="w-8 h-8 text-primary" />
       </div> */}
       <nav className="flex flex-col items-center space-y-1 w-full flex-grow">
-        {navItems.map((item) => (
+        {[...navItems, { href: '#/clock', icon: Clock, label: 'Clock' }].map((item) => (
           <Link href={item.href} key={item.label} passHref legacyBehavior>
             <a
               className={cn(

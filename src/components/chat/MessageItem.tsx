@@ -5,21 +5,21 @@ import { useAppContext } from '@/contexts/AppContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, ImageIcon, Smile, MoreHorizontal, Edit3, Trash2, ThumbsUp, Heart, Brain, PartyPopper, AlertCircle, Users } from 'lucide-react'; 
+import { FileText, ImageIcon, Smile, MoreHorizontal, Edit3, Trash2, ThumbsUp, Heart, Brain, PartyPopper, AlertCircle, Users, MessageSquareReply, Reply } from 'lucide-react'; 
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Textarea } from '../ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { UserProfilePopover } from './UserProfilePopover'; // Import the new component
+import { UserProfilePopover } from './UserProfilePopover';
 
 interface MessageItemProps {
   message: Message;
 }
 
 export function MessageItem({ message }: MessageItemProps) {
-  const { users, currentUser, toggleReaction, editMessage, deleteMessage } = useAppContext();
+  const { users, currentUser, toggleReaction, editMessage, deleteMessage, setReplyingToMessage, allUsersWithCurrent } = useAppContext();
   
 
   if (message.isSystemMessage) {
@@ -32,7 +32,7 @@ export function MessageItem({ message }: MessageItemProps) {
     );
   }
 
-  const sender = users.find(u => u.id === message.userId) || (message.userId === currentUser.id ? currentUser : undefined);
+  const sender = allUsersWithCurrent.find(u => u.id === message.userId);
   const isCurrentUserSender = sender?.id === currentUser.id;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -73,9 +73,12 @@ export function MessageItem({ message }: MessageItemProps) {
   };
   
   const handleDelete = () => {
-    // Confirmation dialog could be added here
     deleteMessage(message.id);
     toast({ title: "Message Deleted" });
+  };
+
+  const handleReply = () => {
+    setReplyingToMessage(message);
   };
 
   const avatarElement = <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />;
@@ -90,7 +93,7 @@ export function MessageItem({ message }: MessageItemProps) {
           {avatarElement}
         </UserProfilePopover>
       )}
-      {!isCurrentUserSender && !sender && avatarElement} {/* Fallback if sender is somehow undefined */}
+      {!isCurrentUserSender && !sender && avatarElement}
       
       <div className={cn(
         "flex flex-col max-w-[70%]",
@@ -103,6 +106,19 @@ export function MessageItem({ message }: MessageItemProps) {
           </div>
         )}
         
+        {message.replyToMessageId && message.originalMessageSenderName && message.originalMessageContent && !isEditing && (
+          <div className={cn(
+            "relative text-xs w-full mb-1 p-1.5 rounded-md border-l-2 border-primary bg-primary/5 text-muted-foreground shadow-sm",
+            isCurrentUserSender ? "bg-user-message-background/10" : "bg-other-message-background/30"
+          )}>
+            <div className="flex items-center gap-1">
+              <Reply className="h-3 w-3 shrink-0" />
+              <span className="font-medium text-foreground/80">{message.originalMessageSenderName}</span>
+            </div>
+            <p className="pl-4 truncate opacity-80">{message.originalMessageContent}</p>
+          </div>
+        )}
+
         <div className={cn(
           "relative rounded-lg px-3 py-2 text-sm shadow-sm w-full",
           isCurrentUserSender 
@@ -164,7 +180,6 @@ export function MessageItem({ message }: MessageItemProps) {
             </>
           )}
 
-          {/* Hover actions - shown on group hover, not when editing */}
           {!isEditing && (
             <div className={cn(
                 "absolute top-[-12px] opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 p-0.5 rounded-full border bg-background shadow-sm",
@@ -188,6 +203,9 @@ export function MessageItem({ message }: MessageItemProps) {
                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" aria-label="Add reaction with emoji picker">
                     <Smile className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
+                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={handleReply} aria-label="Reply to message">
+                    <MessageSquareReply className="h-3.5 w-3.5 text-muted-foreground"/>
+                </Button>
                 {isCurrentUserSender && (
                   <>
                     <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={handleEdit} aria-label="Edit message">
@@ -202,7 +220,6 @@ export function MessageItem({ message }: MessageItemProps) {
           )}
         </div>
 
-        {/* Reactions display */}
         {message.reactions && Object.keys(message.reactions).length > 0 && !isEditing && (
             <div className={cn(
                 "flex gap-1 mt-1 flex-wrap", 
@@ -235,9 +252,8 @@ export function MessageItem({ message }: MessageItemProps) {
         )}
       </div>
       {isCurrentUserSender && (
-         avatarElement // Show current user's avatar without popover
+         avatarElement 
       )}
     </div>
   );
 }
-

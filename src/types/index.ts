@@ -32,6 +32,9 @@ export type Message = {
   reactions?: { [emoji: string]: string[] }; // emoji: array of userIds
   isEdited?: boolean; // To indicate if a message was edited
   isSystemMessage?: boolean; // Added for system messages
+  replyToMessageId?: string; // ID of the message this is a reply to
+  originalMessageSenderName?: string; // Name of the sender of the original message
+  originalMessageContent?: string; // Snippet of the original message content
 };
 
 export type ActiveConversation = {

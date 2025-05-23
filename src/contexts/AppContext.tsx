@@ -47,10 +47,13 @@ interface AppContextType {
   currentView: CurrentView;
   setActiveSpecialView: (view: 'replies' | 'activity' | 'drafts') => void;
   drafts: Draft[];
-  deleteDraft: (draftId: string) => void; // Added deleteDraft
+  deleteDraft: (draftId: string) => void;
   replies: Message[];
   activities: ActivityItem[];
   getConversationName: (conversationId: string, conversationType: 'channel' | 'dm') => string;
+
+  replyingToMessage: Message | null;
+  setReplyingToMessage: React.Dispatch<React.SetStateAction<Message | null>>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -70,6 +73,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const [currentView, setCurrentViewState] = useState<CurrentView>('chat');
   const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts);
+  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
 
 
   useEffect(() => {
@@ -101,11 +105,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     setCurrentViewState('chat'); // Ensure view is 'chat' when a conversation is selected
+    setReplyingToMessage(null); // Clear reply context when changing conversation
   }, [channels, allUsersWithCurrent]);
 
   const setActiveSpecialView = useCallback((view: 'replies' | 'activity' | 'drafts') => {
     setCurrentViewState(view);
     setActiveConversationState(null); // Clear active chat when switching to a special view
+    setReplyingToMessage(null); // Clear reply context
   }, []);
 
 
@@ -120,6 +126,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addMessage = useCallback((content: string, file?: File) => {
     if (!activeConversation) return;
+
+    let replyData: Partial<Message> = {};
+    if (replyingToMessage) {
+      const originalSender = allUsersWithCurrent.find(u => u.id === replyingToMessage.userId);
+      replyData = {
+        replyToMessageId: replyingToMessage.id,
+        originalMessageSenderName: originalSender?.name || "Unknown User",
+        originalMessageContent: replyingToMessage.content.substring(0, 70) + (replyingToMessage.content.length > 70 ? "..." : ""),
+      };
+    }
+
     const newMessage: Message = {
       id: `m${Date.now()}`,
       userId: currentUser.id,
@@ -127,13 +144,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       timestamp: Date.now(),
       file: file ? { name: file.name, url: 'https://placehold.co/200x150.png', type: file.type.startsWith('image/') ? 'image' : 'document' } : undefined,
       reactions: {},
+      ...replyData,
     };
     setMessages(prevMessages => [...prevMessages, newMessage]);
     if (activeConversation) {
         const currentMockMessages = mockMessages[activeConversation.id] || [];
         mockMessages[activeConversation.id] = [...currentMockMessages, newMessage];
     }
-  }, [activeConversation, currentUser.id]);
+    setReplyingToMessage(null); // Clear reply context after sending
+  }, [activeConversation, currentUser.id, replyingToMessage, allUsersWithCurrent]);
 
   const addChannel = useCallback((name: string, description?: string, memberIds: string[] = []) => {
     const newChannel: Channel = {
@@ -447,7 +466,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteDraft = useCallback((draftId: string) => {
     setDrafts(prevDrafts => prevDrafts.filter(draft => draft.id !== draftId));
-    // Also update the mockDrafts array in mock-data.ts for "persistence"
     const draftIndex = initialMockDrafts.findIndex(d => d.id === draftId);
     if (draftIndex > -1) {
       initialMockDrafts.splice(draftIndex, 1);
@@ -479,7 +497,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const allMsgs: Message[] = Object.values(mockMessages).flat();
     return allMsgs.filter(msg =>
       msg.content.toLowerCase().includes(`@${currentUser.name.toLowerCase()}`) &&
-      msg.userId !== currentUser.id && // Don't show self-mentions as replies from others
+      msg.userId !== currentUser.id && 
       !msg.isSystemMessage
     ).sort((a, b) => b.timestamp - a.timestamp);
   }, [currentUser.name, currentUser.id]);
@@ -498,10 +516,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (myMessageIds.has(msg.id) && msg.reactions) {
         Object.entries(msg.reactions).forEach(([emoji, reactorIds]) => {
           reactorIds.forEach(reactorId => {
-            if (reactorId !== currentUser.id) { // Reaction from someone else
+            if (reactorId !== currentUser.id) { 
               const reactor = allUsersWithCurrent.find(u => u.id === reactorId);
               if (reactor) {
-                // Find which conversation this message belongs to
                 let convId = '';
                 let convType: 'channel' | 'dm' = 'channel';
                 let convName = 'Unknown Conversation';
@@ -512,7 +529,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                         const channel = channels.find(c => c.id === key);
                         if (channel) {
                             convType = 'channel';
-                            convName = channel.name; // Just name, not #name
+                            convName = channel.name; 
                         } else {
                             const user = allUsersWithCurrent.find(u => u.id === key);
                             if (user) {
@@ -529,7 +546,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   message: msg,
                   reactor,
                   emoji,
-                  timestamp: msg.timestamp, // Could be more specific if reactions had timestamps
+                  timestamp: msg.timestamp, 
                   conversationId: convId,
                   conversationType: convType,
                   conversationName: convName,
@@ -573,10 +590,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       currentView,
       setActiveSpecialView,
       drafts,
-      deleteDraft, // Expose deleteDraft
+      deleteDraft,
       replies,
       activities,
       getConversationName,
+      replyingToMessage,
+      setReplyingToMessage,
     }}>
       {children}
     </AppContext.Provider>
@@ -590,4 +609,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
