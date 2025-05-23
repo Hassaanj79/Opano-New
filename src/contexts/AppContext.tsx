@@ -77,6 +77,7 @@ interface AppContextType {
   addLinkedDocumentToCategory: (categoryId: string, docName: string, docUrl: string) => void;
   deleteDocumentFromCategory: (categoryId: string, docId: string) => void;
   findDocumentCategoryById: (categoryId: string) => DocumentCategory | undefined;
+  searchAllDocuments: (query: string) => Array<{ doc: Document, category: DocumentCategory }>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -849,6 +850,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     },0);
   }, [toast]);
 
+  const searchAllDocuments = useCallback((query: string): Array<{ doc: Document, category: DocumentCategory }> => {
+    if (!query.trim()) return [];
+    const lowerCaseQuery = query.toLowerCase();
+    const results: Array<{ doc: Document, category: DocumentCategory }> = [];
+    documentCategories.forEach(category => {
+      category.documents.forEach(doc => {
+        if (doc.name.toLowerCase().includes(lowerCaseQuery)) {
+          results.push({ doc, category });
+        }
+      });
+    });
+    return results;
+  }, [documentCategories]);
+
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -892,6 +907,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addLinkedDocumentToCategory,
       deleteDocumentFromCategory,
       findDocumentCategoryById,
+      searchAllDocuments,
     }}>
       {children}
     </AppContext.Provider>
@@ -905,3 +921,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    

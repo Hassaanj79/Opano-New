@@ -3,11 +3,11 @@
 import React, { useState, useRef, type ChangeEvent, type KeyboardEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Paperclip, SendHorizonal, SmilePlus, X, Mic, StopCircle } from 'lucide-react'; // Added Mic, StopCircle
+import { Paperclip, SendHorizonal, SmilePlus, X, Mic, StopCircle, FileText, Link as LinkIcon } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/components/ui/popover';
-import type { User } from '@/types';
+import type { User, Document, DocumentCategory } from '@/types';
 import { UserAvatar } from '@/components/UserAvatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -15,16 +15,35 @@ import { useToast } from '@/hooks/use-toast';
 
 export function MessageInput() {
   const [messageContent, setMessageContent] = useState('');
-  const { users, currentUser, addMessage, activeConversation, replyingToMessage, setReplyingToMessage, allUsersWithCurrent } = useAppContext();
+  const {
+    users,
+    currentUser,
+    addMessage,
+    activeConversation,
+    replyingToMessage,
+    setReplyingToMessage,
+    allUsersWithCurrent,
+    searchAllDocuments, // Added for document search
+  } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
+  // @mention state
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentionPopover, setShowMentionPopover] = useState(false);
   const [filteredMentionUsers, setFilteredMentionUsers] = useState<User[]>([]);
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const [mentionStartPosition, setMentionStartPosition] = useState<number | null>(null);
+
+  // /share document state
+  const [showDocSearchPopover, setShowDocSearchPopover] = useState(false);
+  const [docSearchQuery, setDocSearchQuery] = useState('');
+  const [filteredDocsForSharing, setFilteredDocsForSharing] = useState<Array<{ doc: Document, category: DocumentCategory }>>([]);
+  const [activeDocSearchIndex, setActiveDocSearchIndex] = useState(0);
+  const [slashCommandStartPosition, setSlashCommandStartPosition] = useState<number | null>(null);
+  const SLASH_COMMAND = "/share ";
+
 
   // Voice message state
   const [isRecording, setIsRecording] = useState(false);
@@ -44,6 +63,7 @@ export function MessageInput() {
     addMessage(messageContent.trim());
     setMessageContent('');
     setShowMentionPopover(false);
+    setShowDocSearchPopover(false); // Ensure doc search popover also closes
   };
 
   const handleCancelReply = () => {
@@ -57,34 +77,53 @@ export function MessageInput() {
     const cursorPosition = event.target.selectionStart;
     const textBeforeCursor = text.substring(0, cursorPosition);
     
+    // @mention logic
     const atMatch = textBeforeCursor.match(/@(\w*)$/);
-
     if (atMatch) {
+      setShowDocSearchPopover(false); // Hide doc search if @ is typed
       const query = atMatch[1];
       const startPos = atMatch.index;
 
       if (startPos !== undefined) {
         setMentionStartPosition(startPos);
         setMentionQuery(query);
-
         const mentionableUsers = users.filter(u => u.id !== currentUser.id); 
         const filtered = mentionableUsers.filter(user =>
           user.name.toLowerCase().includes(query.toLowerCase()) && query.length > 0
         );
-
-        if (filtered.length > 0) {
-          setFilteredMentionUsers(filtered);
-          setShowMentionPopover(true);
-          setActiveMentionIndex(0);
-        } else {
-          setShowMentionPopover(false);
-        }
+        setFilteredMentionUsers(filtered.length > 0 ? filtered : []);
+        setShowMentionPopover(filtered.length > 0);
+        setActiveMentionIndex(0);
       } else {
         setShowMentionPopover(false);
       }
     } else {
       setShowMentionPopover(false);
       setMentionStartPosition(null);
+    }
+
+    // /share document logic
+    const slashCommandIndex = textBeforeCursor.lastIndexOf(SLASH_COMMAND);
+    if (slashCommandIndex !== -1 && textBeforeCursor.endsWith(text.substring(slashCommandIndex))) {
+        setShowMentionPopover(false); // Hide mention if /share is typed
+        const query = text.substring(slashCommandIndex + SLASH_COMMAND.length);
+        setDocSearchQuery(query);
+        setSlashCommandStartPosition(slashCommandIndex);
+        
+        if (query.trim().length > 0) {
+            const results = searchAllDocuments(query.trim());
+            setFilteredDocsForSharing(results);
+            setShowDocSearchPopover(results.length > 0);
+        } else {
+            // Show all documents or a prompt if query is empty after /share
+            const allDocs = searchAllDocuments(''); // Or some specific logic for empty query
+            setFilteredDocsForSharing(allDocs.slice(0, 5)); // Show top 5 or all
+            setShowDocSearchPopover(allDocs.length > 0);
+        }
+        setActiveDocSearchIndex(0);
+    } else {
+        setShowDocSearchPopover(false);
+        setSlashCommandStartPosition(null);
     }
   };
 
@@ -112,6 +151,27 @@ export function MessageInput() {
     }, 0);
   };
 
+  const handleDocShareSelect = (docData: { doc: Document, category: DocumentCategory }) => {
+    const { doc, category } = docData;
+    let shareMessage = `Shared document: "${doc.name}" from category "${category.name}".`;
+    // For now, just text. Future: link to /documents/[catId]#[docId] or similar
+    // if (doc.fileUrl) {
+    //   shareMessage += ` Link: ${doc.fileUrl}`;
+    // }
+
+    addMessage(shareMessage); // Send the message
+    setMessageContent(''); // Clear the input
+    
+    setShowDocSearchPopover(false);
+    setDocSearchQuery('');
+    setSlashCommandStartPosition(null);
+
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
+
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (showMentionPopover && filteredMentionUsers.length > 0) {
       if (event.key === 'ArrowDown') {
@@ -128,6 +188,22 @@ export function MessageInput() {
       } else if (event.key === 'Escape') {
         event.preventDefault();
         setShowMentionPopover(false);
+      }
+    } else if (showDocSearchPopover && filteredDocsForSharing.length > 0) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setActiveDocSearchIndex(prev => (prev + 1) % filteredDocsForSharing.length);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setActiveDocSearchIndex(prev => (prev - 1 + filteredDocsForSharing.length) % filteredDocsForSharing.length);
+      } else if (event.key === 'Enter' || event.key === 'Tab') {
+        event.preventDefault();
+        if (filteredDocsForSharing[activeDocSearchIndex]) {
+          handleDocShareSelect(filteredDocsForSharing[activeDocSearchIndex]);
+        }
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        setShowDocSearchPopover(false);
       }
     } else {
       if (event.key === 'Enter' && !event.shiftKey) {
@@ -161,13 +237,11 @@ export function MessageInput() {
     }
 
     if (isRecording) {
-      // Stop recording
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
         mediaRecorderRef.current.stop();
       }
       setIsRecording(false);
     } else {
-      // Start recording
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorderRef.current = new MediaRecorder(stream);
@@ -180,11 +254,9 @@ export function MessageInput() {
         };
 
         mediaRecorderRef.current.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); // Default to webm, browser might use ogg
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
           const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: audioBlob.type });
           addMessage("[Voice Message]", audioFile);
-          
-          // Clean up stream tracks
           stream.getTracks().forEach(track => track.stop());
         };
 
@@ -205,9 +277,17 @@ export function MessageInput() {
   }
 
   const originalReplySenderName = replyingToMessage ? allUsersWithCurrent.find(u => u.id === replyingToMessage.userId)?.name : '';
+  
+  const popoverSideOffset = replyingToMessage ? 60 : 5; // Adjust offset if replying UI is shown
 
   return (
-    <Popover open={showMentionPopover} onOpenChange={setShowMentionPopover}>
+    <Popover open={showMentionPopover || showDocSearchPopover} onOpenChange={(open) => {
+        if (!open) {
+            setShowMentionPopover(false);
+            setShowDocSearchPopover(false);
+        }
+        // Popover component handles its own open state, this is for external control if needed
+    }}>
       <div className="p-3 border-t border-border bg-background relative">
         {replyingToMessage && (
           <div className="flex items-center justify-between p-1.5 mb-1.5 text-xs text-muted-foreground bg-muted/50 rounded-md border border-input">
@@ -239,7 +319,7 @@ export function MessageInput() {
               value={messageContent}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={isRecording ? "Recording voice message..." : "Type your message..."}
+              placeholder={isRecording ? "Recording voice message..." : "Type /share or @mention..."}
               className="flex-grow resize-none border-0 shadow-none focus-visible:ring-0 p-1.5 min-h-[2.25rem] max-h-32 bg-transparent"
               rows={1}
               disabled={isRecording}
@@ -264,18 +344,20 @@ export function MessageInput() {
             </Button>
           </div>
         </PopoverAnchor>
-        {showMentionPopover && filteredMentionUsers.length > 0 && (
+        
+        {/* Combined PopoverContent logic */}
+        {(showMentionPopover && filteredMentionUsers.length > 0) || (showDocSearchPopover && filteredDocsForSharing.length > 0) ? (
           <PopoverContent
-            className="p-1 w-[250px] max-h-60 overflow-y-auto"
+            className="p-1 w-[300px] max-h-60 overflow-y-auto" // Increased width
             side="top"
             align="start"
-            sideOffset={replyingToMessage ? 60 : 5} 
+            sideOffset={popoverSideOffset} 
             onOpenAutoFocus={(e) => e.preventDefault()} 
             onCloseAutoFocus={(e) => e.preventDefault()} 
           >
             <ScrollArea className="h-auto max-h-56"> 
               <div className="space-y-0.5">
-                {filteredMentionUsers.map((user, index) => (
+                {showMentionPopover && filteredMentionUsers.map((user, index) => (
                   <Button
                     key={user.id}
                     variant="ghost"
@@ -293,11 +375,36 @@ export function MessageInput() {
                     </div>
                   </Button>
                 ))}
+                {showDocSearchPopover && filteredDocsForSharing.map((item, index) => (
+                  <Button
+                    key={item.doc.id}
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start h-auto p-1.5 text-left",
+                      index === activeDocSearchIndex ? "bg-accent text-accent-foreground" : ""
+                    )}
+                    onClick={() => handleDocShareSelect(item)}
+                    onMouseMove={() => setActiveDocSearchIndex(index)}
+                  >
+                    {item.doc.docType === 'file' && <FileText className="h-5 w-5 mr-2 text-muted-foreground" />}
+                    {item.doc.docType === 'text' && <FileText className="h-5 w-5 mr-2 text-muted-foreground" />}
+                    {item.doc.docType === 'url' && <LinkIcon className="h-5 w-5 mr-2 text-muted-foreground" />}
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="text-sm font-medium truncate" title={item.doc.name}>{item.doc.name}</span>
+                      <span className="text-xs text-muted-foreground">In: {item.category.name}</span>
+                    </div>
+                  </Button>
+                ))}
               </div>
             </ScrollArea>
+             {showDocSearchPopover && filteredDocsForSharing.length === 0 && docSearchQuery.trim().length > 0 && (
+                <div className="p-2 text-center text-sm text-muted-foreground">No documents found matching "{docSearchQuery}".</div>
+            )}
           </PopoverContent>
-        )}
+        ) : null}
       </div>
     </Popover>
   );
 }
+
+    
