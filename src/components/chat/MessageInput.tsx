@@ -84,6 +84,7 @@ export function MessageInput() {
     if (atMatch) {
       setShowDocSearchPopover(false); 
       setDocSearchQuery('');
+      setSlashCommandStartPosition(null); // Ensure slash command popover is hidden
       const query = atMatch[1];
       const startPos = atMatch.index;
 
@@ -101,13 +102,10 @@ export function MessageInput() {
         setShowMentionPopover(false);
         setMentionQuery('');
       }
-    } else {
-      // Only reset mention popover if not actively in slash command mode either
-      if (slashCommandStartPosition === null) {
-        setShowMentionPopover(false);
-        setMentionQuery('');
-        setMentionStartPosition(null);
-      }
+    } else if (slashCommandStartPosition === null) { // Only hide mention if not in slash command
+      setShowMentionPopover(false);
+      setMentionQuery('');
+      setMentionStartPosition(null);
     }
 
     // /share document logic
@@ -115,6 +113,7 @@ export function MessageInput() {
     if (slashCommandIndex !== -1 && cursorPosition >= slashCommandIndex + SLASH_COMMAND.length) {
         setShowMentionPopover(false); 
         setMentionQuery('');
+        setMentionStartPosition(null); // Ensure mention popover is hidden
         
         const query = textBeforeCursor.substring(slashCommandIndex + SLASH_COMMAND.length);
         setDocSearchQuery(query); 
@@ -122,15 +121,12 @@ export function MessageInput() {
         
         const results = searchAllDocuments(query.trim());
         setFilteredDocsForSharing(query.trim() === '' ? results.slice(0, 5) : results);
-        setShowDocSearchPopover(results.length > 0);
+        setShowDocSearchPopover(results.length > 0 || query.trim() === ''); // Show even if query is empty after /share
         setActiveDocSearchIndex(0);
-    } else {
-        // If not in /share mode or cursor is before command end, hide popover
-        if (slashCommandStartPosition !== null) { 
-            setSlashCommandStartPosition(null);
-            setShowDocSearchPopover(false);
-            setDocSearchQuery('');
-        }
+    } else if (mentionStartPosition === null) { // Only hide slash if not in mention
+        setSlashCommandStartPosition(null);
+        setShowDocSearchPopover(false);
+        setDocSearchQuery('');
     }
   };
 
@@ -159,19 +155,18 @@ export function MessageInput() {
   };
 
   const handleDocShareSelect = (docData: { doc: Document, category: DocumentCategory }) => {
-    const { doc, category } = docData;
+    const { doc } = docData; // Category might not be needed for the message content itself now
     
     if (doc.docType === 'file' && doc.fileObject) {
-      addMessage(`Shared file: ${doc.name} (from category: ${category.name})`, doc.fileObject);
+      addMessage(`Sharing: ${doc.name}`, doc.fileObject);
     } else if (doc.docType === 'text' && doc.textContent) {
-      const shareMessage = `Shared text document: "${doc.name}" (from category: ${category.name})\n\n${doc.textContent}`;
+      const shareMessage = `Shared document: "${doc.name}"\n\n${doc.textContent}`;
       addMessage(shareMessage);
     } else if (doc.docType === 'url' && doc.fileUrl) {
-      const shareMessage = `Shared link: "${doc.name}" (from category: ${category.name})\n${doc.fileUrl}`;
+      const shareMessage = `Shared link: "${doc.name}"\n${doc.fileUrl}`;
       addMessage(shareMessage);
     } else {
-      // Fallback if doc structure is unexpected
-      addMessage(`Shared document: "${doc.name}" from category "${category.name}".`);
+      addMessage(`Attempted to share document: "${doc.name}".`);
     }
     
     setMessageContent(''); 
