@@ -2,9 +2,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Coffee, LogOut, Play, TimerIcon } from "lucide-react"; // Using TimerIcon as a generic work icon
+import { Coffee, LogOut, Play, TimerIcon } from "lucide-react";
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from "@/contexts/AppContext";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -46,7 +45,7 @@ const WorkTimerDisplay = ({ time, progressPercent }: { time: string, progressPer
           style={{ transition: 'stroke-dashoffset 0.3s ease-out' }}
         />
       </svg>
-      <div className="absolute w-[calc(100%-36px)] h-[calc(100%-36px)] bg-card rounded-full flex items-center justify-center shadow-inner">
+      <div className="absolute w-[calc(100%-36px)] h-[calc(100%-36px)] bg-background rounded-full flex items-center justify-center shadow-inner">
         <span className="text-foreground text-5xl font-mono font-semibold">
           {time}
         </span>
@@ -56,7 +55,7 @@ const WorkTimerDisplay = ({ time, progressPercent }: { time: string, progressPer
 };
 
 const InfoRow = ({ label, value, icon: Icon }: { label: string, value: string, icon?: React.ElementType }) => (
-  <div className="flex justify-between items-center py-2 border-b border-border/50 last:border-b-0">
+  <div className="flex justify-between items-center py-2 border-b border-border/50 last:border-b-0 w-full max-w-sm">
     <div className="flex items-center text-sm text-muted-foreground">
       {Icon && <Icon className="h-4 w-4 mr-2" />}
       {label}
@@ -157,82 +156,82 @@ export default function AttendancePage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6">
-      <Card className="w-full max-w-lg shadow-xl">
-        <CardHeader className="pb-4 border-b">
-          <div className="flex items-center space-x-3">
-            <UserAvatar user={currentUser} className="h-12 w-12" />
-            <div>
-              <CardTitle className="text-xl">{currentUser.name}</CardTitle>
-              <CardDescription>{currentUser.designation || "No Designation"}</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full">
+      {/* User Info Section */}
+      <div className="flex items-center space-x-3 mb-8 p-4 rounded-lg bg-background shadow-md w-full max-w-lg">
+        <UserAvatar user={currentUser} className="h-12 w-12" />
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">{currentUser.name}</h1>
+          <p className="text-sm text-muted-foreground">{currentUser.designation || "No Designation"}</p>
+        </div>
+      </div>
 
-        <CardContent className="pt-6 pb-4 text-center">
-          <WorkTimerDisplay time={timerDisplay} progressPercent={progressPercent} />
-          <div className="my-4">
-            {getStatusBadge()}
-          </div>
-          
-          <div className="space-y-1 text-left px-2">
-            <InfoRow label="Clocked In At" value={formatTimeToAMPM(clockInTime) + (clockInTime ? " EST" : "")} icon={Play} />
-            {status !== 'not-clocked-in' && (
-              <InfoRow label="Total Break" value={formatDuration(accumulatedBreakDuration)} icon={Coffee} />
-            )}
-            {status === 'clocked-out' && clockOutTime && (
-              <InfoRow label="Clocked Out At" value={formatTimeToAMPM(clockOutTime) + " EST"} icon={LogOut} />
-            )}
-             {/* Placeholder for general work hours if needed, could be dynamic */}
-             {status !== 'clocked-out' && (
-                 <InfoRow label="Work Target" value={formatDuration(MAX_WORK_SECONDS)} icon={TimerIcon} />
-             )}
-          </div>
-        </CardContent>
+      {/* Timer and Info Section */}
+      <div className="flex flex-col items-center w-full max-w-lg">
+        <WorkTimerDisplay time={timerDisplay} progressPercent={progressPercent} />
+        <div className="my-4">
+          {getStatusBadge()}
+        </div>
+        
+        <div className="space-y-1 text-left w-full px-2">
+          <InfoRow label="Clocked In At" value={formatTimeToAMPM(clockInTime) + (clockInTime ? " EST" : "")} icon={Play} />
+          {status !== 'not-clocked-in' && (
+            <InfoRow label="Total Break" value={formatDuration(accumulatedBreakDuration)} icon={Coffee} />
+          )}
+          {status === 'clocked-out' && clockOutTime && (
+            <InfoRow label="Clocked Out At" value={formatTimeToAMPM(clockOutTime) + " EST"} icon={LogOut} />
+          )}
+           {status !== 'clocked-out' && (
+               <InfoRow label="Work Target" value={formatDuration(MAX_WORK_SECONDS)} icon={TimerIcon} />
+           )}
+        </div>
+      </div>
 
-        <CardFooter className="flex flex-col gap-3 pt-4 border-t">
-          {status === 'not-clocked-in' && (
-            <Button onClick={handleClockIn} size="lg" className="w-full">
-              <Play className="mr-2 h-5 w-5" /> Clock In
+      {/* Action Buttons Section */}
+      <div className="flex flex-col gap-3 pt-6 mt-6 border-t border-border w-full max-w-lg">
+        {status === 'not-clocked-in' && (
+          <Button onClick={handleClockIn} size="lg" className="w-full">
+            <Play className="mr-2 h-5 w-5" /> Clock In
+          </Button>
+        )}
+
+        {status === 'working' && (
+          <>
+            <Button onClick={handleToggleBreak} size="lg" className="w-full">
+              <Coffee className="mr-2 h-5 w-5" /> Take a Break
             </Button>
-          )}
+            <Button onClick={handleClockOut} variant="outline" className="w-full">
+              <LogOut className="mr-2 h-5 w-5" /> Clock Out
+            </Button>
+          </>
+        )}
 
-          {status === 'working' && (
-            <>
-              <Button onClick={handleToggleBreak} size="lg" className="w-full">
-                <Coffee className="mr-2 h-5 w-5" /> Take a Break
-              </Button>
-              <Button onClick={handleClockOut} variant="outline" className="w-full">
-                <LogOut className="mr-2 h-5 w-5" /> Clock Out
-              </Button>
-            </>
-          )}
+        {status === 'on-break' && (
+          <>
+            <Button onClick={handleToggleBreak} size="lg" className="w-full">
+              <Play className="mr-2 h-5 w-5" /> Resume Work
+            </Button>
+            <Button onClick={handleClockOut} variant="outline" className="w-full">
+              <LogOut className="mr-2 h-5 w-5" /> Clock Out
+            </Button>
+          </>
+        )}
 
-          {status === 'on-break' && (
-            <>
-              <Button onClick={handleToggleBreak} size="lg" className="w-full">
-                <Play className="mr-2 h-5 w-5" /> Resume Work
-              </Button>
-              <Button onClick={handleClockOut} variant="outline" className="w-full">
-                <LogOut className="mr-2 h-5 w-5" /> Clock Out
-              </Button>
-            </>
-          )}
-
-          {status === 'clocked-out' && (
-            <>
-              <div className="text-center text-sm text-muted-foreground mb-2 p-3 bg-muted/50 rounded-md w-full">
-                <p className="font-semibold text-foreground text-base mb-1">Session Summary</p>
-                <InfoRow label="Total Time Worked" value={formatDuration(workedSeconds)} icon={TimerIcon} />
-                <InfoRow label="Total Break Time" value={formatDuration(accumulatedBreakDuration)} icon={Coffee} />
-              </div>
-              <Button onClick={handleClockIn} size="lg" className="w-full">
-                 <Play className="mr-2 h-5 w-5" /> Start New Session
-              </Button>
-            </>
-          )}
-        </CardFooter>
-      </Card>
+        {status === 'clocked-out' && (
+          <>
+            <div className="text-center text-sm text-muted-foreground mb-2 p-3 bg-background/70 rounded-md w-full shadow">
+              <p className="font-semibold text-foreground text-base mb-1">Session Summary</p>
+              <InfoRow label="Total Time Worked" value={formatDuration(workedSeconds)} icon={TimerIcon} />
+              <InfoRow label="Total Break Time" value={formatDuration(accumulatedBreakDuration)} icon={Coffee} />
+            </div>
+            <Button onClick={handleClockIn} size="lg" className="w-full">
+               <Play className="mr-2 h-5 w-5" /> Start New Session
+            </Button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
+
+    
