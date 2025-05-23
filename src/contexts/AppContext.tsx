@@ -8,9 +8,8 @@ import type { User as FirebaseUser } from 'firebase/auth'; // Firebase user type
 import { onAuthStateChanged } from 'firebase/auth';
 
 import {
-    mockUsers as initialMockUsers, // Keep for other users for now
+    mockUsers as initialMockUsers,
     mockChannels as initialMockChannels,
-    // mockCurrentUser removed, will come from Firebase
     getMessagesForConversation as fetchMockMessages,
     updateMockMessage,
     mockMessages as allMockMessages,
@@ -20,10 +19,8 @@ import {
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation'; // Added usePathname
 import { format } from 'date-fns';
-import type { LucideIcon } from 'lucide-react';
-import * as Icons from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 
 
@@ -33,14 +30,13 @@ export type UserProfileUpdateData = {
   designation?: string;
   email: string;
   phoneNumber?: string;
-  avatarDataUrl?: string; // Added for new avatar data
+  avatarDataUrl?: string;
 };
 
 interface AppContextType {
-  currentUser: User | null; // Can be null if not logged in
-  // setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>; // Firebase handles this
-  users: User[]; // Other users, not including current
-  allUsersWithCurrent: User[]; // All users, potentially including current if logged in
+  currentUser: User | null;
+  users: User[]; 
+  allUsersWithCurrent: User[];
   channels: Channel[];
   activeConversation: ActiveConversation;
   setActiveConversation: (type: 'channel' | 'dm', id: string) => void;
@@ -59,8 +55,8 @@ interface AppContextType {
   editMessage: (messageId: string, newContent: string) => void;
   deleteMessage: (messageId: string) => void;
   addMembersToChannel: (channelId: string, userIdsToAdd: string[]) => void;
-  toggleCurrentUserStatus: () => void; // Will need adjustment if status stored in Firestore
-  updateUserProfile: (profileData: UserProfileUpdateData) => void; // Will need adjustment
+  toggleCurrentUserStatus: () => void; 
+  updateUserProfile: (profileData: UserProfileUpdateData) => void; 
 
   currentView: CurrentView;
   setActiveSpecialView: (view: 'replies' | 'activity' | 'drafts') => void;
@@ -87,15 +83,15 @@ interface AppContextType {
   startCall: (conversation: ActiveConversation | null) => void;
   endCall: () => void;
 
-  isLoadingAuth: boolean; // To indicate auth state is being checked
+  isLoadingAuth: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true); // Start true
-  const [users, setUsers] = useState<User[]>(initialMockUsers.filter(u => u.id !== currentUser?.id)); // Filter based on potential currentUser
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true); 
+  const [users, setUsers] = useState<User[]>(initialMockUsers.filter(u => u.id !== currentUser?.id)); 
   const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>(initialMockUsers);
   const [channels, setChannels] = useState<Channel[]>(initialMockChannels);
   const [activeConversation, setActiveConversationState] = useState<ActiveConversation>(null);
@@ -105,6 +101,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname(); // Get current pathname
 
   const [currentView, setCurrentViewState] = useState<CurrentView>('chat');
   const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts);
@@ -116,17 +113,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        // User is signed in
         const appUser: User = {
           id: firebaseUser.uid,
           name: firebaseUser.displayName || firebaseUser.email || 'Anonymous User',
           email: firebaseUser.email || 'no-email@example.com',
           avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${(firebaseUser.displayName || firebaseUser.email || 'AU').substring(0,2).toUpperCase()}`,
-          isOnline: true, // Default, would ideally come from Firestore/Presence
-          designation: '', // Default, would come from Firestore
+          isOnline: true, 
+          designation: '', 
         };
         setCurrentUser(appUser);
-        // Update allUsersWithCurrent to include the Firebase user and filter out any mock version of them
         setAllUsersWithCurrent(prevAllUsers => {
             const otherMockUsers = initialMockUsers.filter(u => u.id !== appUser.id && u.email !== appUser.email);
             return [appUser, ...otherMockUsers];
@@ -134,27 +129,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setUsers(initialMockUsers.filter(u => u.id !== appUser.id && u.email !== appUser.email));
 
       } else {
-        // User is signed out
         setCurrentUser(null);
-        setAllUsersWithCurrent(initialMockUsers); // Reset to all mock users if no one is logged in
-        setUsers(initialMockUsers); // Reset to all mock users
+        setAllUsersWithCurrent(initialMockUsers); 
+        setUsers(initialMockUsers); 
       }
-      setIsLoadingAuth(false); // Auth check is complete
+      setIsLoadingAuth(false); 
     });
-    return () => unsubscribe(); // Cleanup subscription on unmount
+    return () => unsubscribe(); 
   }, []);
 
 
   useEffect(() => {
-    // This effect updates 'users' (list of *other* users) and 'allUsersWithCurrent'
-    // whenever 'currentUser' changes.
     if (currentUser) {
       setUsers(initialMockUsers.filter(u => u.id !== currentUser.id && u.email !== currentUser.email));
-      // Ensure allUsersWithCurrent has the most up-to-date currentUser and other mock users
       const otherMockUsers = initialMockUsers.filter(u => u.id !== currentUser.id && u.email !== currentUser.email);
       setAllUsersWithCurrent([currentUser, ...otherMockUsers]);
     } else {
-      // No user logged in, so 'users' and 'allUsersWithCurrent' are just the initial mock list.
       setUsers(initialMockUsers);
       setAllUsersWithCurrent(initialMockUsers);
     }
@@ -178,7 +168,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
         setActiveConversationState({ type, id, name: channel.name, channel });
       }
-    } else { // DM
+    } else { 
       const user = allUsersWithCurrent.find(u => u.id === id);
       if (user) {
         setActiveConversationState({ type, id, name: user.name, recipient: user });
@@ -206,7 +196,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addMessage = useCallback((content: string, file?: File) => {
     if (!activeConversation || !currentUser) {
-        toast({title: "Cannot send message", description: "You must be logged in and in a conversation.", variant: "destructive"});
+        setTimeout(() => toast({title: "Cannot send message", description: "You must be logged in and in a conversation.", variant: "destructive"}), 0);
         return;
     }
 
@@ -260,7 +250,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addChannel = useCallback((name: string, description?: string, memberIds: string[] = [], isPrivate: boolean = false) => {
     if (!currentUser) {
-        toast({title: "Action failed", description: "You must be logged in to create a channel.", variant: "destructive"});
+        setTimeout(() => toast({title: "Action failed", description: "You must be logged in to create a channel.", variant: "destructive"}), 0);
         return;
     }
     const trimmedName = name.trim();
@@ -279,7 +269,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       id: `c${Date.now()}`,
       name: trimmedName,
       description: description || '',
-      memberIds: Array.from(new Set([currentUser.id, ...memberIds])), // Creator always added
+      memberIds: Array.from(new Set([currentUser.id, ...memberIds])), 
       isPrivate,
     };
     setChannels(prevChannels => {
@@ -330,7 +320,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addMembersToChannel = useCallback((channelId: string, userIdsToAdd: string[]) => {
      if (!currentUser) {
-        toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"});
+        setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
         return;
     }
     let channelName = '';
@@ -512,15 +502,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       },0);
       return false;
     }
-    // In a real app, this would create a Firebase user and then store their profile in Firestore.
-    // For now, we're simulating adding to mock data, but Firebase Auth is the source of truth for currentUser.
-    // This part needs careful rethinking with actual Firebase user creation.
-    // For now, it just shows a toast and redirects, assuming user creation happens via Firebase.
     setTimeout(() => {
       toast({ title: "Welcome to Opano!", description: `User ${userDetails.name} with email ${invitation.email} is notionally ready to join.` });
     }, 0);
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
-    router.push('/'); // Or a page to complete Firebase sign-up
+    router.push('/'); 
     return true;
   }, [verifyInviteToken, toast, router]);
 
@@ -583,7 +569,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const toggleCurrentUserStatus = useCallback(() => {
     if (!currentUser) return;
-    // This would typically involve updating Firestore. For now, just local state for UI.
     setCurrentUser(prevUser => {
         if (!prevUser) return null;
         const newStatus = !prevUser.isOnline;
@@ -600,18 +585,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const updateUserProfile = useCallback((profileData: UserProfileUpdateData) => {
     if (!currentUser) return;
-    // This would update Firebase Auth profile and/or Firestore profile.
     setCurrentUser(prevUser => {
         if (!prevUser) return null;
         const updatedUser = {
             ...prevUser,
-            name: profileData.name || prevUser.name, // Use existing name if new one is empty
+            name: profileData.name || prevUser.name, 
             designation: profileData.designation || prevUser.designation,
-            // Email update is complex with Firebase Auth, often requires re-authentication or verification.
-            // For this frontend simulation, we'll update it if it matches the current Firebase user's email.
             email: profileData.email === prevUser.email ? profileData.email : prevUser.email,
             phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
-            avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
+            avatarDataUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
         };
         setTimeout(() => {
         toast({ title: "Profile Updated", description: "Your profile has been successfully updated. (Local simulation)" });
@@ -632,11 +614,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
 
   useEffect(() => {
-    if (!isLoadingAuth && !currentUser && router && typeof window !== 'undefined' && window.location.pathname !== '/join' && !window.location.pathname.startsWith('/join/')) {
-      // If auth check is done, no user, and not on join page, redirect to a conceptual login page.
-      // For now, we don't have a login page, so this might be an empty state or console log.
-      // router.push('/login'); // Example redirect
-      console.log("No user logged in, consider redirecting to login page.");
+    if (!isLoadingAuth && !currentUser && typeof window !== 'undefined' && 
+        pathname !== '/join' && !pathname.startsWith('/join/') && pathname !== '/auth/join') {
+      router.push('/auth/join');
     } else if (!isLoadingAuth && currentUser && channels.length > 0 && !activeConversation && currentView === 'chat') {
        const selfDmUser = allUsersWithCurrent.find(u => u.id === currentUser.id);
        if (selfDmUser) {
@@ -645,7 +625,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
          setActiveConversation('channel', channels[0].id);
        }
     }
-  }, [isLoadingAuth, currentUser, channels, activeConversation, setActiveConversation, currentView, router, allUsersWithCurrent]);
+  }, [isLoadingAuth, currentUser, channels, activeConversation, setActiveConversation, currentView, router, allUsersWithCurrent, pathname]);
 
 
   const getConversationName = useCallback((conversationId: string, conversationType: 'channel' | 'dm'): string => {
@@ -711,7 +691,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   message: msg,
                   reactor,
                   emoji,
-                  timestamp: msg.timestamp, // Consider reaction timestamp if available
+                  timestamp: msg.timestamp, 
                   conversationId: convId,
                   conversationType: convType,
                   conversationName: convName,
@@ -732,7 +712,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addDocumentCategory = useCallback((name: string, description: string, iconName: DocumentCategory['iconName'] = 'FolderKanban') => {
     if (!currentUser) {
-        toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"});
+        setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
         return;
     }
     const newCategory: DocumentCategory = {
@@ -743,7 +723,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       documents: [],
     };
     setDocumentCategories(prev => [...prev, newCategory]);
-    initialDocumentCategories.push(newCategory); // Simulate persistence
+    initialDocumentCategories.push(newCategory); 
     setTimeout(() => {
       toast({ title: "Category Added", description: `Category "${name}" has been created.` });
     }, 0);
@@ -751,7 +731,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addFileDocumentToCategory = useCallback((categoryId: string, file: File) => {
     if (!currentUser) {
-        toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"});
+        setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
         return;
     }
     const newDocument: Document = {
@@ -783,7 +763,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
     }, 0);
 
-    const generalChannelId = 'c1'; // Assuming #general channel ID
+    const generalChannelId = 'c1'; 
     const systemMessageContent = `${currentUser.name} added a new document: "${newDocument.name}" to the "${categoryName}" category.`;
     const systemMessage: Message = {
         id: `sys-doc-add-${Date.now()}`,
@@ -805,7 +785,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addTextDocumentToCategory = useCallback((categoryId: string, docName: string, textContent: string) => {
     if (!currentUser) {
-        toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"});
+        setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
         return;
     }
     const newDocument: Document = {
@@ -858,7 +838,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addLinkedDocumentToCategory = useCallback((categoryId: string, docName: string, docUrl: string) => {
     if (!currentUser) {
-        toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"});
+        setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
         return;
     }
     const newDocument: Document = {
