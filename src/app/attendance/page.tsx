@@ -32,9 +32,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { format, isSameDay } from 'date-fns';
+import { format, isSameDay, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import type { AttendanceLogEntry } from '@/types';
-import { EditAttendanceLogDialog } from "@/components/dialogs/EditAttendanceLogDialog"; // New Dialog
+import { EditAttendanceLogDialog } from "@/components/dialogs/EditAttendanceLogDialog";
 import { cn } from "@/lib/utils";
 
 const MAX_WORK_SECONDS = 8 * 60 * 60; // 8 hours in seconds for progress calculation
@@ -54,14 +55,23 @@ const formatDuration = (totalSeconds: number): string => {
 const formatDurationForTable = (totalSeconds: number): string => {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  if (hours === 0 && minutes === 0) return `${Math.max(0,totalSeconds)} Secs`; // Ensure non-negative
+  if (hours === 0 && minutes === 0) return `${Math.max(0,totalSeconds)} Secs`;
   if (hours === 0) return `${minutes} Mins`;
   const decimalHours = hours + minutes / 60;
   return `${decimalHours.toFixed(2)} Hours`;
 };
 
-const formatDateForReportHeader = (date: Date): string => {
-  return format(date, 'dd-MMM-yyyy');
+const formatDateRangeForReportHeader = (range: DateRange | undefined): string => {
+  if (!range || !range.from) {
+    return "no date range selected";
+  }
+  if (range.to) {
+    if (isSameDay(range.from, range.to)) {
+        return format(range.from, 'dd-MMM-yyyy');
+    }
+    return `${format(range.from, 'dd-MMM-yyyy')} to ${format(range.to, 'dd-MMM-yyyy')}`;
+  }
+  return format(range.from, 'dd-MMM-yyyy');
 };
 
 
@@ -121,7 +131,8 @@ export default function AttendancePage() {
   
   const [masterAttendanceLog, setMasterAttendanceLog] = useState<AttendanceLogEntry[]>([]);
   const [displayedAttendanceLog, setDisplayedAttendanceLog] = useState<AttendanceLogEntry[]>([]);
-  const [reportDate, setReportDate] = useState<Date>(new Date());
+  const [reportDateRange, setReportDateRange] = useState<DateRange | undefined>(undefined);
+
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<AttendanceLogEntry | null>(null);
@@ -129,11 +140,21 @@ export default function AttendancePage() {
 
 
   useEffect(() => {
-    const filtered = masterAttendanceLog.filter(log => 
-      isSameDay(new Date(log.clockInTime), reportDate)
-    ).sort((a,b) => new Date(b.clockInTime).getTime() - new Date(a.clockInTime).getTime());
+    if (!reportDateRange || !reportDateRange.from) {
+      setDisplayedAttendanceLog([]); // Show no logs if no range is selected
+      return;
+    }
+
+    const startDate = startOfDay(reportDateRange.from);
+    const endDate = reportDateRange.to ? endOfDay(reportDateRange.to) : endOfDay(reportDateRange.from);
+
+    const filtered = masterAttendanceLog.filter(log => {
+      const logDate = new Date(log.clockInTime);
+      return isWithinInterval(logDate, { start: startDate, end: endDate });
+    }).sort((a,b) => new Date(b.clockInTime).getTime() - new Date(a.clockInTime).getTime());
+    
     setDisplayedAttendanceLog(filtered);
-  }, [reportDate, masterAttendanceLog]);
+  }, [reportDateRange, masterAttendanceLog]);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
@@ -168,8 +189,12 @@ export default function AttendancePage() {
     setAccumulatedBreakDuration(0);
     setWorkedSeconds(0);
     setStatus('working');
-    if (!isSameDay(reportDate, now)) {
-      setReportDate(now); // if clocking in on a new day, auto-switch report to today
+    // If no range is selected, or today is not in selected range, set range to today
+    if (!reportDateRange || !reportDateRange.from ||
+        (reportDateRange.to && !isWithinInterval(now, {start: startOfDay(reportDateRange.from), end: endOfDay(reportDateRange.to)})) ||
+        (!reportDateRange.to && !isSameDay(now, reportDateRange.from))
+    ) {
+       setReportDateRange({ from: now, to: now });
     }
   };
 
@@ -229,7 +254,7 @@ export default function AttendancePage() {
     if (deletingEntryId) {
       setMasterAttendanceLog(prevLog => prevLog.filter(entry => entry.id !== deletingEntryId));
     }
-    setDeletingEntryId(null); // Close dialog
+    setDeletingEntryId(null);
   };
 
 
@@ -253,7 +278,6 @@ export default function AttendancePage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
-      {/* User Info Section - Top Left */}
       <div className="w-full flex justify-start items-center p-4 mb-6 border-b border-border">
         <UserAvatar user={currentUser} className="h-10 w-10" />
         <div className="ml-3">
@@ -262,7 +286,6 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Centered Timer and Info Section */}
       <div className="flex flex-col items-center w-full max-w-lg mx-auto">
         <WorkTimerDisplay time={timerDisplay} progressPercent={progressPercent} />
         <div className="my-4">
@@ -283,7 +306,6 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Centered Action Buttons Section */}
       <div className="flex flex-col gap-3 pt-6 mt-auto w-full max-w-lg mx-auto pb-4">
         {status === 'not-clocked-in' && (
           <Button onClick={handleClockIn} size="lg" className="w-full">
@@ -327,40 +349,61 @@ export default function AttendancePage() {
         )}
       </div>
 
-      {/* Attendance Log Table Section */}
       <div className="mt-10 w-full max-w-4xl mx-auto bg-card p-4 sm:p-6 rounded-lg shadow-lg">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
             <div>
                 <h2 className="text-xl font-semibold text-foreground">
                     Clock In / Clock Out Report
                 </h2>
-                <p className="text-sm text-muted-foreground">Showing activity for: {formatDateForReportHeader(reportDate)}</p>
+                <p className="text-sm text-muted-foreground">
+                  Showing activity for: {formatDateRangeForReportHeader(reportDateRange)}
+                </p>
             </div>
             <Popover>
             <PopoverTrigger asChild>
                 <Button
                 variant={"outline"}
                 className={cn(
-                    "w-[220px] justify-start text-left font-normal",
-                    !reportDate && "text-muted-foreground"
+                    "w-[280px] justify-start text-left font-normal", // Increased width for range
+                    !reportDateRange && "text-muted-foreground"
                 )}
                 >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {reportDate ? format(reportDate, "PPP") : <span>Pick a date</span>}
+                {reportDateRange?.from ? (
+                  reportDateRange.to ? (
+                    <>
+                      {format(reportDateRange.from, "LLL dd, y")} -{" "}
+                      {format(reportDateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(reportDateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Pick a date range</span>
+                )}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
+            <PopoverContent className="w-auto p-0" align="end">
                 <Calendar
-                mode="single"
-                selected={reportDate}
-                onSelect={(date) => date && setReportDate(date)}
-                initialFocus
+                    initialFocus
+                    mode="range"
+                    defaultMonth={reportDateRange?.from}
+                    selected={reportDateRange}
+                    onSelect={setReportDateRange}
+                    numberOfMonths={2}
                 />
             </PopoverContent>
             </Popover>
         </div>
         
-        {displayedAttendanceLog.length > 0 ? (
+        {(!reportDateRange || !reportDateRange.from) && (
+             <div className="text-center py-8 text-muted-foreground">
+                <CalendarIcon className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                <p className="font-medium">Please select a date range to view records.</p>
+             </div>
+        )}
+
+        {reportDateRange?.from && displayedAttendanceLog.length > 0 && (
             <div className="overflow-x-auto">
                 <Table>
                 <TableHeader>
@@ -423,11 +466,13 @@ export default function AttendancePage() {
                 </TableBody>
                 </Table>
             </div>
-        ) : (
+        )}
+
+        {reportDateRange?.from && displayedAttendanceLog.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <PlusCircle className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-            <p className="font-medium">No attendance records for {formatDateForReportHeader(reportDate)}.</p>
-            <p className="text-sm">Clock in and out to see your activity here, or select another date.</p>
+            <p className="font-medium">No attendance records for {formatDateRangeForReportHeader(reportDateRange)}.</p>
+            <p className="text-sm">Clock in and out to see your activity here, or select another date range.</p>
           </div>
         )}
       </div>
