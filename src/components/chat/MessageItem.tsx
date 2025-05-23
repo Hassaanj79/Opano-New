@@ -5,7 +5,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, ImageIcon, Smile, MoreHorizontal, Edit3, Trash2, ThumbsUp, Heart, Brain, PartyPopper, AlertCircle, Users, MessageSquareReply, Reply } from 'lucide-react'; 
+import { FileText, ImageIcon, Smile, MoreHorizontal, Edit3, Trash2, ThumbsUp, Heart, Brain, PartyPopper, AlertCircle, Users, MessageSquareReply, Reply, Mic } from 'lucide-react'; // Added Mic for audio files
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -83,6 +83,48 @@ export function MessageItem({ message }: MessageItemProps) {
 
   const avatarElement = <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />;
 
+  const renderFileAttachment = () => {
+    if (!message.file) return null;
+
+    if (message.file.type === 'audio') {
+      return (
+        <div className="mt-2 max-w-xs">
+           <audio controls src={message.file.url} className="w-full h-10 rounded-md bg-card/80 shadow-none border-border/50">
+             Your browser does not support the audio element.
+           </audio>
+        </div>
+      );
+    }
+
+    return (
+      <Card className="mt-2 max-w-xs bg-card/80 shadow-none border-border/50">
+        <CardContent className="p-2">
+          <div className="flex items-center gap-2">
+            {message.file.type === 'image' ? (
+              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            )}
+            <a href={message.file.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">
+              {message.file.name}
+            </a>
+          </div>
+          {message.file.type === 'image' && message.file.url && ( // Check if url exists before rendering image
+             <Image 
+                src={message.file.url} 
+                alt={message.file.name} 
+                width={150} 
+                height={100} 
+                className="mt-1.5 rounded-md object-cover"
+                data-ai-hint="placeholder image"
+             />
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+
   return (
     <div className={cn(
       "group flex gap-2.5 py-1.5 px-4 hover:bg-muted/20 relative",
@@ -149,34 +191,9 @@ export function MessageItem({ message }: MessageItemProps) {
             </div>
           ) : (
             <>
-              <p className="whitespace-pre-wrap">{renderContent(message.content)}</p>
+              {message.content && <p className="whitespace-pre-wrap">{renderContent(message.content)}</p>}
               {message.isEdited && <span className="text-xs text-muted-foreground/70 italic ml-1">(edited)</span>}
-              {message.file && (
-                <Card className="mt-2 max-w-xs bg-card/80 shadow-none border-border/50">
-                  <CardContent className="p-2">
-                    <div className="flex items-center gap-2">
-                      {message.file.type === 'image' ? (
-                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <a href={message.file.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">
-                        {message.file.name}
-                      </a>
-                    </div>
-                    {message.file.type === 'image' && message.file.url.startsWith('https://placehold.co') && (
-                       <Image 
-                          src={message.file.url} 
-                          alt={message.file.name} 
-                          width={150} 
-                          height={100} 
-                          className="mt-1.5 rounded-md object-cover"
-                          data-ai-hint="placeholder image"
-                       />
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+              {renderFileAttachment()}
             </>
           )}
 

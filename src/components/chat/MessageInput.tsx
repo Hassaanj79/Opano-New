@@ -3,7 +3,7 @@
 import React, { useState, useRef, type ChangeEvent, type KeyboardEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Paperclip, SendHorizonal, SmilePlus, X } from 'lucide-react'; // Added X for cancel reply
+import { Paperclip, SendHorizonal, SmilePlus, X, Mic, StopCircle } from 'lucide-react'; // Added Mic, StopCircle
 import { useAppContext } from '@/contexts/AppContext';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/components/ui/popover';
@@ -11,12 +11,14 @@ import type { User } from '@/types';
 import { UserAvatar } from '@/components/UserAvatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 export function MessageInput() {
   const [messageContent, setMessageContent] = useState('');
   const { users, currentUser, addMessage, activeConversation, replyingToMessage, setReplyingToMessage, allUsersWithCurrent } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { toast } = useToast();
 
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentionPopover, setShowMentionPopover] = useState(false);
@@ -24,7 +26,12 @@ export function MessageInput() {
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const [mentionStartPosition, setMentionStartPosition] = useState<number | null>(null);
 
-  // Focus textarea when replyingToMessage changes (and is not null)
+  // Voice message state
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+
   useEffect(() => {
     if (replyingToMessage && textareaRef.current) {
       textareaRef.current.focus();
@@ -36,8 +43,7 @@ export function MessageInput() {
     if (messageContent.trim() === '' || !activeConversation) return;
     addMessage(messageContent.trim());
     setMessageContent('');
-    setShowMentionPopover(false); 
-    // setReplyingToMessage(null); // AppContext's addMessage will handle this
+    setShowMentionPopover(false);
   };
 
   const handleCancelReply = () => {
@@ -148,6 +154,52 @@ export function MessageInput() {
     fileInputRef.current?.click();
   };
 
+  const handleToggleRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast({ title: "Audio Recording Not Supported", description: "Your browser does not support audio recording.", variant: "destructive" });
+      return;
+    }
+
+    if (isRecording) {
+      // Stop recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
+      setIsRecording(false);
+    } else {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        audioChunksRef.current = [];
+
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorderRef.current.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); // Default to webm, browser might use ogg
+          const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: audioBlob.type });
+          addMessage("[Voice Message]", audioFile);
+          
+          // Clean up stream tracks
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
+        toast({ title: "Recording started", description: "Click the stop icon to finish." });
+      } catch (err) {
+        console.error("Error accessing microphone:", err);
+        toast({ title: "Microphone Access Denied", description: "Please allow microphone access to record voice messages.", variant: "destructive" });
+        setIsRecording(false);
+      }
+    }
+  };
+
+
   if (!activeConversation) {
     return null;
   }
@@ -187,10 +239,15 @@ export function MessageInput() {
               value={messageContent}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={`Type your message...`}
+              placeholder={isRecording ? "Recording voice message..." : "Type your message..."}
               className="flex-grow resize-none border-0 shadow-none focus-visible:ring-0 p-1.5 min-h-[2.25rem] max-h-32 bg-transparent"
               rows={1}
+              disabled={isRecording}
             />
+            <Button type="button" variant="ghost" size="icon" onClick={handleToggleRecording} className={cn("text-muted-foreground hover:text-primary h-8 w-8", isRecording && "text-destructive hover:text-destructive/80")}>
+              {isRecording ? <StopCircle className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+              <span className="sr-only">{isRecording ? "Stop recording" : "Record voice message"}</span>
+            </Button>
             <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8">
               <SmilePlus className="h-5 w-5" />
               <span className="sr-only">Add emoji</span>
@@ -200,7 +257,7 @@ export function MessageInput() {
                 size="icon" 
                 onClick={handleSendMessage} 
                 className="bg-primary hover:bg-primary/90 text-primary-foreground h-8 w-8 rounded-md"
-                disabled={messageContent.trim() === ''}
+                disabled={messageContent.trim() === '' || isRecording}
             >
               <SendHorizonal className="h-4 w-4" />
               <span className="sr-only">Send message</span>
@@ -212,7 +269,7 @@ export function MessageInput() {
             className="p-1 w-[250px] max-h-60 overflow-y-auto"
             side="top"
             align="start"
-            sideOffset={replyingToMessage ? 60 : 5} // Adjust offset if reply context is shown
+            sideOffset={replyingToMessage ? 60 : 5} 
             onOpenAutoFocus={(e) => e.preventDefault()} 
             onCloseAutoFocus={(e) => e.preventDefault()} 
           >

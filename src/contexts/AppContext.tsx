@@ -104,7 +104,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               variant: "destructive",
             });
           }, 0);
-          return; // Do not set active conversation
+          return; 
         }
         setActiveConversationState({ type, id, name: channel.name, channel });
       }
@@ -114,14 +114,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setActiveConversationState({ type, id, name: user.name, recipient: user });
       }
     }
-    setCurrentViewState('chat'); // Ensure view is 'chat' when a conversation is selected
-    setReplyingToMessage(null); // Clear reply context when changing conversation
+    setCurrentViewState('chat'); 
+    setReplyingToMessage(null); 
   }, [channels, allUsersWithCurrent, currentUser.id, toast]);
 
   const setActiveSpecialView = useCallback((view: 'replies' | 'activity' | 'drafts') => {
     setCurrentViewState(view);
-    setActiveConversationState(null); // Clear active chat when switching to a special view
-    setReplyingToMessage(null); // Clear reply context
+    setActiveConversationState(null); 
+    setReplyingToMessage(null); 
   }, []);
 
 
@@ -147,12 +147,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       };
     }
 
+    let messageFile: Message['file'] | undefined = undefined;
+    if (file) {
+      let fileType: Message['file']['type'] = 'other';
+      if (file.type.startsWith('image/')) {
+        fileType = 'image';
+      } else if (file.type.startsWith('audio/')) {
+        fileType = 'audio';
+      } else if (file.type === 'application/pdf' || file.type.startsWith('text/')) {
+        fileType = 'document';
+      }
+      
+      // For audio/video and potentially large images, createObjectURL is better than data URI for performance.
+      // For this mock, we'll use it for audio. Other file types might use a placeholder or this too.
+      const fileUrl = (fileType === 'audio' || fileType === 'image') ? URL.createObjectURL(file) : 'https://placehold.co/200x150.png';
+
+
+      messageFile = { 
+        name: file.name, 
+        url: fileUrl,
+        type: fileType,
+      };
+    }
+
     const newMessage: Message = {
       id: `m${Date.now()}`,
       userId: currentUser.id,
       content,
       timestamp: Date.now(),
-      file: file ? { name: file.name, url: 'https://placehold.co/200x150.png', type: file.type.startsWith('image/') ? 'image' : 'document' } : undefined,
+      file: messageFile,
       reactions: {},
       ...replyData,
     };
@@ -162,7 +185,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } else if (activeConversation) {
         allMockMessages[activeConversation.id] = [newMessage];
     }
-    setReplyingToMessage(null); // Clear reply context after sending
+    setReplyingToMessage(null); 
   }, [activeConversation, currentUser.id, replyingToMessage, allUsersWithCurrent]);
 
   const addChannel = useCallback((name: string, description?: string, memberIds: string[] = [], isPrivate: boolean = false) => {
@@ -218,7 +241,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 id: `sys-add-init-${Date.now()}`,
                 userId: 'system',
                 content: addedMembersMessageContent,
-                timestamp: Date.now() + 1, // Ensure slightly different timestamp
+                timestamp: Date.now() + 1, 
                 isSystemMessage: true,
             };
             allMockMessages[newChannel.id].push(addedMembersSystemMessage);

@@ -20,7 +20,8 @@ export type Channel = {
 export type MessageFile = {
   name: string;
   url: string;
-  type: 'image' | 'document' | 'other';
+  type: 'image' | 'document' | 'audio' | 'other'; // Added 'audio'
+  duration?: number; // Optional: for audio/video duration
 };
 
 export type Message = {
@@ -80,3 +81,4 @@ export type AttendanceLogEntry = {
   totalHoursWorked: number; // in seconds
   totalActivityPercent: number;
 };
+
