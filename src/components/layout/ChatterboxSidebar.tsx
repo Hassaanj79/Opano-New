@@ -9,8 +9,9 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarSeparator,
-  SidebarGroupAction,
-  SidebarInput,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import { ChannelList } from './ChannelList';
 import { DirectMessageList } from './DirectMessageList';
@@ -18,10 +19,21 @@ import { OpanoLogo } from '@/components/OpanoLogo';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Settings, PlusCircle, UserPlus, Search, Edit, UserCheck, UserX } from 'lucide-react';
+import { 
+    Settings, 
+    UserPlus, 
+    Edit, 
+    UserCheck, 
+    UserX,
+    MessageSquareReply, 
+    Bell,             
+    Send,             
+    MoreHorizontal,   
+    Plus,             
+} from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
-import { EditProfileDialog } from '@/components/dialogs/EditProfileDialog'; // New import
+import { EditProfileDialog } from '@/components/dialogs/EditProfileDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,11 +43,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const topNavItems = [
+    { label: 'Replies', icon: MessageSquareReply, href: '#/replies' },
+    { label: 'Activity', icon: Bell, href: '#/activity' },
+    { label: 'Drafts', icon: Send, href: '#/drafts' },
+    { label: 'More', icon: MoreHorizontal, href: '#/more-main' },
+];
+
 export function ChatterboxSidebar() {
   const { currentUser, toggleCurrentUserStatus } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
-  const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false); // New state
+  const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleEditProfile = () => {
@@ -52,39 +71,51 @@ export function ChatterboxSidebar() {
         </SidebarHeader>
 
         <SidebarContent className="p-0">
-          <div className="p-3 space-y-2">
-            <div className="relative group-data-[collapsible=icon]:hidden">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <SidebarInput
-                placeholder="Search channels & users..."
-                className="pl-8 bg-background"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
+          {/* Top Navigation Section */}
+          <SidebarGroup className="pt-2 pb-1 group-data-[collapsible=icon]:px-0">
+            <SidebarMenu>
+              {topNavItems.map((item) => (
+                <SidebarMenuItem key={item.label}>
+                  <SidebarMenuButton
+                    onClick={() => { /* Placeholder for navigation */ console.log(`Navigate to ${item.label}`); }}
+                    tooltip={item.label}
+                    className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center"
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+          
+          <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
 
-          <SidebarGroup className="pt-0">
-            <div className="flex items-center justify-between w-full px-2">
-              <SidebarGroupLabel className="text-xs font-semibold uppercase text-foreground/70 group-data-[collapsible=icon]:hidden">
-                Channels
+          {/* Loopz (Channels) Section */}
+          <SidebarGroup className="pt-1 group-data-[collapsible=icon]:px-0">
+            <div className="flex items-center justify-between w-full px-3 mb-1 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:mb-0.5">
+              <SidebarGroupLabel className="text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden p-0 normal-case">
+                  Loopz
               </SidebarGroupLabel>
-              <SidebarGroupAction
+              <Button
+                variant="default" // Uses primary theme color
+                size="icon"
+                className="h-6 w-6 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground group-data-[collapsible=icon]:hidden"
                 onClick={() => setIsAddChannelDialogOpen(true)}
                 aria-label="Add new channel"
-                className="text-muted-foreground hover:text-primary"
               >
-                <PlusCircle className="h-4 w-4" />
-              </SidebarGroupAction>
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
             </div>
             <ChannelList searchTerm={searchTerm} />
           </SidebarGroup>
 
-          <SidebarSeparator className="my-1" />
+          <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
 
-          <SidebarGroup>
-             <div className="flex items-center justify-between w-full px-2">
-                <SidebarGroupLabel className="text-xs font-semibold uppercase text-foreground/70 group-data-[collapsible=icon]:hidden">
+          {/* Direct Messages Section */}
+          <SidebarGroup className="pt-1 group-data-[collapsible=icon]:px-0">
+             <div className="flex items-center justify-between w-full px-3 mb-1 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:mb-0.5">
+                <SidebarGroupLabel className="text-xs font-semibold uppercase text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden p-0">
                     Direct Messages
                 </SidebarGroupLabel>
             </div>
@@ -134,7 +165,6 @@ export function ChatterboxSidebar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
           </div>
         </SidebarFooter>
       </Sidebar>
