@@ -3,7 +3,8 @@ import type {Metadata} from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { AppProvider } from '@/contexts/AppContext'; // Import AppProvider
+import { AppProvider } from '@/contexts/AppContext';
+import { ThinIconBar } from '@/components/layout/ThinIconBar'; // Import ThinIconBar
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -16,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Opano', // Changed from Chatterbox
-  description: 'Real-time messaging and collaboration app.', // Kept description general
+  title: 'Opano',
+  description: 'Real-time messaging and collaboration app.',
 };
 
 export default function RootLayout({
@@ -28,8 +29,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <AppProvider> {/* Wrap children with AppProvider */}
-          {children}
+        <AppProvider>
+          <div className="flex h-screen bg-background"> {/* Flex container for global layout */}
+            <ThinIconBar /> {/* Global thin icon bar */}
+            <main className="flex-grow flex flex-col overflow-hidden"> {/* Main content area that grows and can scroll */}
+              {children}
+            </main>
+          </div>
           <Toaster />
         </AppProvider>
       </body>

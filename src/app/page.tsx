@@ -5,10 +5,9 @@ import { ChatterboxSidebar } from "@/components/layout/ChatterboxSidebar";
 import { ChatView } from "@/components/chat/ChatView";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { OpanoLogo } from "@/components/OpanoLogo";
-import { ThinIconBar } from "@/components/layout/ThinIconBar";
-import { MessageSquareDashed, Reply, BellRing, FileText } from 'lucide-react'; // Placeholder icons for new views
+// ThinIconBar is removed from here as it's now in RootLayout
+import { MessageSquareDashed, Reply, BellRing, FileText } from 'lucide-react';
 
-// Import new view components
 import { RepliesView } from '@/components/views/RepliesView';
 import { ActivityView } from '@/components/views/ActivityView';
 import { DraftsView } from '@/components/views/DraftsView';
@@ -36,7 +35,7 @@ export default function OpanoPage() {
       case 'drafts':
         return <DraftsView />;
       default:
-        return ( // Fallback, should ideally not be reached if currentView is always valid
+        return (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-4">
             <p className="text-lg">Loading...</p>
           </div>
@@ -45,27 +44,27 @@ export default function OpanoPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
-      <ThinIconBar />
-      <div className="flex-grow flex min-w-0">
-        <SidebarProvider>
-          <ChatterboxSidebar />
-          <SidebarInset className="flex flex-col h-full">
-            {/* Mobile header - only for 'chat' view for now */}
-            {currentView === 'chat' && (
-               <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-card p-2 md:hidden h-[60px]">
-                 <div className="flex items-center gap-2">
-                     <SidebarTrigger className="h-8 w-8" />
-                     <OpanoLogo />
-                 </div>
-               </header>
-            )}
-            <div className="flex-grow overflow-hidden">
-              {renderMainContent()}
-            </div>
-          </SidebarInset>
-        </SidebarProvider>
-      </div>
+    // The outer div's h-screen and bg-background are handled by RootLayout's new structure.
+    // This div now represents the content for the <main> tag in RootLayout.
+    // It needs to flex and fill height correctly.
+    <div className="flex flex-grow min-w-0 h-full"> {/* Ensures this page content fills the main area */}
+      {/* ThinIconBar removed from here */}
+      <SidebarProvider>
+        <ChatterboxSidebar />
+        <SidebarInset className="flex flex-col h-full">
+          {currentView === 'chat' && (
+             <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-card p-2 md:hidden h-[60px]">
+               <div className="flex items-center gap-2">
+                   <SidebarTrigger className="h-8 w-8" />
+                   <OpanoLogo />
+               </div>
+             </header>
+          )}
+          <div className="flex-grow overflow-hidden">
+            {renderMainContent()}
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
     </div>
   );
 }
