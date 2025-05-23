@@ -3,8 +3,8 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Coffee, LogOut, Play, TimerIcon, Edit2, Trash } from "lucide-react";
-import React, { useState, useEffect } from 'react';
+import { Calendar as CalendarIcon, Coffee, LogOut, Play, TimerIcon, Edit2, Trash, PlusCircle } from "lucide-react";
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from "@/contexts/AppContext";
 import { UserAvatar } from "@/components/UserAvatar";
 import {
@@ -15,8 +15,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { format } from 'date-fns';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { format, isSameDay } from 'date-fns';
 import type { AttendanceLogEntry } from '@/types';
+import { EditAttendanceLogDialog } from "@/components/dialogs/EditAttendanceLogDialog"; // New Dialog
+import { cn } from "@/lib/utils";
 
 const MAX_WORK_SECONDS = 8 * 60 * 60; // 8 hours in seconds for progress calculation
 
@@ -35,7 +54,7 @@ const formatDuration = (totalSeconds: number): string => {
 const formatDurationForTable = (totalSeconds: number): string => {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  if (hours === 0 && minutes === 0) return `${totalSeconds} Secs`;
+  if (hours === 0 && minutes === 0) return `${Math.max(0,totalSeconds)} Secs`; // Ensure non-negative
   if (hours === 0) return `${minutes} Mins`;
   const decimalHours = hours + minutes / 60;
   return `${decimalHours.toFixed(2)} Hours`;
@@ -99,9 +118,22 @@ export default function AttendancePage() {
   const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
   const [accumulatedBreakDuration, setAccumulatedBreakDuration] = useState<number>(0);
   const [workedSeconds, setWorkedSeconds] = useState<number>(0);
-  const [attendanceLog, setAttendanceLog] = useState<AttendanceLogEntry[]>([]);
+  
+  const [masterAttendanceLog, setMasterAttendanceLog] = useState<AttendanceLogEntry[]>([]);
+  const [displayedAttendanceLog, setDisplayedAttendanceLog] = useState<AttendanceLogEntry[]>([]);
   const [reportDate, setReportDate] = useState<Date>(new Date());
 
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<AttendanceLogEntry | null>(null);
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    const filtered = masterAttendanceLog.filter(log => 
+      isSameDay(new Date(log.clockInTime), reportDate)
+    ).sort((a,b) => new Date(b.clockInTime).getTime() - new Date(a.clockInTime).getTime());
+    setDisplayedAttendanceLog(filtered);
+  }, [reportDate, masterAttendanceLog]);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
@@ -119,7 +151,9 @@ export default function AttendancePage() {
 
   useEffect(() => {
     if (status === 'working' && clockInTime) {
-      const elapsedSinceClockIn = Math.floor((new Date().getTime() - clockInTime.getTime()) / 1000);
+      const now = new Date().getTime();
+      const ciTime = clockInTime.getTime();
+      const elapsedSinceClockIn = Math.floor((now - ciTime) / 1000);
       setWorkedSeconds(Math.max(0, elapsedSinceClockIn - accumulatedBreakDuration));
     }
   }, [status, clockInTime, accumulatedBreakDuration]);
@@ -134,10 +168,8 @@ export default function AttendancePage() {
     setAccumulatedBreakDuration(0);
     setWorkedSeconds(0);
     setStatus('working');
-    // If clocking in on a new day, reset the log and update reportDate
-    if (reportDate.toDateString() !== now.toDateString()) {
-      setAttendanceLog([]);
-      setReportDate(now);
+    if (!isSameDay(reportDate, now)) {
+      setReportDate(now); // if clocking in on a new day, auto-switch report to today
     }
   };
 
@@ -156,7 +188,6 @@ export default function AttendancePage() {
     setIsOnBreak(false);
     setBreakStartTime(null);
 
-    // Add to log
     const newLogEntry: AttendanceLogEntry = {
       id: `log-${Date.now()}`,
       clockInTime: clockInTime,
@@ -164,7 +195,7 @@ export default function AttendancePage() {
       totalHoursWorked: workedSeconds,
       totalActivityPercent: Math.floor(Math.random() * 41) + 60, // Random 60-100%
     };
-    setAttendanceLog(prevLog => [newLogEntry, ...prevLog]);
+    setMasterAttendanceLog(prevLog => [newLogEntry, ...prevLog]);
   };
 
   const handleToggleBreak = () => {
@@ -180,6 +211,27 @@ export default function AttendancePage() {
       setIsOnBreak(false);
     }
   };
+
+  const handleOpenEditDialog = (logEntry: AttendanceLogEntry) => {
+    setEditingEntry(logEntry);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = (updatedEntry: AttendanceLogEntry) => {
+    setMasterAttendanceLog(prevLog => 
+      prevLog.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry)
+    );
+    setIsEditDialogOpen(false);
+    setEditingEntry(null);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deletingEntryId) {
+      setMasterAttendanceLog(prevLog => prevLog.filter(entry => entry.id !== deletingEntryId));
+    }
+    setDeletingEntryId(null); // Close dialog
+  };
+
 
   const timerDisplay = formatDuration(workedSeconds);
   const progressPercent = status === 'clocked-out' || status === 'not-clocked-in' ? 0 : Math.min(100, (workedSeconds / MAX_WORK_SECONDS) * 100);
@@ -276,55 +328,118 @@ export default function AttendancePage() {
       </div>
 
       {/* Attendance Log Table Section */}
-      {attendanceLog.length > 0 && (
-        <div className="mt-10 w-full max-w-4xl mx-auto bg-card p-4 sm:p-6 rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold text-foreground mb-1">
-            Clock In / Clock Out Report of {formatDateForReportHeader(reportDate)}
-          </h2>
-          <p className="text-sm text-muted-foreground mb-4">Showing your activity for the selected date.</p>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[200px]">Employee Name</TableHead>
-                  <TableHead>Clock In Time</TableHead>
-                  <TableHead>Clock Out Time</TableHead>
-                  <TableHead>Total Hours Work</TableHead>
-                  <TableHead>Total Activity</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {attendanceLog.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <UserAvatar user={currentUser} className="h-8 w-8" />
-                        <div>
-                          <div className="font-medium">{currentUser.name}</div>
-                          <div className="text-xs text-muted-foreground">{currentUser.designation}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatTimeToAMPM(log.clockInTime)}</TableCell>
-                    <TableCell>{formatTimeToAMPM(log.clockOutTime)}</TableCell>
-                    <TableCell>{formatDurationForTable(log.totalHoursWorked)}</TableCell>
-                    <TableCell>{log.totalActivityPercent}%</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8">
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8">
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+      <div className="mt-10 w-full max-w-4xl mx-auto bg-card p-4 sm:p-6 rounded-lg shadow-lg">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+            <div>
+                <h2 className="text-xl font-semibold text-foreground">
+                    Clock In / Clock Out Report
+                </h2>
+                <p className="text-sm text-muted-foreground">Showing activity for: {formatDateForReportHeader(reportDate)}</p>
+            </div>
+            <Popover>
+            <PopoverTrigger asChild>
+                <Button
+                variant={"outline"}
+                className={cn(
+                    "w-[220px] justify-start text-left font-normal",
+                    !reportDate && "text-muted-foreground"
+                )}
+                >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {reportDate ? format(reportDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+                <Calendar
+                mode="single"
+                selected={reportDate}
+                onSelect={(date) => date && setReportDate(date)}
+                initialFocus
+                />
+            </PopoverContent>
+            </Popover>
         </div>
+        
+        {displayedAttendanceLog.length > 0 ? (
+            <div className="overflow-x-auto">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead className="w-[200px]">Employee Name</TableHead>
+                    <TableHead>Clock In Time</TableHead>
+                    <TableHead>Clock Out Time</TableHead>
+                    <TableHead>Total Hours Work</TableHead>
+                    <TableHead>Total Activity</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {displayedAttendanceLog.map((log) => (
+                    <TableRow key={log.id}>
+                        <TableCell>
+                        <div className="flex items-center gap-2">
+                            <UserAvatar user={currentUser} className="h-8 w-8" />
+                            <div>
+                            <div className="font-medium">{currentUser.name}</div>
+                            <div className="text-xs text-muted-foreground">{currentUser.designation}</div>
+                            </div>
+                        </div>
+                        </TableCell>
+                        <TableCell>{formatTimeToAMPM(new Date(log.clockInTime))}</TableCell>
+                        <TableCell>{formatTimeToAMPM(new Date(log.clockOutTime))}</TableCell>
+                        <TableCell>{formatDurationForTable(log.totalHoursWorked)}</TableCell>
+                        <TableCell>{log.totalActivityPercent}%</TableCell>
+                        <TableCell className="text-right space-x-1">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-muted-foreground hover:text-primary h-8 w-8"
+                            onClick={() => handleOpenEditDialog(log)}
+                            >
+                            <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8" onClick={() => setDeletingEntryId(log.id)}>
+                                    <Trash className="h-4 w-4" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the attendance log entry.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setDeletingEntryId(null)}>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleConfirmDelete}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                        </TableCell>
+                    </TableRow>
+                    ))}
+                </TableBody>
+                </Table>
+            </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            <PlusCircle className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+            <p className="font-medium">No attendance records for {formatDateForReportHeader(reportDate)}.</p>
+            <p className="text-sm">Clock in and out to see your activity here, or select another date.</p>
+          </div>
+        )}
+      </div>
+      {editingEntry && (
+        <EditAttendanceLogDialog
+            isOpen={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            logEntry={editingEntry}
+            onSave={handleSaveEdit}
+        />
       )}
     </div>
   );
 }
+
