@@ -557,7 +557,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         designation: profileData.designation || prevUser.designation,
         email: profileData.email,
         phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
-        avatarDataUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
+        avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
       };
       setTimeout(() => {
         toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
@@ -664,7 +664,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return activityItems.sort((a, b) => b.timestamp - a.timestamp);
   }, [currentUser.id, allUsersWithCurrent, channels]);
 
-  // Document Management Functions
   const findDocumentCategoryById = useCallback((categoryId: string) => {
     return documentCategories.find(cat => cat.id === categoryId);
   }, [documentCategories]);
@@ -713,7 +712,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ),
         });
     }, 0);
-  }, [toast, findDocumentCategoryById, currentUser.name, router]);
+
+    // Send message to #general channel
+    const generalChannelId = 'c1';
+    const systemMessageContent = `${currentUser.name} added a new document: "${newDocument.name}" to the "${categoryName}" category.`;
+    const systemMessage: Message = {
+        id: `sys-doc-add-${Date.now()}`,
+        userId: 'system',
+        content: systemMessageContent,
+        timestamp: Date.now(),
+        isSystemMessage: true,
+    };
+    if (allMockMessages[generalChannelId]) {
+        allMockMessages[generalChannelId].push(systemMessage);
+    } else {
+        allMockMessages[generalChannelId] = [systemMessage];
+    }
+    if (activeConversation?.type === 'channel' && activeConversation.id === generalChannelId) {
+        setMessages(prevMessages => [...prevMessages, systemMessage]);
+    }
+
+  }, [toast, findDocumentCategoryById, currentUser.name, router, activeConversation]);
 
   const addTextDocumentToCategory = useCallback((categoryId: string, docName: string, textContent: string) => {
     const newDocument: Document = {
@@ -743,7 +762,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ),
         });
     },0);
-  }, [toast, findDocumentCategoryById, currentUser.name, router]);
+
+    // Send message to #general channel
+    const generalChannelId = 'c1';
+    const systemMessageContent = `${currentUser.name} created a new text document: "${newDocument.name}" in the "${categoryName}" category.`;
+    const systemMessage: Message = {
+        id: `sys-doc-create-${Date.now()}`,
+        userId: 'system',
+        content: systemMessageContent,
+        timestamp: Date.now(),
+        isSystemMessage: true,
+    };
+     if (allMockMessages[generalChannelId]) {
+        allMockMessages[generalChannelId].push(systemMessage);
+    } else {
+        allMockMessages[generalChannelId] = [systemMessage];
+    }
+    if (activeConversation?.type === 'channel' && activeConversation.id === generalChannelId) {
+        setMessages(prevMessages => [...prevMessages, systemMessage]);
+    }
+
+  }, [toast, findDocumentCategoryById, currentUser.name, router, activeConversation]);
 
   const addLinkedDocumentToCategory = useCallback((categoryId: string, docName: string, docUrl: string) => {
     const newDocument: Document = {
@@ -773,7 +812,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ),
         });
     },0);
-  }, [toast, findDocumentCategoryById, currentUser.name, router]);
+
+    // Send message to #general channel
+    const generalChannelId = 'c1';
+    const systemMessageContent = `${currentUser.name} linked an external document: "${newDocument.name}" in the "${categoryName}" category.`;
+    const systemMessage: Message = {
+        id: `sys-doc-link-${Date.now()}`,
+        userId: 'system',
+        content: systemMessageContent,
+        timestamp: Date.now(),
+        isSystemMessage: true,
+    };
+    if (allMockMessages[generalChannelId]) {
+        allMockMessages[generalChannelId].push(systemMessage);
+    } else {
+        allMockMessages[generalChannelId] = [systemMessage];
+    }
+    if (activeConversation?.type === 'channel' && activeConversation.id === generalChannelId) {
+        setMessages(prevMessages => [...prevMessages, systemMessage]);
+    }
+
+  }, [toast, findDocumentCategoryById, currentUser.name, router, activeConversation]);
 
   const deleteDocumentFromCategory = useCallback((categoryId: string, docId: string) => {
     setDocumentCategories(prev => prev.map(cat =>
@@ -846,5 +905,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
-    
