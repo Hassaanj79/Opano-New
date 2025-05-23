@@ -28,19 +28,18 @@ export default function DocumentsPage() {
   return (
     <>
       <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
-        <div className="flex justify-start mb-4">
+        <div className="flex justify-between items-center mb-6 md:mb-8">
+          <header>
+            <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Document Management</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Organize, share, and manage all your important documents across different categories.
+            </p>
+          </header>
           <Button variant="outline" onClick={() => setIsAddCategoryDialogOpen(true)}>
             <Icons.PlusCircle className="mr-2 h-4 w-4" />
             New Category
           </Button>
         </div>
-
-        <header className="mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Document Management</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Organize, share, and manage all your important documents across different categories.
-          </p>
-        </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {documentCategories.map((category) => (
