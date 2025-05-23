@@ -6,7 +6,7 @@ import { ChatView } from "@/components/chat/ChatView";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { OpanoLogo } from "@/components/OpanoLogo";
 // ThinIconBar is removed from here as it's now in RootLayout
-import { MessageSquareDashed, Reply, BellRing, FileText } from 'lucide-react';
+import { MessageSquareDashed, Reply, BellRing, FileText, PanelLeft } from 'lucide-react';
 
 import { RepliesView } from '@/components/views/RepliesView';
 import { ActivityView } from '@/components/views/ActivityView';
@@ -49,7 +49,7 @@ export default function OpanoPage() {
     // It needs to flex and fill height correctly.
     <div className="flex flex-grow min-w-0 h-full"> {/* Ensures this page content fills the main area */}
       {/* ThinIconBar removed from here */}
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={false}> {/* Set defaultOpen to false */}
         <ChatterboxSidebar />
         <SidebarInset className="flex flex-col h-full">
           {currentView === 'chat' && (
