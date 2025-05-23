@@ -156,18 +156,18 @@ export default function AttendancePage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full">
-      {/* User Info Section */}
-      <div className="flex items-center space-x-3 mb-8 p-4 rounded-lg bg-background shadow-md w-full max-w-lg">
-        <UserAvatar user={currentUser} className="h-12 w-12" />
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">{currentUser.name}</h1>
-          <p className="text-sm text-muted-foreground">{currentUser.designation || "No Designation"}</p>
+    <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full">
+      {/* User Info Section - Top Left */}
+      <div className="w-full flex justify-start items-center p-4 mb-8 bg-background shadow-md rounded-lg">
+        <UserAvatar user={currentUser} className="h-10 w-10" />
+        <div className="ml-3">
+          <h1 className="text-lg font-semibold text-foreground">{currentUser.name}</h1>
+          <p className="text-xs text-muted-foreground">{currentUser.designation || "No Designation"}</p>
         </div>
       </div>
 
-      {/* Timer and Info Section */}
-      <div className="flex flex-col items-center w-full max-w-lg">
+      {/* Centered Timer and Info Section */}
+      <div className="flex flex-col items-center w-full max-w-lg mx-auto">
         <WorkTimerDisplay time={timerDisplay} progressPercent={progressPercent} />
         <div className="my-4">
           {getStatusBadge()}
@@ -187,8 +187,8 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Action Buttons Section */}
-      <div className="flex flex-col gap-3 pt-6 mt-6 border-t border-border w-full max-w-lg">
+      {/* Centered Action Buttons Section */}
+      <div className="flex flex-col gap-3 pt-6 mt-auto w-full max-w-lg mx-auto"> {/* Added mt-auto to push to bottom */}
         {status === 'not-clocked-in' && (
           <Button onClick={handleClockIn} size="lg" className="w-full">
             <Play className="mr-2 h-5 w-5" /> Clock In
@@ -233,5 +233,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
-    
