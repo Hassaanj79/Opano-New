@@ -82,3 +82,23 @@ export type AttendanceLogEntry = {
   totalActivityPercent: number;
 };
 
+// Document Management Types
+export interface Document {
+  id: string;
+  name: string;
+  type: string; // e.g., 'pdf', 'docx', 'png' for file uploads, 'text/plain' for created docs, 'external/link' for URLs
+  docType: 'file' | 'text' | 'url'; // Distinguishes between uploaded files, in-app created text docs, and external links
+  lastModified: string; // ISO string or formatted date
+  fileUrl?: string; // For local preview of uploaded files (URL.createObjectURL) OR the external URL for 'url' type
+  fileObject?: File; // Store the actual file object if needed (not persisted for files)
+  textContent?: string; // Content for in-app created text documents
+}
+
+export interface DocumentCategory {
+  id: string;
+  name: string;
+  description: string;
+  // Storing icon name as string, to be resolved to component in UI
+  iconName: keyof typeof import("lucide-react") | 'Users' | 'Briefcase' | 'Megaphone' | 'Settings' | 'DollarSign' | 'FolderKanban';
+  documents: Document[];
+}

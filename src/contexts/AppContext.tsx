@@ -2,12 +2,25 @@
 "use client";
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView } from '@/types';
-import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages as allMockMessages, mockDrafts as initialMockDrafts } from '@/lib/mock-data';
+import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView, DocumentCategory, Document } from '@/types';
+import { 
+    mockUsers, 
+    mockChannels as initialMockChannels, 
+    mockCurrentUser, 
+    getMessagesForConversation as fetchMockMessages, 
+    updateMockMessage, 
+    mockMessages as allMockMessages, 
+    mockDrafts as initialMockDrafts,
+    initialDocumentCategories // Import initial document categories
+} from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
+import type { LucideIcon } from 'lucide-react';
+import * as Icons from 'lucide-react';
+
 
 // Define the shape of the data for updating a user profile
 export type UserProfileUpdateData = {
@@ -54,6 +67,15 @@ interface AppContextType {
 
   replyingToMessage: Message | null;
   setReplyingToMessage: React.Dispatch<React.SetStateAction<Message | null>>;
+
+  // Document Management
+  documentCategories: DocumentCategory[];
+  addDocumentCategory: (name: string, description: string, iconName?: DocumentCategory['iconName']) => void;
+  addFileDocumentToCategory: (categoryId: string, file: File) => void;
+  addTextDocumentToCategory: (categoryId: string, docName: string, textContent: string) => void;
+  addLinkedDocumentToCategory: (categoryId: string, docName: string, docUrl: string) => void;
+  deleteDocumentFromCategory: (categoryId: string, docId: string) => void;
+  findDocumentCategoryById: (categoryId: string) => DocumentCategory | undefined;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -62,7 +84,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User>(mockCurrentUser);
   const [users, setUsers] = useState<User[]>(mockUsers.filter(u => u.id !== currentUser.id));
   const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>(mockUsers);
-  const [channels, setChannels] = useState<Channel[]>(mockChannels);
+  const [channels, setChannels] = useState<Channel[]>(initialMockChannels);
   const [activeConversation, setActiveConversationState] = useState<ActiveConversation>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentSummary, setCurrentSummary] = useState<string | null>(null);
@@ -74,6 +96,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentView, setCurrentViewState] = useState<CurrentView>('chat');
   const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
+
+  // Document Management State
+  const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories);
 
 
   useEffect(() => {
@@ -158,10 +183,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         fileType = 'document';
       }
       
-      // For audio/video and potentially large images, createObjectURL is better than data URI for performance.
-      // For this mock, we'll use it for audio. Other file types might use a placeholder or this too.
       const fileUrl = (fileType === 'audio' || fileType === 'image') ? URL.createObjectURL(file) : 'https://placehold.co/200x150.png';
-
 
       messageFile = { 
         name: file.name, 
@@ -210,11 +232,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     setChannels(prevChannels => {
       const updatedChannels = [...prevChannels, newChannel];
-      const channelIndex = mockChannels.findIndex(ch => ch.id === newChannel.id);
+      const channelIndex = initialMockChannels.findIndex(ch => ch.id === newChannel.id);
       if (channelIndex === -1) {
-        mockChannels.push(newChannel);
+        initialMockChannels.push(newChannel);
       } else {
-        mockChannels[channelIndex] = newChannel;
+        initialMockChannels[channelIndex] = newChannel;
       }
       return updatedChannels;
     });
@@ -265,9 +287,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const newMemberIds = Array.from(new Set([...channel.memberIds, ...userIdsToAdd]));
           const updatedChannel = { ...channel, memberIds: newMemberIds };
 
-          const mockChannelIndex = mockChannels.findIndex(ch => ch.id === channelId);
+          const mockChannelIndex = initialMockChannels.findIndex(ch => ch.id === channelId);
           if (mockChannelIndex !== -1) {
-            mockChannels[mockChannelIndex] = updatedChannel;
+            initialMockChannels[mockChannelIndex] = updatedChannel;
           }
 
           if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
@@ -641,6 +663,104 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return activityItems.sort((a, b) => b.timestamp - a.timestamp);
   }, [currentUser.id, allUsersWithCurrent, channels]);
 
+  // Document Management Functions
+  const findDocumentCategoryById = useCallback((categoryId: string) => {
+    return documentCategories.find(cat => cat.id === categoryId);
+  }, [documentCategories]);
+
+  const addDocumentCategory = useCallback((name: string, description: string, iconName: DocumentCategory['iconName'] = 'FolderKanban') => {
+    const newCategory: DocumentCategory = {
+      id: `cat-${Date.now()}`,
+      name,
+      description,
+      iconName: iconName,
+      documents: [],
+    };
+    setDocumentCategories(prev => [...prev, newCategory]);
+    // Update mock data store
+    initialDocumentCategories.push(newCategory);
+    setTimeout(() => {
+      toast({ title: "Category Added", description: `Category "${name}" has been created.` });
+    }, 0);
+  }, [toast]);
+
+  const addFileDocumentToCategory = useCallback((categoryId: string, file: File) => {
+    const newDocument: Document = {
+      id: `doc-file-${Date.now()}`,
+      name: file.name,
+      type: file.type || 'unknown',
+      docType: 'file',
+      lastModified: format(new Date(), "MMM d, yyyy"),
+      fileUrl: URL.createObjectURL(file),
+      fileObject: file,
+    };
+    setDocumentCategories(prev => prev.map(cat => 
+        cat.id === categoryId ? { ...cat, documents: [...cat.documents, newDocument] } : cat
+    ));
+    // Update mock data store
+    const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
+    if (catIndex > -1) initialDocumentCategories[catIndex].documents.push(newDocument);
+    
+    const category = findDocumentCategoryById(categoryId);
+    setTimeout(() => {
+      toast({ title: "File Document Added", description: `"${file.name}" added to ${category?.name}.` });
+    },0);
+  }, [toast, findDocumentCategoryById]);
+
+  const addTextDocumentToCategory = useCallback((categoryId: string, docName: string, textContent: string) => {
+    const newDocument: Document = {
+      id: `doc-text-${Date.now()}`,
+      name: docName.endsWith('.txt') ? docName : `${docName}.txt`,
+      type: 'text/plain',
+      docType: 'text',
+      lastModified: format(new Date(), "MMM d, yyyy"),
+      textContent: textContent,
+    };
+    setDocumentCategories(prev => prev.map(cat => 
+        cat.id === categoryId ? { ...cat, documents: [...cat.documents, newDocument] } : cat
+    ));
+    const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
+    if (catIndex > -1) initialDocumentCategories[catIndex].documents.push(newDocument);
+    const category = findDocumentCategoryById(categoryId);
+    setTimeout(() => {
+        toast({ title: "Text Document Created", description: `"${newDocument.name}" created in ${category?.name}.`});
+    },0);
+  }, [toast, findDocumentCategoryById]);
+
+  const addLinkedDocumentToCategory = useCallback((categoryId: string, docName: string, docUrl: string) => {
+    const newDocument: Document = {
+      id: `doc-url-${Date.now()}`,
+      name: docName,
+      type: 'external/link',
+      docType: 'url',
+      lastModified: format(new Date(), "MMM d, yyyy"),
+      fileUrl: docUrl,
+    };
+    setDocumentCategories(prev => prev.map(cat => 
+        cat.id === categoryId ? { ...cat, documents: [...cat.documents, newDocument] } : cat
+    ));
+    const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
+    if (catIndex > -1) initialDocumentCategories[catIndex].documents.push(newDocument);
+    const category = findDocumentCategoryById(categoryId);
+    setTimeout(() => {
+        toast({ title: "External Document Linked", description: `"${newDocument.name}" linked in ${category?.name}.`});
+    },0);
+  }, [toast, findDocumentCategoryById]);
+
+  const deleteDocumentFromCategory = useCallback((categoryId: string, docId: string) => {
+    setDocumentCategories(prev => prev.map(cat => 
+        cat.id === categoryId 
+            ? { ...cat, documents: cat.documents.filter(doc => doc.id !== docId) } 
+            : cat
+    ));
+    const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
+    if (catIndex > -1) {
+        initialDocumentCategories[catIndex].documents = initialDocumentCategories[catIndex].documents.filter(doc => doc.id !== docId);
+    }
+    setTimeout(() => {
+        toast({ title: "Document Deleted", description: "The document has been removed."});
+    },0);
+  }, [toast]);
 
   return (
     <AppContext.Provider value={{
@@ -677,6 +797,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       getConversationName,
       replyingToMessage,
       setReplyingToMessage,
+      // Document Management
+      documentCategories,
+      addDocumentCategory,
+      addFileDocumentToCategory,
+      addTextDocumentToCategory,
+      addLinkedDocumentToCategory,
+      deleteDocumentFromCategory,
+      findDocumentCategoryById,
     }}>
       {children}
     </AppContext.Provider>

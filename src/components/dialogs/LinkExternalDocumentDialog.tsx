@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import type { DocumentCategory } from '@/app/documents/page'; 
+import type { DocumentCategory } from '@/types'; // Use global types
 import { Link as LinkIcon } from 'lucide-react';
 
 interface LinkExternalDocumentDialogProps {
@@ -53,7 +53,6 @@ export function LinkExternalDocumentDialog({ isOpen, onOpenChange, category, onA
        });
        return;
    }
-   // Basic URL validation (can be more sophisticated)
    try {
        new URL(documentUrl.trim());
    } catch (_) {
@@ -68,6 +67,7 @@ export function LinkExternalDocumentDialog({ isOpen, onOpenChange, category, onA
     onAddLinkedDocument(category.id, documentName.trim(), documentUrl.trim());
     resetForm();
     onOpenChange(false); 
+    // Success toast is handled by AppContext
   };
 
   const handleOpenChange = (open: boolean) => {

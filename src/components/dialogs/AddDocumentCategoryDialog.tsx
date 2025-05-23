@@ -16,11 +16,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import type { DocumentCategory } from '@/types'; // Use global types
 
 interface AddDocumentCategoryDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddCategory: (name: string, description: string) => void;
+  // The iconName is now optional as AppContext will handle a default
+  onAddCategory: (name: string, description: string, iconName?: DocumentCategory['iconName']) => void;
 }
 
 export function AddDocumentCategoryDialog({ isOpen, onOpenChange, onAddCategory }: AddDocumentCategoryDialogProps) {
@@ -43,13 +45,10 @@ export function AddDocumentCategoryDialog({ isOpen, onOpenChange, onAddCategory 
       });
       return;
     }
-    onAddCategory(categoryName.trim(), categoryDescription.trim());
+    onAddCategory(categoryName.trim(), categoryDescription.trim()); // iconName is handled by AppContext if not provided
     resetForm();
-    onOpenChange(false); // Close dialog on successful submission
-    toast({
-      title: "Category Added",
-      description: `Category "${categoryName.trim()}" has been created.`,
-    });
+    onOpenChange(false); 
+    // Toast for success is handled by AppContext now
   };
 
   const handleOpenChange = (open: boolean) => {

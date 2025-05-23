@@ -15,14 +15,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import type { DocumentCategory } from '@/app/documents/page'; 
+import type { DocumentCategory } from '@/types'; // Use global types
 import { UploadCloud, FileUp } from 'lucide-react';
 
 interface AddDocumentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  category: DocumentCategory;
-  onAddDocument: (categoryId: string, file: File) => void; // This specifically handles file uploads
+  category: DocumentCategory; // Keep category prop to know which category we are adding to
+  onAddDocument: (categoryId: string, file: File) => void; 
 }
 
 export function AddDocumentDialog({ isOpen, onOpenChange, category, onAddDocument }: AddDocumentDialogProps) {
@@ -55,9 +55,10 @@ export function AddDocumentDialog({ isOpen, onOpenChange, category, onAddDocumen
       });
       return;
     }
-    onAddDocument(category.id, selectedFile); // This callback is for file uploads
+    onAddDocument(category.id, selectedFile); 
     resetForm();
     onOpenChange(false); 
+    // Success toast is handled by AppContext
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -123,5 +124,3 @@ export function AddDocumentDialog({ isOpen, onOpenChange, category, onAddDocumen
     </Dialog>
   );
 }
-
-    

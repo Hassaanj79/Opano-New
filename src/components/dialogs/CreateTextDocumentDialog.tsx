@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import type { DocumentCategory } from '@/app/documents/page';
+import type { DocumentCategory } from '@/types'; // Use global types
 import { FileText } from 'lucide-react';
 
 interface CreateTextDocumentDialogProps {
@@ -57,6 +57,7 @@ export function CreateTextDocumentDialog({ isOpen, onOpenChange, category, onAdd
     onAddTextDocument(category.id, documentName.trim(), textContent.trim());
     resetForm();
     onOpenChange(false); 
+    // Success toast is handled by AppContext
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -115,5 +116,3 @@ export function CreateTextDocumentDialog({ isOpen, onOpenChange, category, onAdd
     </Dialog>
   );
 }
-
-    
