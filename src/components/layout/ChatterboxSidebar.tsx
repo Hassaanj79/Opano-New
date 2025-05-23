@@ -18,15 +18,29 @@ import { OpanoLogo } from '@/components/OpanoLogo';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Settings, PlusCircle, UserPlus, Search } from 'lucide-react';
+import { Settings, PlusCircle, UserPlus, Search, Edit, UserCheck, UserX } from 'lucide-react'; // Added Edit, UserCheck, UserX
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function ChatterboxSidebar() {
-  const { currentUser } = useAppContext();
+  const { currentUser, toggleCurrentUserStatus } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const handleEditProfile = () => {
+    // Placeholder for opening Edit Profile dialog
+    console.log("Edit Profile clicked");
+    // Future: setIsEditProfileDialogOpen(true);
+  };
 
   return (
     <>
@@ -89,20 +103,50 @@ export function ChatterboxSidebar() {
             <span className="ml-2 group-data-[collapsible=icon]:hidden">Invite User</span>
           </Button>
           <SidebarSeparator className="my-1"/>
-          <div className="flex items-center p-1 gap-2 hover:bg-sidebar-accent rounded-md cursor-pointer group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center">
+          <div className="flex items-center p-1 gap-2 rounded-md group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center">
             <UserAvatar user={currentUser} className="h-8 w-8" />
             <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
               <p className="font-semibold text-sm truncate text-sidebar-foreground">{currentUser.name}</p>
-              <p className="text-xs text-sidebar-foreground/70">{currentUser.isOnline ? 'Online' : 'Offline'}</p>
+              <p className="text-xs text-sidebar-foreground/70">{currentUser.isOnline ? 'Online' : 'Away'}</p>
             </div>
-            <Button variant="ghost" size="icon" className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground">
-              <Settings className="h-4 w-4"/>
-            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground">
+                  <Settings className="h-4 w-4"/>
+                  <span className="sr-only">User Settings</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleEditProfile}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  <span>Edit Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={toggleCurrentUserStatus}>
+                  {currentUser.isOnline ? (
+                    <UserX className="mr-2 h-4 w-4" /> 
+                  ) : (
+                    <UserCheck className="mr-2 h-4 w-4" />
+                  )}
+                  <span>{currentUser.isOnline ? 'Set to Away' : 'Set to Online'}</span>
+                </DropdownMenuItem>
+                {/* Placeholder for future Log Out */}
+                {/* <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log Out</span>
+                </DropdownMenuItem> */}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
           </div>
         </SidebarFooter>
       </Sidebar>
       <AddChannelDialog isOpen={isAddChannelDialogOpen} onOpenChange={setIsAddChannelDialogOpen} />
       <InviteUserDialog isOpen={isInviteUserDialogOpen} onOpenChange={setIsInviteUserDialogOpen} />
+      {/* Future: <EditProfileDialog isOpen={isEditProfileDialogOpen} onOpenChange={setIsEditProfileDialogOpen} /> */}
     </>
   );
 }

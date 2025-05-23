@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { User, Channel, Message, ActiveConversation, PendingInvitation } from '@/types';
-import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages } from '@/lib/mock-data';
+import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages as globalMockMessages } from '@/lib/mock-data'; // Renamed import to avoid conflict
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 
 interface AppContextType {
   currentUser: User;
+  setCurrentUser: React.Dispatch<React.SetStateAction<User>>; // Added to allow direct updates
   users: User[]; // Users excluding current user
   allUsersWithCurrent: User[]; // All users including current user
   channels: Channel[];
@@ -31,6 +32,7 @@ interface AppContextType {
   editMessage: (messageId: string, newContent: string) => void;
   deleteMessage: (messageId: string) => void;
   addMembersToChannel: (channelId: string, userIdsToAdd: string[]) => void;
+  toggleCurrentUserStatus: () => void; // Added
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -48,6 +50,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const router = useRouter();
 
+  // Update users and allUsersWithCurrent when currentUser changes (e.g., online status)
+  useEffect(() => {
+    setUsers(mockUsers.filter(u => u.id !== currentUser.id));
+    setAllUsersWithCurrent(prevAllUsers =>
+      prevAllUsers.map(u => (u.id === currentUser.id ? currentUser : u))
+    );
+  }, [currentUser]);
+
+
   const setActiveConversation = useCallback((type: 'channel' | 'dm', id: string) => {
     setCurrentSummary(null);
     if (type === 'channel') {
@@ -56,6 +67,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setActiveConversationState({ type, id, name: channel.name, channel });
       }
     } else {
+      // For DMs, use allUsersWithCurrent to find the recipient, including currentUser for "Notes to Self"
       const user = allUsersWithCurrent.find(u => u.id === id);
       if (user) {
         setActiveConversationState({ type, id, name: user.name, recipient: user });
@@ -84,8 +96,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     setMessages(prevMessages => [...prevMessages, newMessage]);
     if (activeConversation) {
-        const currentMockMessages = mockMessages[activeConversation.id] || [];
-        mockMessages[activeConversation.id] = [...currentMockMessages, newMessage];
+        const currentMockMessages = globalMockMessages[activeConversation.id] || [];
+        globalMockMessages[activeConversation.id] = [...currentMockMessages, newMessage];
     }
   }, [activeConversation, currentUser.id]);
 
@@ -94,15 +106,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       id: `c${Date.now()}`,
       name,
       description: description || '',
-      memberIds: Array.from(new Set([currentUser.id, ...memberIds])),
+      memberIds: Array.from(new Set([currentUser.id, ...memberIds])), // Creator is always added
     };
     setChannels(prevChannels => {
       const updatedChannels = [...prevChannels, newChannel];
-      // Update mockChannels as well
       const channelIndex = mockChannels.findIndex(ch => ch.id === newChannel.id);
-      if (channelIndex === -1) { // Add if new
+      if (channelIndex === -1) { 
         mockChannels.push(newChannel);
-      } else { // This case should not happen if IDs are unique, but as a safeguard
+      } else { 
         mockChannels[channelIndex] = newChannel;
       }
       return updatedChannels;
@@ -118,13 +129,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const newMemberIds = Array.from(new Set([...channel.memberIds, ...userIdsToAdd]));
           const updatedChannel = { ...channel, memberIds: newMemberIds };
 
-          // Update mockChannels
           const mockChannelIndex = mockChannels.findIndex(ch => ch.id === channelId);
           if (mockChannelIndex !== -1) {
             mockChannels[mockChannelIndex] = updatedChannel;
           }
           
-          // Update active conversation if it's the one being modified
           if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
             setActiveConversationState(prev => prev ? {...prev, channel: updatedChannel} : null);
           }
@@ -172,8 +181,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const sendInvitation = useCallback(async (email: string): Promise<string | null> => {
-    if (allUsersWithCurrent.some(user => user.name.toLowerCase().includes(email.split('@')[0].toLowerCase())) || pendingInvitations.some(inv => inv.email === email)) {
-      toast({ title: "Invitation Failed", description: `${email} is already a member or has been invited.`, variant: "destructive" });
+    if (allUsersWithCurrent.some(user => user.email === email) || pendingInvitations.some(inv => inv.email === email)) {
+      toast({ title: "Invitation Failed", description: `${email} is already a member or has a pending invitation.`, variant: "destructive" });
       return null;
     }
     const token = btoa(`${email}-${Date.now()}`);
@@ -249,14 +258,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       designation: userDetails.designation,
       avatarUrl: `https://placehold.co/40x40.png?text=${userDetails.name.substring(0,2).toUpperCase()}`,
       isOnline: true,
+      email: invitation.email, // Assign email from invitation
     };
 
-    setUsers(prevUsers => [...prevUsers, newUser]);
-    setAllUsersWithCurrent(prevAll => {
-      const updatedAll = [...prevAll, newUser];
-      mockUsers.push(newUser); // Ensure mockUsers (source of truth for all users) is updated
-      return updatedAll;
-    });
+    // Update mockUsers array in mock-data.ts
+    mockUsers.push(newUser);
+    // Update context states
+    setUsers(prevUsers => [...prevUsers, newUser]); // Adds to the list of "other users"
+    setAllUsersWithCurrent(prevAll => [...prevAll, newUser]);
+
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
 
     toast({ title: "Welcome to Opano!", description: `User ${newUser.name} has joined the workspace.` });
@@ -308,8 +318,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setMessages(prevMessages =>
       prevMessages.filter(msg => {
         if (msg.id === messageId && msg.userId === currentUser.id) {
-          if (activeConversation && mockMessages[activeConversation.id]) {
-            mockMessages[activeConversation.id] = mockMessages[activeConversation.id].filter(m => m.id !== messageId);
+          if (activeConversation && globalMockMessages[activeConversation.id]) {
+            globalMockMessages[activeConversation.id] = globalMockMessages[activeConversation.id].filter(m => m.id !== messageId);
           }
           return false;
         }
@@ -318,16 +328,48 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     );
   }, [currentUser.id, activeConversation]);
 
+  const toggleCurrentUserStatus = useCallback(() => {
+    setCurrentUser(prevUser => {
+      const newStatus = !prevUser.isOnline;
+      const updatedCurrentUser = { ...prevUser, isOnline: newStatus };
+
+      setAllUsersWithCurrent(prevAllUsers =>
+        prevAllUsers.map(u => (u.id === updatedCurrentUser.id ? updatedCurrentUser : u))
+      );
+      
+      // Update the user in the main mockUsers array as well for consistency
+      const userIndexInMock = mockUsers.findIndex(u => u.id === updatedCurrentUser.id);
+      if (userIndexInMock !== -1) {
+        mockUsers[userIndexInMock] = { ...mockUsers[userIndexInMock], isOnline: newStatus };
+      }
+      
+      toast({
+        title: "Status Updated",
+        description: `You are now ${newStatus ? 'Online' : 'Away'}.`,
+      });
+      return updatedCurrentUser;
+    });
+  }, [toast]);
+
 
   useEffect(() => {
+    // Set initial active conversation if none is set and channels exist
     if (channels.length > 0 && !activeConversation) {
-      setActiveConversation('channel', channels[0].id);
+       // Default to the "Notes to Self" DM for the current user
+       const selfDmUser = allUsersWithCurrent.find(u => u.id === currentUser.id);
+       if (selfDmUser) {
+         setActiveConversation('dm', currentUser.id);
+       } else if (channels[0]) { // Fallback to first channel if self DM somehow fails
+         setActiveConversation('channel', channels[0].id);
+       }
     }
-  }, [channels, activeConversation, setActiveConversation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channels, currentUser.id]); // Only run when channels or currentUser.id changes initially
 
   return (
     <AppContext.Provider value={{
       currentUser,
+      setCurrentUser,
       users,
       allUsersWithCurrent,
       channels,
@@ -348,6 +390,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toggleReaction,
       editMessage,
       deleteMessage,
+      toggleCurrentUserStatus,
     }}>
       {children}
     </AppContext.Provider>
@@ -361,5 +404,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
-    

@@ -4,7 +4,9 @@ export type User = {
   name: string;
   avatarUrl?: string;
   isOnline: boolean;
-  designation?: string; // Added designation
+  designation?: string;
+  email?: string; // Added email
+  phoneNumber?: string; // Added phone number
 };
 
 export type Channel = {
