@@ -1,9 +1,9 @@
 
 "use client";
 import type { ReactNode } from 'react';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import type { User, Channel, Message, ActiveConversation, PendingInvitation } from '@/types';
-import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages } from '@/lib/mock-data';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView } from '@/types';
+import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages, mockDrafts } from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
@@ -21,8 +21,8 @@ export type UserProfileUpdateData = {
 interface AppContextType {
   currentUser: User;
   setCurrentUser: React.Dispatch<React.SetStateAction<User>>;
-  users: User[]; 
-  allUsersWithCurrent: User[]; 
+  users: User[];
+  allUsersWithCurrent: User[];
   channels: Channel[];
   activeConversation: ActiveConversation;
   setActiveConversation: (type: 'channel' | 'dm', id: string) => void;
@@ -43,6 +43,13 @@ interface AppContextType {
   addMembersToChannel: (channelId: string, userIdsToAdd: string[]) => void;
   toggleCurrentUserStatus: () => void;
   updateUserProfile: (profileData: UserProfileUpdateData) => void;
+
+  currentView: CurrentView;
+  setActiveSpecialView: (view: 'replies' | 'activity' | 'drafts') => void;
+  drafts: Draft[];
+  replies: Message[];
+  activities: ActivityItem[];
+  getConversationName: (conversationId: string, conversationType: 'channel' | 'dm') => string;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -60,18 +67,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const router = useRouter();
 
+  const [currentView, setCurrentViewState] = useState<CurrentView>('chat');
+  const [drafts, setDrafts] = useState<Draft[]>(mockDrafts);
+
+
   useEffect(() => {
     const updatedOtherUsers = mockUsers.filter(u => u.id !== currentUser.id);
     const updatedAllUsers = mockUsers.map(u => u.id === currentUser.id ? currentUser : u);
-    
+
     setUsers(updatedOtherUsers);
     setAllUsersWithCurrent(updatedAllUsers);
-  
+
     const mockUserIndex = mockUsers.findIndex(u => u.id === currentUser.id);
     if (mockUserIndex !== -1) {
       mockUsers[mockUserIndex] = currentUser;
     }
-  
+
   }, [currentUser]);
 
 
@@ -88,16 +99,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setActiveConversationState({ type, id, name: user.name, recipient: user });
       }
     }
+    setCurrentViewState('chat'); // Ensure view is 'chat' when a conversation is selected
   }, [channels, allUsersWithCurrent]);
 
+  const setActiveSpecialView = useCallback((view: 'replies' | 'activity' | 'drafts') => {
+    setCurrentViewState(view);
+    setActiveConversationState(null); // Clear active chat when switching to a special view
+  }, []);
+
+
   useEffect(() => {
-    if (activeConversation) {
+    if (currentView === 'chat' && activeConversation) {
       const fetchedMessages = fetchMockMessages(activeConversation.id);
       setMessages(fetchedMessages);
     } else {
       setMessages([]);
     }
-  }, [activeConversation]);
+  }, [activeConversation, currentView]);
 
   const addMessage = useCallback((content: string, file?: File) => {
     if (!activeConversation) return;
@@ -121,19 +139,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       id: `c${Date.now()}`,
       name,
       description: description || '',
-      memberIds: Array.from(new Set([currentUser.id, ...memberIds])), 
+      memberIds: Array.from(new Set([currentUser.id, ...memberIds])),
     };
     setChannels(prevChannels => {
       const updatedChannels = [...prevChannels, newChannel];
       const channelIndex = mockChannels.findIndex(ch => ch.id === newChannel.id);
-      if (channelIndex === -1) { 
+      if (channelIndex === -1) {
         mockChannels.push(newChannel);
-      } else { 
+      } else {
         mockChannels[channelIndex] = newChannel;
       }
       return updatedChannels;
     });
-    
+
     const creatorName = currentUser.name;
     const creationSystemMessage: Message = {
         id: `sys-create-${Date.now()}`,
@@ -163,7 +181,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
     }
 
-    setActiveConversation('channel', newChannel.id); // This will trigger useEffect to load all messages for the new channel including system ones.
+    setActiveConversation('channel', newChannel.id);
     toast({ title: "Channel Created", description: `Channel #${name} has been created.` });
   }, [currentUser.id, currentUser.name, toast, setActiveConversation, allUsersWithCurrent]);
 
@@ -180,7 +198,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           if (mockChannelIndex !== -1) {
             mockChannels[mockChannelIndex] = updatedChannel;
           }
-          
+
           if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
             setActiveConversationState(prev => prev ? {...prev, channel: updatedChannel} : null);
           }
@@ -198,7 +216,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const systemMessageContent = `${currentUser.name} added ${addedUserNames.join(', ')} to #${channelName}.`;
         const systemMessage: Message = {
             id: `sys-add-${Date.now()}`,
-            userId: 'system', // Special ID for system messages
+            userId: 'system', 
             content: systemMessageContent,
             timestamp: Date.now(),
             isSystemMessage: true,
@@ -224,7 +242,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Error", description: "Channel not found.", variant: "destructive" });
       return;
     }
-    const channelMessages = fetchMockMessages(channelId).filter(msg => !msg.isSystemMessage); // Filter out system messages
+    const channelMessages = fetchMockMessages(channelId).filter(msg => !msg.isSystemMessage);
     if (channelMessages.length === 0) {
       toast({ title: "Summary", description: "No user messages in this channel to summarize." });
       setCurrentSummary("This channel has no user messages yet.");
@@ -260,7 +278,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const token = btoa(`${email}-${Date.now()}`);
     const newInvitation: PendingInvitation = { email, token, timestamp: Date.now() };
     setPendingInvitations(prev => [...prev, newInvitation]);
-    
+
     const joinUrl = `${window.location.origin}/join/${token}`;
     const emailSubject = "You're invited to join Opano!";
     const emailHtmlBody = `
@@ -282,7 +300,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         to: email,
         subject: emailSubject,
         htmlBody: emailHtmlBody,
-        joinUrl: joinUrl, 
+        joinUrl: joinUrl,
       });
 
       if (emailResult.success) {
@@ -330,11 +348,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       designation: userDetails.designation,
       avatarUrl: `https://placehold.co/40x40.png?text=${userDetails.name.substring(0,2).toUpperCase()}`,
       isOnline: true,
-      email: invitation.email, 
+      email: invitation.email,
     };
 
     mockUsers.push(newUser);
-    setUsers(prevUsers => [...prevUsers.filter(u => u.id !== newUser.id), newUser]); // Ensure no duplicates if ID somehow matched
+    setUsers(prevUsers => [...prevUsers.filter(u => u.id !== newUser.id), newUser]);
     setAllUsersWithCurrent(prevAll => [...prevAll.filter(u => u.id !== newUser.id), newUser]);
 
 
@@ -373,7 +391,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [currentUser.id, activeConversation]);
 
   const editMessage = useCallback((messageId: string, newContent: string) => {
-    setMessages(prevMessages => 
+    setMessages(prevMessages =>
       prevMessages.map(msg => {
         if (msg.id === messageId && msg.userId === currentUser.id) {
           const updatedMsg = { ...msg, content: newContent, isEdited: true, timestamp: Date.now() };
@@ -419,7 +437,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         designation: profileData.designation || prevUser.designation,
         email: profileData.email,
         phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
-        avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl, // Use new dataUrl if provided
+        avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
       };
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
       return updatedUser;
@@ -428,15 +446,92 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 
   useEffect(() => {
-    if (channels.length > 0 && !activeConversation) {
+    if (channels.length > 0 && !activeConversation && currentView === 'chat') {
        const selfDmUser = allUsersWithCurrent.find(u => u.id === currentUser.id);
        if (selfDmUser) {
          setActiveConversation('dm', currentUser.id);
-       } else if (channels[0]) { 
+       } else if (channels[0]) {
          setActiveConversation('channel', channels[0].id);
        }
     }
-  }, [channels, currentUser.id, allUsersWithCurrent, activeConversation, setActiveConversation]);
+  }, [channels, currentUser.id, allUsersWithCurrent, activeConversation, setActiveConversation, currentView]);
+
+  const getConversationName = useCallback((conversationId: string, conversationType: 'channel' | 'dm'): string => {
+    if (conversationType === 'channel') {
+      return channels.find(c => c.id === conversationId)?.name || 'Unknown Channel';
+    } else {
+      return allUsersWithCurrent.find(u => u.id === conversationId)?.name || 'Unknown User';
+    }
+  }, [channels, allUsersWithCurrent]);
+
+  const replies = useMemo(() => {
+    const allMsgs: Message[] = Object.values(mockMessages).flat();
+    return allMsgs.filter(msg =>
+      msg.content.toLowerCase().includes(`@${currentUser.name.toLowerCase()}`) &&
+      msg.userId !== currentUser.id && // Don't show self-mentions as replies from others
+      !msg.isSystemMessage
+    ).sort((a, b) => b.timestamp - a.timestamp);
+  }, [currentUser.name, currentUser.id]);
+
+  const activities: ActivityItem[] = useMemo(() => {
+    const myMessageIds = new Set<string>();
+    const allMsgs: Message[] = Object.values(mockMessages).flat();
+    allMsgs.forEach(msg => {
+      if (msg.userId === currentUser.id) {
+        myMessageIds.add(msg.id);
+      }
+    });
+
+    const activityItems: ActivityItem[] = [];
+    allMsgs.forEach(msg => {
+      if (myMessageIds.has(msg.id) && msg.reactions) {
+        Object.entries(msg.reactions).forEach(([emoji, reactorIds]) => {
+          reactorIds.forEach(reactorId => {
+            if (reactorId !== currentUser.id) { // Reaction from someone else
+              const reactor = allUsersWithCurrent.find(u => u.id === reactorId);
+              if (reactor) {
+                // Find which conversation this message belongs to
+                let convId = '';
+                let convType: 'channel' | 'dm' = 'channel';
+                let convName = 'Unknown Conversation';
+
+                for (const [key, messagesInConv] of Object.entries(mockMessages)) {
+                    if (messagesInConv.some(m => m.id === msg.id)) {
+                        convId = key;
+                        const channel = channels.find(c => c.id === key);
+                        if (channel) {
+                            convType = 'channel';
+                            convName = `#${channel.name}`;
+                        } else {
+                            const user = allUsersWithCurrent.find(u => u.id === key);
+                            if (user) {
+                                convType = 'dm';
+                                convName = user.name;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                activityItems.push({
+                  id: `${msg.id}-${reactorId}-${emoji}`,
+                  message: msg,
+                  reactor,
+                  emoji,
+                  timestamp: msg.timestamp, // Could be more specific if reactions had timestamps
+                  conversationId: convId,
+                  conversationType: convType,
+                  conversationName: convName,
+                });
+              }
+            }
+          });
+        });
+      }
+    });
+    return activityItems.sort((a, b) => b.timestamp - a.timestamp);
+  }, [currentUser.id, allUsersWithCurrent, channels]);
+
 
   return (
     <AppContext.Provider value={{
@@ -464,6 +559,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       deleteMessage,
       toggleCurrentUserStatus,
       updateUserProfile,
+      currentView,
+      setActiveSpecialView,
+      drafts,
+      replies,
+      activities,
+      getConversationName,
     }}>
       {children}
     </AppContext.Provider>
@@ -477,4 +578,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-

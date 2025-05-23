@@ -48,3 +48,24 @@ export type PendingInvitation = {
   timestamp: number;
 };
 
+export type Draft = {
+  id: string;
+  targetConversationId: string; // Can be a channel ID or a user ID for DMs
+  targetConversationName: string; // e.g., "#general" or "Hanzlah"
+  targetConversationType: 'channel' | 'dm';
+  content: string;
+  timestamp: number;
+};
+
+export type ActivityItem = {
+  id: string; // Unique ID for the activity item, e.g., messageId + reactorId + emoji
+  message: Message;
+  reactor: User;
+  emoji: string;
+  timestamp: number; // Could be reaction timestamp if available, or message timestamp
+  conversationName: string; // e.g. "#general" or "DM with Hanzlah"
+  conversationId: string;
+  conversationType: 'channel' | 'dm';
+};
+
+export type CurrentView = 'chat' | 'replies' | 'activity' | 'drafts';

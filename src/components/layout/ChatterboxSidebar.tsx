@@ -19,17 +19,17 @@ import { OpanoLogo } from '@/components/OpanoLogo';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { 
-    Settings, 
-    UserPlus, 
-    Edit, 
-    UserCheck, 
+import {
+    Settings,
+    UserPlus,
+    Edit,
+    UserCheck,
     UserX,
-    MessageSquareReply, 
-    Bell,             
-    Send,             
-    MoreHorizontal,   
-    Plus,             
+    MessageSquareReply,
+    Bell,
+    Send,
+    MoreHorizontal,
+    Plus,
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
@@ -42,23 +42,34 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { CurrentView } from '@/types';
 
-const topNavItems = [
-    { label: 'Replies', icon: MessageSquareReply, href: '#/replies' },
-    { label: 'Activity', icon: Bell, href: '#/activity' },
-    { label: 'Drafts', icon: Send, href: '#/drafts' },
-    { label: 'More', icon: MoreHorizontal, href: '#/more-main' },
+// Updated to reflect the actual icons and functionality
+const topNavItems: { label: string; icon: React.ElementType; view: CurrentView | 'more' }[] = [
+    { label: 'Replies', icon: MessageSquareReply, view: 'replies' },
+    { label: 'Activity', icon: Bell, view: 'activity' },
+    { label: 'Drafts', icon: Send, view: 'drafts' },
+    { label: 'More', icon: MoreHorizontal, view: 'more' }, // 'more' is a placeholder action
 ];
 
 export function ChatterboxSidebar() {
-  const { currentUser, toggleCurrentUserStatus } = useAppContext();
+  const { currentUser, toggleCurrentUserStatus, setActiveSpecialView, currentView } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
   const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // Kept for channel/DM filtering
 
   const handleEditProfile = () => {
     setIsEditProfileDialogOpen(true);
+  };
+
+  const handleTopNavClick = (view: CurrentView | 'more') => {
+    if (view !== 'more') {
+      setActiveSpecialView(view as 'replies' | 'activity' | 'drafts');
+    } else {
+      // Placeholder for "More" functionality
+      console.log("More clicked");
+    }
   };
 
   return (
@@ -77,9 +88,10 @@ export function ChatterboxSidebar() {
               {topNavItems.map((item) => (
                 <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton
-                    onClick={() => { /* Placeholder for navigation */ console.log(`Navigate to ${item.label}`); }}
+                    onClick={() => handleTopNavClick(item.view)}
+                    isActive={item.view !== 'more' && currentView === item.view}
                     tooltip={item.label}
-                    className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center"
+                    className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
                   >
                     <item.icon className="h-5 w-5" />
                     <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
@@ -88,7 +100,7 @@ export function ChatterboxSidebar() {
               ))}
             </SidebarMenu>
           </SidebarGroup>
-          
+
           <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
 
           {/* Loopz (Channels) Section */}
@@ -98,7 +110,7 @@ export function ChatterboxSidebar() {
                   Loopz
               </SidebarGroupLabel>
               <Button
-                variant="default" // Uses primary theme color
+                variant="default"
                 size="icon"
                 className="h-6 w-6 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground group-data-[collapsible=icon]:hidden"
                 onClick={() => setIsAddChannelDialogOpen(true)}
@@ -140,7 +152,7 @@ export function ChatterboxSidebar() {
               <p className="font-semibold text-sm truncate text-sidebar-foreground">{currentUser.name}</p>
               <p className="text-xs text-sidebar-foreground/70">{currentUser.isOnline ? 'Online' : 'Away'}</p>
             </div>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground">
@@ -157,7 +169,7 @@ export function ChatterboxSidebar() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={toggleCurrentUserStatus}>
                   {currentUser.isOnline ? (
-                    <UserX className="mr-2 h-4 w-4" /> 
+                    <UserX className="mr-2 h-4 w-4" />
                   ) : (
                     <UserCheck className="mr-2 h-4 w-4" />
                   )}
@@ -170,9 +182,9 @@ export function ChatterboxSidebar() {
       </Sidebar>
       <AddChannelDialog isOpen={isAddChannelDialogOpen} onOpenChange={setIsAddChannelDialogOpen} />
       <InviteUserDialog isOpen={isInviteUserDialogOpen} onOpenChange={setIsInviteUserDialogOpen} />
-      <EditProfileDialog 
-        isOpen={isEditProfileDialogOpen} 
-        onOpenChange={setIsEditProfileDialogOpen} 
+      <EditProfileDialog
+        isOpen={isEditProfileDialogOpen}
+        onOpenChange={setIsEditProfileDialogOpen}
       />
     </>
   );
