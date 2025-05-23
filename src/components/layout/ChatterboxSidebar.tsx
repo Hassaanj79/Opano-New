@@ -43,13 +43,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { CurrentView } from '@/types';
+import { useRouter, usePathname } from 'next/navigation'; // Import useRouter and usePathname
 
 // Updated to reflect the actual icons and functionality
 const topNavItems: { label: string; icon: React.ElementType; view: CurrentView | 'more' }[] = [
     { label: 'Replies', icon: MessageSquareReply, view: 'replies' },
     { label: 'Activity', icon: Bell, view: 'activity' },
     { label: 'Drafts', icon: Send, view: 'drafts' },
-    { label: 'More', icon: MoreHorizontal, view: 'more' }, // 'more' is a placeholder action
+    { label: 'More', icon: MoreHorizontal, view: 'more' },
 ];
 
 export function ChatterboxSidebar() {
@@ -57,18 +58,19 @@ export function ChatterboxSidebar() {
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
   const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(''); // Kept for channel/DM filtering
+  const [searchTerm, setSearchTerm] = useState('');
+  const router = useRouter(); // Initialize useRouter
+  const pathname = usePathname(); // Initialize usePathname
 
   const handleEditProfile = () => {
     setIsEditProfileDialogOpen(true);
   };
 
   const handleTopNavClick = (view: CurrentView | 'more') => {
-    if (view !== 'more') {
-      setActiveSpecialView(view as 'replies' | 'activity' | 'drafts');
+    if (view === 'more') {
+      router.push('/more'); // Navigate to /more page
     } else {
-      // Placeholder for "More" functionality
-      console.log("More clicked");
+      setActiveSpecialView(view as 'replies' | 'activity' | 'drafts');
     }
   };
 
@@ -89,7 +91,7 @@ export function ChatterboxSidebar() {
                 <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton
                     onClick={() => handleTopNavClick(item.view)}
-                    isActive={item.view !== 'more' && currentView === item.view}
+                    isActive={item.view === 'more' ? pathname === '/more' : currentView === item.view}
                     tooltip={item.label}
                     className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
                   >
