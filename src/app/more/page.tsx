@@ -10,8 +10,8 @@ export default function MoreOptionsPage() {
     <div className="flex flex-col items-center min-h-screen bg-background p-6 pt-12 md:pt-16">
       {/* Title Section - Not a card */}
       <div className="text-center mb-8 md:mb-10">
-        <h1 className="text-2xl md:text-3xl font-semibold text-foreground">More Options</h1>
-        <p className="mt-2 text-sm md:text-base text-muted-foreground">
+        <h1 className="text-xl md:text-2xl font-semibold text-foreground">More Options</h1>
+        <p className="mt-1 text-sm md:text-base text-muted-foreground">
           Additional features and settings.
         </p>
       </div>
@@ -34,7 +34,7 @@ export default function MoreOptionsPage() {
           </a>
         </Link>
 
-        <Link href="#/documents" passHref legacyBehavior>
+        <Link href="/documents" passHref legacyBehavior> {/* Changed link */}
           <a className="block group">
             <Card className="hover:shadow-xl hover:border-primary/50 transition-all duration-200 cursor-pointer h-full flex flex-col bg-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -43,7 +43,7 @@ export default function MoreOptionsPage() {
               </CardHeader>
               <CardContent className="flex-grow">
                 <p className="text-sm text-muted-foreground">
-                  Access and manage your documents and files. (Placeholder)
+                  Access and manage your documents and files.
                 </p>
               </CardContent>
             </Card>

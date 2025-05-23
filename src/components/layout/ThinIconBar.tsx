@@ -8,8 +8,9 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
+  { href: '/documents', icon: Folder, label: 'Documents' }, // Changed link
 ];
-const moreNavItem = { href: '/more', icon: MoreHorizontal, label: 'More Options' }; // Link to new /more page
+const moreNavItem = { href: '/more', icon: MoreHorizontal, label: 'More Options' };
 
 export function ThinIconBar() {
   const pathname = usePathname();
