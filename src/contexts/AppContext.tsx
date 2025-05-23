@@ -78,6 +78,12 @@ interface AppContextType {
   deleteDocumentFromCategory: (categoryId: string, docId: string) => void;
   findDocumentCategoryById: (categoryId: string) => DocumentCategory | undefined;
   searchAllDocuments: (query: string) => Array<{ doc: Document, category: DocumentCategory }>;
+
+  // Call feature state
+  isCallActive: boolean;
+  callingWith: ActiveConversation | null;
+  startCall: (conversation: ActiveConversation | null) => void;
+  endCall: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -101,6 +107,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Document Management State
   const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories);
+
+  // Call feature state
+  const [isCallActive, setIsCallActive] = useState(false);
+  const [callingWith, setCallingWith] = useState<ActiveConversation | null>(null);
 
 
   useEffect(() => {
@@ -856,8 +866,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     documentCategories.forEach(category => {
       category.documents.forEach(doc => {
-        // If trimmedQuery is empty, include all documents.
-        // Otherwise, include if document name matches.
         if (trimmedQuery === '' || doc.name.toLowerCase().includes(trimmedQuery)) {
           results.push({ doc, category });
         }
@@ -865,6 +873,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
     return results;
   }, [documentCategories]);
+
+  // Call feature logic
+  const startCall = (conversation: ActiveConversation | null) => {
+    if (conversation) {
+      setCallingWith(conversation);
+      setIsCallActive(true);
+      // Here you might also want to send a system message to the chat
+      // indicating a call has started, e.g., "Hassaan started a call."
+      // For now, it just activates the dialog.
+      setTimeout(() => {
+        toast({ title: "Starting Call", description: `Calling ${conversation.name}... (Simulated)` });
+      }, 0);
+    }
+  };
+
+  const endCall = () => {
+    if (callingWith) {
+        setTimeout(() => {
+            toast({ title: "Call Ended", description: `Call with ${callingWith.name} ended. (Simulated)` });
+        }, 0);
+    }
+    setIsCallActive(false);
+    setCallingWith(null);
+  };
 
   return (
     <AppContext.Provider value={{
@@ -910,6 +942,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       deleteDocumentFromCategory,
       findDocumentCategoryById,
       searchAllDocuments,
+      // Call feature
+      isCallActive,
+      callingWith,
+      startCall,
+      endCall,
     }}>
       {children}
     </AppContext.Provider>
@@ -923,6 +960,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
-    
-

@@ -2,17 +2,26 @@
 "use client";
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Hash, Sparkles, UserCircle2, Users, UserPlus } from 'lucide-react';
+import { Hash, Sparkles, UserCircle2, Users, UserPlus, Phone } from 'lucide-react'; // Added Phone
 import { useState } from 'react';
 import { SummarizeDialog } from './SummarizeDialog';
 import { AddMembersToChannelDialog } from '@/components/dialogs/AddMembersToChannelDialog';
-import { ViewChannelMembersDialog } from '@/components/dialogs/ViewChannelMembersDialog'; // New Dialog
+import { ViewChannelMembersDialog } from '@/components/dialogs/ViewChannelMembersDialog'; 
 
 export function ChatHeader() {
-  const { activeConversation, generateSummary, currentSummary, isLoadingSummary, clearSummary } = useAppContext();
+  const { 
+    activeConversation, 
+    generateSummary, 
+    currentSummary, 
+    isLoadingSummary, 
+    clearSummary,
+    startCall,
+    isCallActive,
+    callingWith
+  } = useAppContext();
   const [isSummarizeDialogOpen, setIsSummarizeDialogOpen] = useState(false);
   const [isAddMembersDialogOpen, setIsAddMembersDialogOpen] = useState(false);
-  const [isViewMembersDialogOpen, setIsViewMembersDialogOpen] = useState(false); // State for view members dialog
+  const [isViewMembersDialogOpen, setIsViewMembersDialogOpen] = useState(false);
 
   if (!activeConversation) return null;
 
@@ -30,10 +39,18 @@ export function ChatHeader() {
     }
   }
 
+  const handleCall = () => {
+    if (activeConversation && !isCallActive) {
+      startCall(activeConversation);
+    }
+  };
+
   const name = activeConversation.name;
   const description = activeConversation.type === 'channel' 
     ? `${activeConversation.channel?.memberIds.length || 0} Members` 
     : (activeConversation.recipient?.designation || (activeConversation.recipient?.isOnline ? 'Online' : 'Offline'));
+
+  const isDifferentCallActive = isCallActive && callingWith?.id !== activeConversation.id;
 
   return (
     <>
@@ -42,6 +59,7 @@ export function ChatHeader() {
           {activeConversation.type === 'channel' ? (
             <Hash className="h-5 w-5 text-muted-foreground" />
           ) : (
+            // For DMs, show user avatar or a generic user icon
             <UserCircle2 className="h-5 w-5 text-muted-foreground" /> 
           )}
           <div>
@@ -50,6 +68,17 @@ export function ChatHeader() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCall}
+            disabled={isDifferentCallActive} // Disable if a call is active with someone else
+            className="text-xs"
+            aria-label="Start call"
+          >
+            <Phone className="mr-1.5 h-3.5 w-3.5" />
+            Call
+          </Button>
           {activeConversation.type === 'channel' && (
             <Button variant="outline" size="sm" onClick={handleSummarize} disabled={isLoadingSummary} className="text-xs">
               <Sparkles className={`mr-1.5 h-3.5 w-3.5 ${isLoadingSummary ? 'animate-spin' : ''}`} />

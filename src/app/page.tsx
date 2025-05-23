@@ -5,15 +5,15 @@ import { ChatterboxSidebar } from "@/components/layout/ChatterboxSidebar";
 import { ChatView } from "@/components/chat/ChatView";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { OpanoLogo } from "@/components/OpanoLogo";
-// ThinIconBar is removed from here as it's now in RootLayout
-import { MessageSquareDashed, Reply, BellRing, FileText, PanelLeft } from 'lucide-react';
+import { MessageSquareDashed } from 'lucide-react';
 
 import { RepliesView } from '@/components/views/RepliesView';
 import { ActivityView } from '@/components/views/ActivityView';
 import { DraftsView } from '@/components/views/DraftsView';
+import { CallingDialog } from "@/components/dialogs/CallingDialog"; // Import CallingDialog
 
 export default function OpanoPage() {
-  const { activeConversation, currentView } = useAppContext();
+  const { activeConversation, currentView, isCallActive } = useAppContext(); // Get isCallActive
 
   const renderMainContent = () => {
     switch (currentView) {
@@ -44,12 +44,8 @@ export default function OpanoPage() {
   };
 
   return (
-    // The outer div's h-screen and bg-background are handled by RootLayout's new structure.
-    // This div now represents the content for the <main> tag in RootLayout.
-    // It needs to flex and fill height correctly.
-    <div className="flex flex-grow min-w-0 h-full"> {/* Ensures this page content fills the main area */}
-      {/* ThinIconBar removed from here */}
-      <SidebarProvider> {/* Reverted: Removed defaultOpen={false} */}
+    <div className="flex flex-grow min-w-0 h-full">
+      <SidebarProvider> 
         <ChatterboxSidebar />
         <SidebarInset className="flex flex-col h-full">
           {currentView === 'chat' && (
@@ -65,6 +61,7 @@ export default function OpanoPage() {
           </div>
         </SidebarInset>
       </SidebarProvider>
+      {isCallActive && <CallingDialog />} {/* Conditionally render CallingDialog */}
     </div>
   );
 }
