@@ -13,32 +13,52 @@ interface DirectMessageListProps {
 export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
   const { users, activeConversation, setActiveConversation, currentUser } = useAppContext();
 
-  const directMessageUsers = users
-    .filter(user => user.id !== currentUser.id)
-    .filter(user =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  // Filtered list of OTHER users (users from context already excludes currentUser)
+  const filteredOtherUsers = users.filter(user =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  // Mocking some DM info for UI alignment with image
-  const getDmInfo = (user: User) => {
+  const getDmInfo = (user: User, isSelf: boolean) => {
+    if (isSelf) return { snippet: "Your personal notes and drafts", timeOrBadge: "" };
+    
+    // Existing logic for other users
     if (user.id === 'u3') return { snippet: "Here're my latest drone shots", timeOrBadge: <Badge variant="default" className="bg-primary text-primary-foreground h-5 px-1.5 text-xs">80</Badge> };
     if (user.id === 'u2') return { snippet: "The weather will be perfect for th...", timeOrBadge: "9:41 AM" };
-    if (currentUser.id === 'u1' && user.id === 'u4') return { snippet: "Next time it's my turn!", timeOrBadge: "12/22/21" }
-    return { snippet: user?.designation || (user?.isOnline ? 'Online' : 'Offline'), timeOrBadge: "" };
-  }
+    if (user.id === 'u4') return { snippet: "Next time it's my turn!", timeOrBadge: "12/22/21" };
+    return { snippet: user.designation || (user.isOnline ? 'Online' : 'Offline'), timeOrBadge: "" };
+  };
 
-  if (directMessageUsers.length === 0 && searchTerm) {
-    return (
-      <div className="p-2 text-sm text-muted-foreground text-center group-data-[collapsible=icon]:hidden">
-        No users found.
-      </div>
-    );
-  }
+  const isSelfActive = activeConversation?.type === 'dm' && activeConversation.id === currentUser.id;
+  const selfDmInfo = getDmInfo(currentUser, true);
 
   return (
     <SidebarMenu>
-      {directMessageUsers.map(user => {
-        const dmInfo = getDmInfo(user);
+      {/* Current User's "Notes to Self" space - Always visible */}
+      <SidebarMenuItem key={currentUser.id + "-self"}>
+        <SidebarMenuButton
+          onClick={() => setActiveConversation('dm', currentUser.id)}
+          isActive={isSelfActive}
+          className={`gap-2 h-auto py-1.5 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:justify-center`}
+          tooltip="Notes to Self"
+        >
+          <UserAvatar user={currentUser} className="h-7 w-7 group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6" />
+          <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
+            <div className="flex justify-between items-center">
+              <span className={`truncate font-medium ${isSelfActive ? 'text-primary-foreground': ''}`}>
+                Notes to Self
+              </span>
+              {/* No time/badge for self-notes for now, or customize as needed */}
+            </div>
+            <p className={`text-xs truncate ${isSelfActive ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+              {selfDmInfo.snippet}
+            </p>
+          </div>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      {/* List of other users */}
+      {filteredOtherUsers.map(user => {
+        const dmInfo = getDmInfo(user, false);
         const isActive = activeConversation?.type === 'dm' && activeConversation.id === user.id;
         return (
         <SidebarMenuItem key={user.id}>
@@ -52,7 +72,7 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
             <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
               <div className="flex justify-between items-center">
                 <span className={`truncate font-medium ${isActive ? 'text-primary-foreground': ''}`}>
-                  {user.name} {user.id === currentUser.id ? '(You)' : ''}
+                  {user.name}
                 </span>
                 {typeof dmInfo.timeOrBadge === 'string' && dmInfo.timeOrBadge && (
                   <span className={`text-xs ${isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{dmInfo.timeOrBadge}</span>
@@ -66,6 +86,13 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
           </SidebarMenuButton>
         </SidebarMenuItem>
       )})}
+
+      {/* No other users found message - only if search term is active and no other users match */}
+      {searchTerm && filteredOtherUsers.length === 0 && (
+        <div className="p-2 text-sm text-muted-foreground text-center group-data-[collapsible=icon]:hidden">
+          No other users found.
+        </div>
+      )}
     </SidebarMenu>
   );
 }
