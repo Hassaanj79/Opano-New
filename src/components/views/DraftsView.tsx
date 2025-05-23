@@ -4,25 +4,28 @@ import { useAppContext } from '@/contexts/AppContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Edit3, Trash2 } from 'lucide-react';
+import { FileText, Edit3, Trash2, Send } from 'lucide-react';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 export function DraftsView() {
-  const { drafts, setActiveConversation /* add deleteDraft, editDraft to context later */ } = useAppContext();
+  const { drafts, setActiveConversation, deleteDraft } = useAppContext();
+  const { toast } = useToast();
 
-  const handleEditDraft = (draftId: string, targetConversationId: string, targetConversationType: 'channel' | 'dm') => {
-    // Placeholder: In a real app, this would populate the message input for that conversation
-    // and navigate to it.
+  const handleEditOrSendDraft = (draftId: string, targetConversationId: string, targetConversationType: 'channel' | 'dm') => {
     setActiveConversation(targetConversationType, targetConversationId);
-    // find draft by draftId and set message input content...
-    console.log(`Editing draft ${draftId} for ${targetConversationId}`);
-    // For now, we just switch to the conversation. Populating input is a TODO.
+    // For now, we just switch to the conversation. Populating input is a TODO for a later step.
+    // User will need to copy/paste or retype.
+    toast({
+      title: "Switched to Conversation",
+      description: "Your draft content can be manually copied to the message input.",
+    });
+    // The draft is not automatically deleted here. User can send and then delete if desired.
   };
 
   const handleDeleteDraft = (draftId: string) => {
-    // Placeholder: In a real app, this would call a context function to delete the draft.
-    console.log(`Deleting draft ${draftId}`);
-    // appContext.deleteDraft(draftId);
+    deleteDraft(draftId);
+    // Toast for deletion is handled within useAppContext's deleteDraft
   };
 
 
@@ -65,10 +68,10 @@ export function DraftsView() {
                         variant="outline" 
                         size="sm" 
                         className="text-xs"
-                        onClick={() => handleEditDraft(draft.id, draft.targetConversationId, draft.targetConversationType)}
+                        onClick={() => handleEditOrSendDraft(draft.id, draft.targetConversationId, draft.targetConversationType)}
                     >
-                        <Edit3 className="h-3.5 w-3.5 mr-1" />
-                        Edit / Send
+                        <Send className="h-3.5 w-3.5 mr-1" /> {/* Changed icon to Send */}
+                        Go to Chat
                     </Button>
                     <Button 
                         variant="destructive" 
@@ -89,3 +92,4 @@ export function DraftsView() {
     </div>
   );
 }
+

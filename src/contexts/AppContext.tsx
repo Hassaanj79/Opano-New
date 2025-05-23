@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView } from '@/types';
-import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages, mockDrafts } from '@/lib/mock-data';
+import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages, mockDrafts as initialMockDrafts } from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
@@ -47,6 +47,7 @@ interface AppContextType {
   currentView: CurrentView;
   setActiveSpecialView: (view: 'replies' | 'activity' | 'drafts') => void;
   drafts: Draft[];
+  deleteDraft: (draftId: string) => void; // Added deleteDraft
   replies: Message[];
   activities: ActivityItem[];
   getConversationName: (conversationId: string, conversationType: 'channel' | 'dm') => string;
@@ -68,7 +69,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   const [currentView, setCurrentViewState] = useState<CurrentView>('chat');
-  const [drafts, setDrafts] = useState<Draft[]>(mockDrafts);
+  const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts);
 
 
   useEffect(() => {
@@ -444,6 +445,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [toast]);
 
+  const deleteDraft = useCallback((draftId: string) => {
+    setDrafts(prevDrafts => prevDrafts.filter(draft => draft.id !== draftId));
+    // Also update the mockDrafts array in mock-data.ts for "persistence"
+    const draftIndex = initialMockDrafts.findIndex(d => d.id === draftId);
+    if (draftIndex > -1) {
+      initialMockDrafts.splice(draftIndex, 1);
+    }
+    toast({ title: "Draft Deleted", description: "The draft has been removed." });
+  }, [toast]);
+
 
   useEffect(() => {
     if (channels.length > 0 && !activeConversation && currentView === 'chat') {
@@ -501,7 +512,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                         const channel = channels.find(c => c.id === key);
                         if (channel) {
                             convType = 'channel';
-                            convName = `#${channel.name}`;
+                            convName = channel.name; // Just name, not #name
                         } else {
                             const user = allUsersWithCurrent.find(u => u.id === key);
                             if (user) {
@@ -562,6 +573,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       currentView,
       setActiveSpecialView,
       drafts,
+      deleteDraft, // Expose deleteDraft
       replies,
       activities,
       getConversationName,
@@ -578,3 +590,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
