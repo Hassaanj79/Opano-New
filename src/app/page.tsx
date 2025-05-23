@@ -49,7 +49,7 @@ export default function OpanoPage() {
     // It needs to flex and fill height correctly.
     <div className="flex flex-grow min-w-0 h-full"> {/* Ensures this page content fills the main area */}
       {/* ThinIconBar removed from here */}
-      <SidebarProvider defaultOpen={false}> {/* Set defaultOpen to false */}
+      <SidebarProvider> {/* Reverted: Removed defaultOpen={false} */}
         <ChatterboxSidebar />
         <SidebarInset className="flex flex-col h-full">
           {currentView === 'chat' && (
