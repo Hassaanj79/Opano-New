@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { User, Channel, Message, ActiveConversation, PendingInvitation } from '@/types';
-import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages } from '@/lib/mock-data';
+import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage } from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +26,9 @@ interface AppContextType {
   verifyInviteToken: (token: string) => PendingInvitation | null;
   acceptInvitation: (token: string, userDetails: { name: string; designation: string }) => boolean;
   pendingInvitations: PendingInvitation[];
+  toggleReaction: (messageId: string, emoji: string) => void;
+  editMessage: (messageId: string, newContent: string) => void;
+  deleteMessage: (messageId: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -58,6 +61,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [channels, allUsersWithCurrent]);
 
+  // Fetch messages effect
   useEffect(() => {
     if (activeConversation) {
       const fetchedMessages = fetchMockMessages(activeConversation.id);
@@ -75,8 +79,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       content,
       timestamp: Date.now(),
       file: file ? { name: file.name, url: 'https://placehold.co/200x150.png', type: file.type.startsWith('image/') ? 'image' : 'document' } : undefined,
+      reactions: {}, // Initialize with empty reactions
     };
+    // Update local state
     setMessages(prevMessages => [...prevMessages, newMessage]);
+    // Update mock data store (simulating backend)
+    if (activeConversation) {
+        const currentMockMessages = mockMessages[activeConversation.id] || [];
+        mockMessages[activeConversation.id] = [...currentMockMessages, newMessage];
+    }
   }, [activeConversation, currentUser.id]);
 
   const addChannel = useCallback((name: string, description?: string, memberIds: string[] = []) => {
@@ -97,7 +108,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Error", description: "Channel not found.", variant: "destructive" });
       return;
     }
-    const channelMessages = fetchMockMessages(channelId);
+    const channelMessages = fetchMockMessages(channelId); // Ensure this gets latest from mockMessages
     if (channelMessages.length === 0) {
       toast({ title: "Summary", description: "No messages in this channel to summarize." });
       setCurrentSummary("This channel has no messages yet.");
@@ -135,7 +146,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setPendingInvitations(prev => [...prev, newInvitation]);
     
     const joinUrl = `${window.location.origin}/join/${token}`;
-    const emailSubject = "You're invited to join Opano!"; // Changed from Chatterbox
+    const emailSubject = "You're invited to join Opano!";
     const emailHtmlBody = `
       <h1>Welcome to Opano!</h1>
       <p>You've been invited to join the Opano workspace.</p>
@@ -207,13 +218,74 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     setUsers(prevUsers => [...prevUsers, newUser]);
     setAllUsersWithCurrent(prevAll => [...prevAll, newUser]);
+    // Also update mockUsers for wider availability if needed, and persistence across reloads of mock data
+    mockUsers.push(newUser); 
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
 
-    toast({ title: "Welcome to Opano!", description: `User ${newUser.name} has joined the workspace.` }); // Changed from Chatterbox
+    toast({ title: "Welcome to Opano!", description: `User ${newUser.name} has joined the workspace.` });
     router.push('/');
     return true;
-  }, [verifyInviteToken, toast, router, setUsers, setAllUsersWithCurrent, setPendingInvitations]);
+  }, [verifyInviteToken, toast, router]);
 
+  const toggleReaction = useCallback((messageId: string, emoji: string) => {
+    setMessages(prevMessages => {
+      return prevMessages.map(msg => {
+        if (msg.id === messageId) {
+          const reactions = { ...(msg.reactions || {}) };
+          const userList = reactions[emoji] || [];
+          const userIndex = userList.indexOf(currentUser.id);
+
+          if (userIndex > -1) { // User already reacted, remove reaction
+            userList.splice(userIndex, 1);
+            if (userList.length === 0) {
+              delete reactions[emoji];
+            } else {
+              reactions[emoji] = userList;
+            }
+          } else { // User hasn't reacted, add reaction
+            reactions[emoji] = [...userList, currentUser.id];
+          }
+          const updatedMsg = { ...msg, reactions };
+          // Update mock data store
+          if (activeConversation) updateMockMessage(activeConversation.id, messageId, { reactions: updatedMsg.reactions });
+          return updatedMsg;
+        }
+        return msg;
+      });
+    });
+  }, [currentUser.id, activeConversation]);
+
+  const editMessage = useCallback((messageId: string, newContent: string) => {
+    setMessages(prevMessages => 
+      prevMessages.map(msg => {
+        if (msg.id === messageId && msg.userId === currentUser.id) {
+          const updatedMsg = { ...msg, content: newContent, isEdited: true, timestamp: Date.now() }; // Update timestamp on edit
+           // Update mock data store
+          if (activeConversation) updateMockMessage(activeConversation.id, messageId, { content: newContent, isEdited: true, timestamp: updatedMsg.timestamp });
+          return updatedMsg;
+        }
+        return msg;
+      })
+    );
+  }, [currentUser.id, activeConversation]);
+
+  const deleteMessage = useCallback((messageId: string) => {
+    setMessages(prevMessages =>
+      prevMessages.filter(msg => {
+        if (msg.id === messageId && msg.userId === currentUser.id) {
+          // Update mock data store by removing the message
+          if (activeConversation && mockMessages[activeConversation.id]) {
+            mockMessages[activeConversation.id] = mockMessages[activeConversation.id].filter(m => m.id !== messageId);
+          }
+          return false; // Filter out
+        }
+        return true; // Keep
+      })
+    );
+  }, [currentUser.id, activeConversation]);
+
+
+  // Default to first channel if no active conversation
   useEffect(() => {
     if (channels.length > 0 && !activeConversation) {
       setActiveConversation('channel', channels[0].id);
@@ -238,6 +310,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       verifyInviteToken,
       acceptInvitation,
       pendingInvitations,
+      toggleReaction,
+      editMessage,
+      deleteMessage,
     }}>
       {children}
     </AppContext.Provider>

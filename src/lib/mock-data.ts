@@ -20,15 +20,15 @@ export const mockChannels: Channel[] = [
 
 export const mockMessages: Record<string, Message[]> = {
   c1: [
-    { id: 'm1', userId: 'u2', content: 'Hello team!', timestamp: Date.now() - 1000 * 60 * 60 * 2, reactions: {'👍': ['u1']} },
+    { id: 'm1', userId: 'u2', content: 'Hello team!', timestamp: Date.now() - 1000 * 60 * 60 * 2, reactions: {'👍': ['u1', 'u3']} },
     { id: 'm2', userId: 'u1', content: 'Hi Bob! How is it going?', timestamp: Date.now() - 1000 * 60 * 58 },
     { id: 'm3', userId: 'u3', content: 'Anyone seen the new designs?', timestamp: Date.now() - 1000 * 60 * 30 },
-    { id: 'm4', userId: 'u1', content: 'Yes, Charlie! They look great.', timestamp: Date.now() - 1000 * 60 * 25, reactions: {'🚀': ['u3'], '❤️': ['u2']} },
+    { id: 'm4', userId: 'u1', content: 'Yes, Charlie! They look great.', timestamp: Date.now() - 1000 * 60 * 25, reactions: {'🚀': ['u3'], '❤️': ['u2', 'u4']} },
     { id: 'm5', userId: 'u4', content: 'I agree, Alice. The color scheme is fantastic.', timestamp: Date.now() - 1000 * 60 * 10 },
     { id: 'm6', userId: 'u1', content: 'Let\'s discuss the project timeline in the #design_team channel.', timestamp: Date.now() - 1000 * 60 * 5 },
   ],
   c2: [
-    { id: 'm7', userId: 'u3', content: 'What\'s everyone\'s favorite pizza topping?', timestamp: Date.now() - 1000 * 60 * 15 },
+    { id: 'm7', userId: 'u3', content: 'What\'s everyone\'s favorite pizza topping?', timestamp: Date.now() - 1000 * 60 * 15, reactions: {'🍕': ['u1', 'u5']} },
     { id: 'm8', userId: 'u5', content: 'Pepperoni, classic!', timestamp: Date.now() - 1000 * 60 * 10 },
     {
       id: 'm9',
@@ -52,7 +52,7 @@ export const mockMessages: Record<string, Message[]> = {
   ],
   u2: [ // DM with Bob
     { id: 'dm1', userId: 'u1', content: 'Hey Bob, can we chat privately?', timestamp: Date.now() - 1000 * 60 * 5 },
-    { id: 'dm2', userId: 'u2', content: 'Sure Alice, what\'s up?', timestamp: Date.now() - 1000 * 60 * 4 },
+    { id: 'dm2', userId: 'u2', content: 'Sure Alice, what\'s up?', timestamp: Date.now() - 1000 * 60 * 4, reactions: {'👋': ['u1']}},
   ],
   u3: [ // DM with Charlie
     { id: 'dm3', userId: 'u1', content: 'Hi Charlie!', timestamp: Date.now() - 1000 * 60 * 20 },
@@ -65,5 +65,20 @@ export const mockMessages: Record<string, Message[]> = {
 
 // Function to get messages for a conversation
 export const getMessagesForConversation = (conversationId: string): Message[] => {
-  return mockMessages[conversationId] || [];
+  // Return a copy to prevent direct mutation of mockMessages from components
+  const msgs = mockMessages[conversationId] || [];
+  return msgs.map(msg => ({ ...msg, reactions: msg.reactions ? { ...msg.reactions } : undefined }));
+};
+
+// Helper to update mock messages (simulating backend persistence)
+export const updateMockMessage = (conversationId: string, messageId: string, updatedMessageData: Partial<Message>) => {
+  if (mockMessages[conversationId]) {
+    const messageIndex = mockMessages[conversationId].findIndex(msg => msg.id === messageId);
+    if (messageIndex !== -1) {
+      mockMessages[conversationId][messageIndex] = {
+        ...mockMessages[conversationId][messageIndex],
+        ...updatedMessageData,
+      };
+    }
+  }
 };

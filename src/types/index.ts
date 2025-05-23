@@ -27,7 +27,8 @@ export type Message = {
   content: string;
   timestamp: number; // Unix timestamp
   file?: MessageFile;
-  reactions?: { [emoji: string]: string[] }; // userId array for who reacted
+  reactions?: { [emoji: string]: string[] }; // emoji: array of userIds
+  isEdited?: boolean; // To indicate if a message was edited
 };
 
 export type ActiveConversation = {
