@@ -14,55 +14,60 @@ interface DirectMessageListProps {
 export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
   const { users, activeConversation, setActiveConversation, currentUser } = useAppContext();
 
-  const filteredOtherUsers = users.filter(user =>
+  // Filter out the current user from the list of "other users" to DM with.
+  // If currentUser is null (not logged in), this means `users` will be the full mock list initially.
+  const otherUsers = currentUser ? users.filter(user => user.id !== currentUser.id) : users;
+
+  const filteredOtherUsers = otherUsers.filter(user =>
     user.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getDmInfo = (user: User, isSelf: boolean) => {
     if (isSelf) return { snippet: "Your personal notes and drafts", timeOrBadge: "" };
-    if (user.id === 'u3') return { snippet: "Here're my latest drone shots", timeOrBadge: "" }; // Huzaifa
-    if (user.id === 'u2') return { snippet: "The weather will be perfect for th...", timeOrBadge: "9:41 AM" }; // Hanzlah
-    if (user.id === 'u4') return { snippet: "Next time it's my turn!", timeOrBadge: "12/22/21" }; // Fahad
+    // Keep mock snippets for existing users for visual consistency if they are still in the list
+    if (user.id === 'u3' || user.email === 'huzaifa@example.com') return { snippet: "Here're my latest drone shots", timeOrBadge: "" };
+    if (user.id === 'u2' || user.email === 'hanzlah@example.com') return { snippet: "The weather will be perfect for th...", timeOrBadge: "9:41 AM" };
+    if (user.id === 'u4' || user.email === 'fahad@example.com') return { snippet: "Next time it's my turn!", timeOrBadge: "12/22/21" };
     return { snippet: user.designation || (user.isOnline ? 'Online' : 'Offline'), timeOrBadge: "" };
   };
 
-  const isSelfActive = activeConversation?.type === 'dm' && activeConversation.id === currentUser.id;
-  const selfDmInfo = getDmInfo(currentUser, true);
 
   return (
     <SidebarMenu>
-      {/* Current User's space */}
-      <SidebarMenuItem key={currentUser.id + "-self"}>
-        <SidebarMenuButton
-          onClick={() => setActiveConversation('dm', currentUser.id)}
-          isActive={isSelfActive}
-          className={cn(
-            "gap-3 h-auto py-3 px-3 bg-card text-card-foreground rounded-lg shadow-sm",
-            "hover:shadow-md hover:-translate-y-px transition-all duration-150",
-            "group-data-[collapsible=icon]:h-12 group-data-[collapsible=icon]:w-12 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
-            isSelfActive && "ring-2 ring-primary ring-offset-1 ring-offset-sidebar-background" // Active state with ring
-          )}
-          tooltip={`${currentUser.name} (you)`}
-        >
-          <UserAvatar user={currentUser} className="h-10 w-10 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8" />
-          <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
-            <div className="flex justify-between items-center">
-              <span className={cn(
-                "truncate font-semibold text-foreground",
-                isSelfActive ? "text-primary" : ""
+      {/* Current User's space - only if currentUser exists */}
+      {currentUser && (
+        <SidebarMenuItem key={currentUser.id + "-self"}>
+          <SidebarMenuButton
+            onClick={() => setActiveConversation('dm', currentUser.id)}
+            isActive={activeConversation?.type === 'dm' && activeConversation.id === currentUser.id}
+            className={cn(
+              "gap-3 h-auto py-3 px-3 bg-card text-card-foreground rounded-lg shadow-sm",
+              "hover:shadow-md hover:-translate-y-px transition-all duration-150",
+              "group-data-[collapsible=icon]:h-12 group-data-[collapsible=icon]:w-12 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
+              activeConversation?.type === 'dm' && activeConversation.id === currentUser.id && "ring-2 ring-primary ring-offset-1 ring-offset-sidebar-background"
+            )}
+            tooltip={`${currentUser.name} (you)`}
+          >
+            <UserAvatar user={currentUser} className="h-10 w-10 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8" />
+            <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
+              <div className="flex justify-between items-center">
+                <span className={cn(
+                  "truncate font-semibold text-foreground",
+                  activeConversation?.type === 'dm' && activeConversation.id === currentUser.id ? "text-primary" : ""
+                )}>
+                  {currentUser.name} (you)
+                </span>
+              </div>
+              <p className={cn(
+                "text-sm text-muted-foreground truncate",
+                activeConversation?.type === 'dm' && activeConversation.id === currentUser.id ? "text-primary/80" : ""
               )}>
-                {currentUser.name} (you)
-              </span>
+                {getDmInfo(currentUser, true).snippet}
+              </p>
             </div>
-            <p className={cn(
-              "text-sm text-muted-foreground truncate",
-              isSelfActive ? "text-primary/80" : ""
-            )}>
-              {selfDmInfo.snippet}
-            </p>
-          </div>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      )}
 
       {/* List of other users */}
       {filteredOtherUsers.map(user => {
@@ -78,7 +83,7 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
               "gap-3 h-auto py-3 px-3 bg-card text-card-foreground rounded-lg shadow-sm",
               "hover:shadow-md hover:-translate-y-px transition-all duration-150",
               "group-data-[collapsible=icon]:h-12 group-data-[collapsible=icon]:w-12 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
-              isActive && "ring-2 ring-primary ring-offset-1 ring-offset-sidebar-background" // Active state with ring
+              isActive && "ring-2 ring-primary ring-offset-1 ring-offset-sidebar-background"
             )}
             tooltip={user.name}
           >
@@ -92,18 +97,17 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
                   {user.name}
                 </span>
                 
-                {user.id !== 'u3' && typeof dmInfo.timeOrBadge === 'string' && dmInfo.timeOrBadge && (
-                  <span className={cn("text-xs", isActive ? "text-primary/80" : "text-muted-foreground")}>{dmInfo.timeOrBadge}</span>
+                { (user.id === 'u3' || user.email === 'huzaifa@example.com') ? (
+                  !isActive && <div className="flex-shrink-0"><Badge variant="default" className="bg-primary text-primary-foreground h-5 px-1.5 text-xs">80</Badge></div>
+                ) : (
+                  typeof dmInfo.timeOrBadge === 'string' && dmInfo.timeOrBadge && (
+                    <span className={cn("text-xs", isActive ? "text-primary/80" : "text-muted-foreground")}>{dmInfo.timeOrBadge}</span>
+                  )
                 )}
-                {user.id !== 'u3' && typeof dmInfo.timeOrBadge !== 'string' && dmInfo.timeOrBadge && (
+                { typeof dmInfo.timeOrBadge !== 'string' && dmInfo.timeOrBadge && (user.id !== 'u3' && user.email !== 'huzaifa@example.com') && (
                   <div className="flex-shrink-0">{dmInfo.timeOrBadge}</div>
                 )}
 
-                {user.id === 'u3' && !isActive && (
-                  <div className="flex-shrink-0">
-                    <Badge variant="default" className="bg-primary text-primary-foreground h-5 px-1.5 text-xs">80</Badge>
-                  </div>
-                )}
               </div>
               <p className={cn(
                 "text-sm text-muted-foreground truncate",
@@ -119,6 +123,11 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
           No other users found.
         </div>
       )}
+       {!currentUser && filteredOtherUsers.length === 0 && !searchTerm && (
+         <div className="p-3 text-sm text-muted-foreground text-center group-data-[collapsible=icon]:hidden">
+          Sign in to see direct messages.
+        </div>
+       )}
     </SidebarMenu>
   );
 }

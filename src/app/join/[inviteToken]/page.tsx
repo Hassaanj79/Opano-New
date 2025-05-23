@@ -9,8 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PendingInvitation } from '@/types';
-import { OpanoLogo } from '@/components/OpanoLogo'; // Changed from ChatterboxLogo
+import { OpanoLogo } from '@/components/OpanoLogo';
 import { useToast } from '@/hooks/use-toast';
+
+// This page's functionality will change significantly with Firebase Auth.
+// For now, it will verify a mock token and 'accept' it.
+// In a Firebase world, this would lead to a sign-up flow for the invited email.
 
 export default function JoinPage() {
   const params = useParams();
@@ -33,11 +37,13 @@ export default function JoinPage() {
         setInvitation(validInvitation);
       } else {
         setError("Invalid or expired invitation link.");
-        toast({
-          title: "Invalid Invitation",
-          description: "This invitation link is not valid or has already been used.",
-          variant: "destructive"
-        });
+        setTimeout(() => {
+          toast({
+            title: "Invalid Invitation",
+            description: "This invitation link is not valid or has already been used.",
+            variant: "destructive"
+          });
+        }, 0);
       }
     } else {
       setError("No invitation token provided.");
@@ -48,13 +54,19 @@ export default function JoinPage() {
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!name.trim() || !designation.trim()) {
-      toast({ title: "Missing Information", description: "Please fill in all fields.", variant: "destructive" });
+      setTimeout(() => {
+        toast({ title: "Missing Information", description: "Please fill in all fields.", variant: "destructive" });
+      },0);
       return;
     }
     if (invitation) {
+      // With Firebase Auth, this would typically trigger a user creation flow
+      // (e.g., createUserWithEmailAndPassword) using the invitation.email
+      // and then store name/designation in Firestore.
+      // The current acceptInvitation is mock-based.
       const success = acceptInvitation(invitation.token, { name, designation });
       if (success) {
-        // AppContext handles redirection via router.push
+        // AppContext handles redirection if mock user creation is successful
       } else {
         // Error toast is handled by acceptInvitation
       }

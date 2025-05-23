@@ -37,6 +37,7 @@ import type { DateRange } from 'react-day-picker';
 import type { AttendanceLogEntry } from '@/types';
 import { EditAttendanceLogDialog } from "@/components/dialogs/EditAttendanceLogDialog";
 import { cn } from "@/lib/utils";
+import { Skeleton } from '@/components/ui/skeleton';
 
 const MAX_WORK_SECONDS = 8 * 60 * 60; // 8 hours in seconds for progress calculation
 
@@ -120,7 +121,7 @@ const InfoRow = ({ label, value, icon: Icon }: { label: string, value: string, i
 type AttendanceStatus = 'not-clocked-in' | 'working' | 'on-break' | 'clocked-out';
 
 export default function AttendancePage() {
-  const { currentUser } = useAppContext();
+  const { currentUser, isLoadingAuth } = useAppContext();
   const [status, setStatus] = useState<AttendanceStatus>('not-clocked-in');
   const [clockInTime, setClockInTime] = useState<Date | null>(null);
   const [clockOutTime, setClockOutTime] = useState<Date | null>(null);
@@ -141,7 +142,7 @@ export default function AttendancePage() {
 
   useEffect(() => {
     if (!reportDateRange || !reportDateRange.from) {
-      setDisplayedAttendanceLog([]); // Show no logs if no range is selected
+      setDisplayedAttendanceLog([]); 
       return;
     }
 
@@ -181,6 +182,7 @@ export default function AttendancePage() {
 
 
   const handleClockIn = () => {
+    if (!currentUser) return;
     const now = new Date();
     setClockInTime(now);
     setClockOutTime(null);
@@ -189,7 +191,6 @@ export default function AttendancePage() {
     setAccumulatedBreakDuration(0);
     setWorkedSeconds(0);
     setStatus('working');
-    // If no range is selected, or today is not in selected range, set range to today
     if (!reportDateRange || !reportDateRange.from ||
         (reportDateRange.to && !isWithinInterval(now, {start: startOfDay(reportDateRange.from), end: endOfDay(reportDateRange.to)})) ||
         (!reportDateRange.to && !isSameDay(now, reportDateRange.from))
@@ -199,7 +200,7 @@ export default function AttendancePage() {
   };
 
   const handleClockOut = () => {
-    if (status === 'not-clocked-in' || status === 'clocked-out' || !clockInTime) return;
+    if (!currentUser || status === 'not-clocked-in' || status === 'clocked-out' || !clockInTime) return;
 
     let finalBreakDuration = accumulatedBreakDuration;
     if (status === 'on-break' && breakStartTime) {
@@ -218,12 +219,13 @@ export default function AttendancePage() {
       clockInTime: clockInTime,
       clockOutTime: currentClockOutTime,
       totalHoursWorked: workedSeconds,
-      totalActivityPercent: Math.floor(Math.random() * 41) + 60, // Random 60-100%
+      totalActivityPercent: Math.floor(Math.random() * 41) + 60, 
     };
     setMasterAttendanceLog(prevLog => [newLogEntry, ...prevLog]);
   };
 
   const handleToggleBreak = () => {
+    if (!currentUser) return;
     if (status === 'working') {
       setBreakStartTime(new Date());
       setStatus('on-break');
@@ -257,6 +259,27 @@ export default function AttendancePage() {
     setDeletingEntryId(null);
   };
 
+  if (isLoadingAuth) {
+    return (
+      <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full items-center justify-center">
+        <Skeleton className="h-10 w-48 mb-4" />
+        <Skeleton className="rounded-full h-64 w-64 mb-6" />
+        <Skeleton className="h-8 w-32 mb-6" />
+        <Skeleton className="h-12 w-full max-w-sm mb-2" />
+        <Skeleton className="h-10 w-full max-w-sm" />
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full items-center justify-center">
+        <LogOut className="h-16 w-16 mb-4 text-muted-foreground" />
+        <h1 className="text-xl font-semibold">Please Sign In</h1>
+        <p className="text-muted-foreground">Sign in to access the attendance page.</p>
+      </div>
+    );
+  }
 
   const timerDisplay = formatDuration(workedSeconds);
   const progressPercent = status === 'clocked-out' || status === 'not-clocked-in' ? 0 : Math.min(100, (workedSeconds / MAX_WORK_SECONDS) * 100);
@@ -364,7 +387,7 @@ export default function AttendancePage() {
                 <Button
                 variant={"outline"}
                 className={cn(
-                    "w-[280px] justify-start text-left font-normal", // Increased width for range
+                    "w-[280px] justify-start text-left font-normal", 
                     !reportDateRange && "text-muted-foreground"
                 )}
                 >
@@ -487,4 +510,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-

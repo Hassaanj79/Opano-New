@@ -30,6 +30,7 @@ import {
     Send,
     MoreHorizontal,
     Plus,
+    LogIn, // For a conceptual login button if user is null
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
@@ -43,9 +44,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { CurrentView } from '@/types';
-import { useRouter, usePathname } from 'next/navigation'; // Import useRouter and usePathname
+import { useRouter, usePathname } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton'; // For loading state
 
-// Updated to reflect the actual icons and functionality
 const topNavItems: { label: string; icon: React.ElementType; view: CurrentView | 'more' }[] = [
     { label: 'Replies', icon: MessageSquareReply, view: 'replies' },
     { label: 'Activity', icon: Bell, view: 'activity' },
@@ -54,25 +55,60 @@ const topNavItems: { label: string; icon: React.ElementType; view: CurrentView |
 ];
 
 export function ChatterboxSidebar() {
-  const { currentUser, toggleCurrentUserStatus, setActiveSpecialView, currentView } = useAppContext();
+  const { currentUser, toggleCurrentUserStatus, setActiveSpecialView, currentView, isLoadingAuth } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
   const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const router = useRouter(); // Initialize useRouter
-  const pathname = usePathname(); // Initialize usePathname
+  const router = useRouter();
+  const pathname = usePathname();
 
   const handleEditProfile = () => {
-    setIsEditProfileDialogOpen(true);
+    if (currentUser) {
+      setIsEditProfileDialogOpen(true);
+    }
   };
 
   const handleTopNavClick = (view: CurrentView | 'more') => {
     if (view === 'more') {
-      router.push('/more'); // Navigate to /more page
+      router.push('/more');
     } else {
       setActiveSpecialView(view as 'replies' | 'activity' | 'drafts');
     }
   };
+
+  // Placeholder for login action if currentUser is null
+  const handleLogin = () => {
+    // In a real app, this would redirect to a login page or open a login modal
+    // For now, it can just log a message.
+    console.log("Login action triggered. Implement Firebase sign-in UI.");
+    alert("Login functionality not yet implemented. Please sign in via Firebase console for testing.");
+  };
+
+  if (isLoadingAuth) {
+    return (
+      <Sidebar collapsible="icon" side="left" variant="sidebar" className="border-r border-sidebar-border">
+        <SidebarHeader className="p-3 border-b border-sidebar-border">
+          <Skeleton className="h-8 w-32 group-data-[collapsible=icon]:w-8" />
+        </SidebarHeader>
+        <SidebarContent className="p-2">
+          <Skeleton className="h-8 w-full mb-1" />
+          <Skeleton className="h-8 w-full mb-1" />
+          <Skeleton className="h-8 w-full mb-1" />
+          <Skeleton className="h-8 w-full mb-4" />
+          <Skeleton className="h-6 w-20 mb-2" />
+          <Skeleton className="h-8 w-full mb-1" />
+          <Skeleton className="h-8 w-full mb-4" />
+          <Skeleton className="h-6 w-24 mb-2" />
+          <Skeleton className="h-10 w-full mb-1" />
+          <Skeleton className="h-10 w-full mb-1" />
+        </SidebarContent>
+        <SidebarFooter className="p-2 border-t border-sidebar-border mt-auto">
+          <Skeleton className="h-10 w-full" />
+        </SidebarFooter>
+      </Sidebar>
+    );
+  }
 
   return (
     <>
@@ -84,110 +120,128 @@ export function ChatterboxSidebar() {
         </SidebarHeader>
 
         <SidebarContent className="p-0">
-          {/* Top Navigation Section */}
-          <SidebarGroup className="pt-2 pb-1 group-data-[collapsible=icon]:px-0">
-            <SidebarMenu>
-              {topNavItems.map((item) => (
-                <SidebarMenuItem key={item.label}>
-                  <SidebarMenuButton
-                    onClick={() => handleTopNavClick(item.view)}
-                    isActive={item.view === 'more' ? pathname === '/more' : currentView === item.view}
-                    tooltip={item.label}
-                    className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
+          {currentUser && ( // Only show these sections if a user is logged in
+            <>
+              <SidebarGroup className="pt-2 pb-1 group-data-[collapsible=icon]:px-0">
+                <SidebarMenu>
+                  {topNavItems.map((item) => (
+                    <SidebarMenuItem key={item.label}>
+                      <SidebarMenuButton
+                        onClick={() => handleTopNavClick(item.view)}
+                        isActive={item.view === 'more' ? pathname === '/more' : currentView === item.view}
+                        tooltip={item.label}
+                        className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
+                      >
+                        <item.icon className="h-5 w-5" />
+                        <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroup>
+
+              <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
+
+              <SidebarGroup className="pt-1 group-data-[collapsible=icon]:px-0">
+                <div className="flex items-center justify-between w-full px-3 mb-1 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:mb-0.5">
+                  <SidebarGroupLabel className="text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden p-0 normal-case">
+                      Loopz
+                  </SidebarGroupLabel>
+                  <Button
+                    variant="default"
+                    size="icon"
+                    className="h-6 w-6 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground group-data-[collapsible=icon]:hidden"
+                    onClick={() => setIsAddChannelDialogOpen(true)}
+                    aria-label="Add new channel"
                   >
-                    <item.icon className="h-5 w-5" />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <ChannelList searchTerm={searchTerm} />
+              </SidebarGroup>
 
-          <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
+              <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
 
-          {/* Loopz (Channels) Section */}
-          <SidebarGroup className="pt-1 group-data-[collapsible=icon]:px-0">
-            <div className="flex items-center justify-between w-full px-3 mb-1 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:mb-0.5">
-              <SidebarGroupLabel className="text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden p-0 normal-case">
-                  Loopz
-              </SidebarGroupLabel>
-              <Button
-                variant="default"
-                size="icon"
-                className="h-6 w-6 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground group-data-[collapsible=icon]:hidden"
-                onClick={() => setIsAddChannelDialogOpen(true)}
-                aria-label="Add new channel"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-            <ChannelList searchTerm={searchTerm} />
-          </SidebarGroup>
-
-          <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
-
-          {/* Direct Messages Section */}
-          <SidebarGroup className="pt-1 group-data-[collapsible=icon]:px-0">
-             <div className="flex items-center justify-between w-full px-3 mb-1 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:mb-0.5">
-                <SidebarGroupLabel className="text-xs font-semibold uppercase text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden p-0">
-                    Direct Messages
-                </SidebarGroupLabel>
-            </div>
-            <DirectMessageList searchTerm={searchTerm} />
-          </SidebarGroup>
+              <SidebarGroup className="pt-1 group-data-[collapsible=icon]:px-0">
+                 <div className="flex items-center justify-between w-full px-3 mb-1 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:mb-0.5">
+                    <SidebarGroupLabel className="text-xs font-semibold uppercase text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden p-0">
+                        Direct Messages
+                    </SidebarGroupLabel>
+                </div>
+                <DirectMessageList searchTerm={searchTerm} />
+              </SidebarGroup>
+            </>
+          )}
         </SidebarContent>
 
         <SidebarFooter className="p-2 border-t border-sidebar-border mt-auto">
-          <Button
-            variant="ghost"
-            className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2 mb-1 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-            onClick={() => setIsInviteUserDialogOpen(true)}
-            aria-label="Invite new user"
-          >
-            <UserPlus className="h-4 w-4" />
-            <span className="ml-2 group-data-[collapsible=icon]:hidden">Invite User</span>
-          </Button>
-          <SidebarSeparator className="my-1"/>
-          <div className="flex items-center p-1 gap-2 rounded-md group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center">
-            <UserAvatar user={currentUser} className="h-8 w-8" />
-            <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
-              <p className="font-semibold text-sm truncate text-sidebar-foreground">{currentUser.name}</p>
-              <p className="text-xs text-sidebar-foreground/70">{currentUser.isOnline ? 'Online' : 'Away'}</p>
-            </div>
+          {currentUser ? (
+            <>
+              <Button
+                variant="ghost"
+                className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2 mb-1 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                onClick={() => setIsInviteUserDialogOpen(true)}
+                aria-label="Invite new user"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span className="ml-2 group-data-[collapsible=icon]:hidden">Invite User</span>
+              </Button>
+              <SidebarSeparator className="my-1"/>
+              <div className="flex items-center p-1 gap-2 rounded-md group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center">
+                <UserAvatar user={currentUser} className="h-8 w-8" />
+                <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
+                  <p className="font-semibold text-sm truncate text-sidebar-foreground">{currentUser.name}</p>
+                  <p className="text-xs text-sidebar-foreground/70">{currentUser.isOnline ? 'Online' : 'Away'}</p>
+                </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground">
-                  <Settings className="h-4 w-4"/>
-                  <span className="sr-only">User Settings</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleEditProfile}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  <span>Edit Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={toggleCurrentUserStatus}>
-                  {currentUser.isOnline ? (
-                    <UserX className="mr-2 h-4 w-4" />
-                  ) : (
-                    <UserCheck className="mr-2 h-4 w-4" />
-                  )}
-                  <span>{currentUser.isOnline ? 'Set to Away' : 'Set to Online'}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground">
+                      <Settings className="h-4 w-4"/>
+                      <span className="sr-only">User Settings</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" align="end" className="w-56">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleEditProfile}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      <span>Edit Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={toggleCurrentUserStatus}>
+                      {currentUser.isOnline ? (
+                        <UserX className="mr-2 h-4 w-4" />
+                      ) : (
+                        <UserCheck className="mr-2 h-4 w-4" />
+                      )}
+                      <span>{currentUser.isOnline ? 'Set to Away' : 'Set to Online'}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full justify-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
+              onClick={handleLogin}
+            >
+              <LogIn className="h-4 w-4" />
+              <span className="ml-2 group-data-[collapsible=icon]:hidden">Sign In</span>
+            </Button>
+          )}
         </SidebarFooter>
       </Sidebar>
-      <AddChannelDialog isOpen={isAddChannelDialogOpen} onOpenChange={setIsAddChannelDialogOpen} />
-      <InviteUserDialog isOpen={isInviteUserDialogOpen} onOpenChange={setIsInviteUserDialogOpen} />
-      <EditProfileDialog
-        isOpen={isEditProfileDialogOpen}
-        onOpenChange={setIsEditProfileDialogOpen}
-      />
+      {currentUser && (
+        <>
+          <AddChannelDialog isOpen={isAddChannelDialogOpen} onOpenChange={setIsAddChannelDialogOpen} />
+          <InviteUserDialog isOpen={isInviteUserDialogOpen} onOpenChange={setIsInviteUserDialogOpen} />
+          <EditProfileDialog
+            isOpen={isEditProfileDialogOpen}
+            onOpenChange={setIsEditProfileDialogOpen}
+          />
+        </>
+      )}
     </>
   );
 }

@@ -2,7 +2,7 @@
 "use client";
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Hash, Sparkles, UserCircle2, Users, UserPlus, Phone } from 'lucide-react'; // Added Phone
+import { Hash, Sparkles, UserCircle2, Users, UserPlus, Phone } from 'lucide-react';
 import { useState } from 'react';
 import { SummarizeDialog } from './SummarizeDialog';
 import { AddMembersToChannelDialog } from '@/components/dialogs/AddMembersToChannelDialog';
@@ -17,13 +17,14 @@ export function ChatHeader() {
     clearSummary,
     startCall,
     isCallActive,
-    callingWith
+    callingWith,
+    currentUser // Added currentUser to check if logged in
   } = useAppContext();
   const [isSummarizeDialogOpen, setIsSummarizeDialogOpen] = useState(false);
   const [isAddMembersDialogOpen, setIsAddMembersDialogOpen] = useState(false);
   const [isViewMembersDialogOpen, setIsViewMembersDialogOpen] = useState(false);
 
-  if (!activeConversation) return null;
+  if (!activeConversation || !currentUser) return null; // Don't render if no active convo or no user
 
   const handleSummarize = async () => {
     if (activeConversation.type === 'channel') {
@@ -59,7 +60,6 @@ export function ChatHeader() {
           {activeConversation.type === 'channel' ? (
             <Hash className="h-5 w-5 text-muted-foreground" />
           ) : (
-            // For DMs, show user avatar or a generic user icon
             <UserCircle2 className="h-5 w-5 text-muted-foreground" /> 
           )}
           <div>
@@ -72,7 +72,7 @@ export function ChatHeader() {
             variant="outline"
             size="sm"
             onClick={handleCall}
-            disabled={isDifferentCallActive} // Disable if a call is active with someone else
+            disabled={isDifferentCallActive || !currentUser} // Disable if no current user
             className="text-xs"
             aria-label="Start call"
           >
@@ -80,7 +80,7 @@ export function ChatHeader() {
             Call
           </Button>
           {activeConversation.type === 'channel' && (
-            <Button variant="outline" size="sm" onClick={handleSummarize} disabled={isLoadingSummary} className="text-xs">
+            <Button variant="outline" size="sm" onClick={handleSummarize} disabled={isLoadingSummary || !currentUser} className="text-xs">
               <Sparkles className={`mr-1.5 h-3.5 w-3.5 ${isLoadingSummary ? 'animate-spin' : ''}`} />
               {isLoadingSummary ? 'Summarizing...' : 'AI Summary'}
             </Button>
@@ -92,6 +92,7 @@ export function ChatHeader() {
                 onClick={() => setIsViewMembersDialogOpen(true)} 
                 className="text-muted-foreground hover:text-primary"
                 aria-label="View members"
+                disabled={!currentUser}
               >
                 <Users className="h-4 w-4" />
              </Button>
@@ -103,6 +104,7 @@ export function ChatHeader() {
                 onClick={() => setIsAddMembersDialogOpen(true)} 
                 className="text-xs"
                 aria-label="Add members to channel"
+                disabled={!currentUser}
               >
                 <UserPlus className="mr-1.5 h-3.5 w-3.5" />
                 Add Members
@@ -110,26 +112,30 @@ export function ChatHeader() {
            )}
         </div>
       </div>
-      <SummarizeDialog
-        isOpen={isSummarizeDialogOpen}
-        onOpenChange={handleSummarizeDialogClose}
-        summary={currentSummary}
-        isLoading={isLoadingSummary}
-        channelName={activeConversation.type === 'channel' ? activeConversation.name : undefined}
-      />
-      {activeConversation.type === 'channel' && activeConversation.id && (
-        <AddMembersToChannelDialog
-          isOpen={isAddMembersDialogOpen}
-          onOpenChange={setIsAddMembersDialogOpen}
-          channelId={activeConversation.id}
-        />
-      )}
-      {activeConversation.type === 'channel' && activeConversation.channel && (
-        <ViewChannelMembersDialog
-          isOpen={isViewMembersDialogOpen}
-          onOpenChange={setIsViewMembersDialogOpen}
-          channel={activeConversation.channel}
-        />
+      {currentUser && ( // Only render dialogs if user is logged in
+        <>
+          <SummarizeDialog
+            isOpen={isSummarizeDialogOpen}
+            onOpenChange={handleSummarizeDialogClose}
+            summary={currentSummary}
+            isLoading={isLoadingSummary}
+            channelName={activeConversation.type === 'channel' ? activeConversation.name : undefined}
+          />
+          {activeConversation.type === 'channel' && activeConversation.id && (
+            <AddMembersToChannelDialog
+              isOpen={isAddMembersDialogOpen}
+              onOpenChange={setIsAddMembersDialogOpen}
+              channelId={activeConversation.id}
+            />
+          )}
+          {activeConversation.type === 'channel' && activeConversation.channel && (
+            <ViewChannelMembersDialog
+              isOpen={isViewMembersDialogOpen}
+              onOpenChange={setIsViewMembersDialogOpen}
+              channel={activeConversation.channel}
+            />
+          )}
+        </>
       )}
     </>
   );
