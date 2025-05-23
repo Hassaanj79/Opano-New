@@ -4,12 +4,28 @@ import { useAppContext } from '@/contexts/AppContext';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Hash, Lock } from 'lucide-react';
 
-export function ChannelList() {
+interface ChannelListProps {
+  searchTerm: string;
+}
+
+export function ChannelList({ searchTerm }: ChannelListProps) {
   const { channels, activeConversation, setActiveConversation } = useAppContext();
+
+  const filteredChannels = channels.filter(channel =>
+    channel.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (filteredChannels.length === 0 && searchTerm) {
+    return (
+      <div className="p-2 text-sm text-muted-foreground text-center group-data-[collapsible=icon]:hidden">
+        No channels found.
+      </div>
+    );
+  }
 
   return (
     <SidebarMenu>
-      {channels.map(channel => (
+      {filteredChannels.map(channel => (
         <SidebarMenuItem key={channel.id}>
           <SidebarMenuButton
             onClick={() => setActiveConversation('channel', channel.id)}

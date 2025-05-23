@@ -3,27 +3,42 @@
 import { useAppContext } from '@/contexts/AppContext';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { UserAvatar } from '@/components/UserAvatar';
-import { Badge } from '@/components/ui/badge'; // For potential unread count
+import { Badge } from '@/components/ui/badge';
 import type { User } from '@/types';
 
-export function DirectMessageList() {
+interface DirectMessageListProps {
+  searchTerm: string;
+}
+
+export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
   const { users, activeConversation, setActiveConversation, currentUser } = useAppContext();
-  const directMessageUsers = users.filter(user => user.id !== currentUser.id);
+
+  const directMessageUsers = users
+    .filter(user => user.id !== currentUser.id)
+    .filter(user =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   // Mocking some DM info for UI alignment with image
-  const getDmInfo = (user: User) => { // Changed to accept the full user object
+  const getDmInfo = (user: User) => {
     if (user.id === 'u3') return { snippet: "Here're my latest drone shots", timeOrBadge: <Badge variant="default" className="bg-primary text-primary-foreground h-5 px-1.5 text-xs">80</Badge> };
     if (user.id === 'u2') return { snippet: "The weather will be perfect for th...", timeOrBadge: "9:41 AM" };
-    if (currentUser.id === 'u1' && user.id === 'u4') return { snippet: "Next time it's my turn!", timeOrBadge: "12/22/21" } // If current user is Cristal Parker
-    // Use the passed user object here
+    if (currentUser.id === 'u1' && user.id === 'u4') return { snippet: "Next time it's my turn!", timeOrBadge: "12/22/21" }
     return { snippet: user?.designation || (user?.isOnline ? 'Online' : 'Offline'), timeOrBadge: "" };
   }
 
+  if (directMessageUsers.length === 0 && searchTerm) {
+    return (
+      <div className="p-2 text-sm text-muted-foreground text-center group-data-[collapsible=icon]:hidden">
+        No users found.
+      </div>
+    );
+  }
 
   return (
     <SidebarMenu>
       {directMessageUsers.map(user => {
-        const dmInfo = getDmInfo(user); // Pass the full user object here
+        const dmInfo = getDmInfo(user);
         const isActive = activeConversation?.type === 'dm' && activeConversation.id === user.id;
         return (
         <SidebarMenuItem key={user.id}>
