@@ -4,10 +4,11 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Briefcase, Megaphone, Settings, PlusCircle, FileText, Edit3, Trash2, DollarSign, type LucideIcon, FolderKanban, UploadCloud } from "lucide-react";
+import { Users, Briefcase, Megaphone, Settings, PlusCircle, FileText, Edit3, Trash2, DollarSign, type LucideIcon, FolderKanban, UploadCloud, Type } from "lucide-react"; // Added Type icon
 import Link from "next/link";
 import { AddDocumentCategoryDialog } from '@/components/dialogs/AddDocumentCategoryDialog';
-import { AddDocumentDialog } from '@/components/dialogs/AddDocumentDialog'; // New Dialog
+import { AddDocumentDialog } from '@/components/dialogs/AddDocumentDialog';
+import { CreateTextDocumentDialog } from '@/components/dialogs/CreateTextDocumentDialog'; // New Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
@@ -15,10 +16,12 @@ import { format } from 'date-fns';
 export interface Document {
   id: string;
   name: string;
-  type: string; // e.g., 'pdf', 'docx', 'png' from file.type
+  type: string; // e.g., 'pdf', 'docx', 'png' from file.type for file uploads, or 'text/plain' for created docs
+  docType: 'file' | 'text'; // Distinguishes between uploaded files and in-app created text documents
   lastModified: string; // ISO string or formatted date
-  fileUrl?: string; // For local preview using URL.createObjectURL
-  fileObject?: File; // Store the actual file object if needed for future use (not persisted)
+  fileUrl?: string; // For local preview of uploaded files using URL.createObjectURL
+  fileObject?: File; // Store the actual file object if needed (not persisted for files)
+  textContent?: string; // Content for in-app created text documents
 }
 
 export interface DocumentCategory {
@@ -36,8 +39,9 @@ const initialDocumentCategories: DocumentCategory[] = [
     description: "Resources, playbooks, and templates for helping our customers succeed.",
     icon: Users,
     documents: [
-        { id: "doc1-1", name: "Onboarding Checklist.pdf", type: "application/pdf", lastModified: format(new Date(2024, 2, 10), "MMM d, yyyy"), fileUrl: "#" },
-        { id: "doc1-2", name: "Q1 Success Playbook.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", lastModified: format(new Date(2024, 2, 12), "MMM d, yyyy"), fileUrl: "#" },
+        { id: "doc1-1", name: "Onboarding Checklist.pdf", type: "application/pdf", docType: 'file', lastModified: format(new Date(2024, 2, 10), "MMM d, yyyy"), fileUrl: "#" },
+        { id: "doc1-2", name: "Q1 Success Playbook.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", docType: 'file', lastModified: format(new Date(2024, 2, 12), "MMM d, yyyy"), fileUrl: "#" },
+        { id: "doc1-3", name: "Meeting Notes - Client X.txt", type: "text/plain", docType: 'text', textContent: "Discussed Q2 goals and roadmap.\nKey action items:\n- Follow up on feature Y\n- Schedule demo for new module", lastModified: format(new Date(2024, 3, 1), "MMM d, yyyy") },
     ],
   },
   {
@@ -73,8 +77,13 @@ const initialDocumentCategories: DocumentCategory[] = [
 export default function DocumentsPage() {
   const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories);
   const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
+  
   const [isAddDocumentDialogOpen, setIsAddDocumentDialogOpen] = useState(false);
-  const [currentCategoryForDocument, setCurrentCategoryForDocument] = useState<DocumentCategory | null>(null);
+  const [currentCategoryForFileDialog, setCurrentCategoryForFileDialog] = useState<DocumentCategory | null>(null);
+
+  const [isCreateTextDocumentDialogOpen, setIsCreateTextDocumentDialogOpen] = useState(false);
+  const [currentCategoryForTextDialog, setCurrentCategoryForTextDialog] = useState<DocumentCategory | null>(null);
+
   const [deletingDocInfo, setDeletingDocInfo] = useState<{categoryId: string, docId: string} | null>(null);
   const { toast } = useToast();
 
@@ -83,25 +92,26 @@ export default function DocumentsPage() {
       id: `cat-${Date.now()}`,
       name,
       description,
-      icon: FolderKanban,
+      icon: FolderKanban, 
       documents: [],
     };
     setDocumentCategories(prevCategories => [...prevCategories, newCategory]);
   };
 
   const handleOpenAddDocumentDialog = (category: DocumentCategory) => {
-    setCurrentCategoryForDocument(category);
+    setCurrentCategoryForFileDialog(category);
     setIsAddDocumentDialogOpen(true);
   };
 
-  const handleAddDocument = (categoryId: string, file: File) => {
+  const handleAddFileDocument = (categoryId: string, file: File) => {
     const newDocument: Document = {
-      id: `doc-${Date.now()}`,
+      id: `doc-file-${Date.now()}`,
       name: file.name,
       type: file.type || 'unknown',
+      docType: 'file',
       lastModified: format(new Date(), "MMM d, yyyy"),
-      fileUrl: URL.createObjectURL(file), // Create a temporary URL for preview/download
-      fileObject: file, // Optionally store the file object itself
+      fileUrl: URL.createObjectURL(file),
+      fileObject: file,
     };
 
     setDocumentCategories(prevCategories =>
@@ -111,7 +121,31 @@ export default function DocumentsPage() {
           : category
       )
     );
-    toast({ title: "Document Added", description: `"${file.name}" added to ${currentCategoryForDocument?.name}.`});
+    toast({ title: "File Document Added", description: `"${file.name}" added to ${currentCategoryForFileDialog?.name}.`});
+  };
+
+  const handleOpenCreateTextDocumentDialog = (category: DocumentCategory) => {
+    setCurrentCategoryForTextDialog(category);
+    setIsCreateTextDocumentDialogOpen(true);
+  };
+
+  const handleCreateTextDocument = (categoryId: string, docName: string, textContent: string) => {
+    const newDocument: Document = {
+      id: `doc-text-${Date.now()}`,
+      name: docName.endsWith('.txt') ? docName : `${docName}.txt`, // Ensure .txt extension for simplicity
+      type: 'text/plain',
+      docType: 'text',
+      lastModified: format(new Date(), "MMM d, yyyy"),
+      textContent: textContent,
+    };
+    setDocumentCategories(prevCategories =>
+      prevCategories.map(category =>
+        category.id === categoryId
+          ? { ...category, documents: [...category.documents, newDocument] }
+          : category
+      )
+    );
+    toast({ title: "Text Document Created", description: `"${newDocument.name}" created in ${currentCategoryForTextDialog?.name}.`});
   };
   
   const handleDeleteDocument = () => {
@@ -127,6 +161,23 @@ export default function DocumentsPage() {
     );
     toast({ title: "Document Deleted", description: "The document has been removed."});
     setDeletingDocInfo(null);
+  };
+
+  const handleDocumentClick = (doc: Document) => {
+    if (doc.docType === 'file' && doc.fileUrl) {
+      window.open(doc.fileUrl, '_blank');
+    } else if (doc.docType === 'text') {
+      toast({
+        title: `Text Document: ${doc.name}`,
+        description: (
+          <pre className="mt-2 w-full whitespace-pre-wrap rounded-md bg-slate-950 p-4 font-mono text-xs text-slate-50 max-h-40 overflow-y-auto">
+            {doc.textContent}
+          </pre>
+        ),
+        duration: 10000, // Keep toast longer for reading
+      });
+      console.log("Text Document Content:", doc.textContent);
+    }
   };
 
 
@@ -166,10 +217,14 @@ export default function DocumentsPage() {
                       <div className="space-y-2 mb-3 max-h-48 overflow-y-auto pr-1">
                           {category.documents.map(doc => (
                               <div key={doc.id} className="flex items-center justify-between p-2 rounded-md border bg-background/70 hover:bg-muted/40 transition-colors">
-                                  <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 truncate">
+                                  <button
+                                    onClick={() => handleDocumentClick(doc)}
+                                    className="flex items-center gap-2 truncate text-left hover:underline"
+                                    title={doc.name}
+                                  >
                                       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                                      <span className="text-xs text-foreground truncate hover:underline" title={doc.name}>{doc.name}</span>
-                                  </a>
+                                      <span className="text-xs text-foreground truncate">{doc.name}</span>
+                                  </button>
                                   <div className="flex items-center gap-1 shrink-0">
                                       <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => toast({title: "Edit (Coming Soon)", description: "Editing document details will be available soon."})}>
                                           <Edit3 className="h-3.5 w-3.5" />
@@ -204,10 +259,16 @@ export default function DocumentsPage() {
                         <p>Click below to add.</p>
                       </div>
                   )}
-                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => handleOpenAddDocumentDialog(category)}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Document
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => handleOpenAddDocumentDialog(category)}>
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                        Upload File
+                    </Button>
+                    <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => handleOpenCreateTextDocumentDialog(category)}>
+                        <Type className="mr-2 h-4 w-4" />
+                        Create Text
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -219,14 +280,24 @@ export default function DocumentsPage() {
         onOpenChange={setIsAddCategoryDialogOpen}
         onAddCategory={handleAddCategory}
       />
-      {currentCategoryForDocument && (
+      {currentCategoryForFileDialog && (
         <AddDocumentDialog
             isOpen={isAddDocumentDialogOpen}
             onOpenChange={setIsAddDocumentDialogOpen}
-            category={currentCategoryForDocument}
-            onAddDocument={handleAddDocument}
+            category={currentCategoryForFileDialog}
+            onAddDocument={handleAddFileDocument}
+        />
+      )}
+      {currentCategoryForTextDialog && (
+        <CreateTextDocumentDialog
+            isOpen={isCreateTextDocumentDialogOpen}
+            onOpenChange={setIsCreateTextDocumentDialogOpen}
+            category={currentCategoryForTextDialog}
+            onAddTextDocument={handleCreateTextDocument}
         />
       )}
     </>
   );
 }
+
+    

@@ -15,14 +15,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import type { DocumentCategory } from '@/app/documents/page'; // Adjusted import
+import type { DocumentCategory } from '@/app/documents/page'; 
 import { UploadCloud, FileUp } from 'lucide-react';
 
 interface AddDocumentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   category: DocumentCategory;
-  onAddDocument: (categoryId: string, file: File) => void;
+  onAddDocument: (categoryId: string, file: File) => void; // This specifically handles file uploads
 }
 
 export function AddDocumentDialog({ isOpen, onOpenChange, category, onAddDocument }: AddDocumentDialogProps) {
@@ -33,7 +33,7 @@ export function AddDocumentDialog({ isOpen, onOpenChange, category, onAddDocumen
   const resetForm = () => {
     setSelectedFile(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Reset file input
+      fileInputRef.current.value = ""; 
     }
   }
 
@@ -50,12 +50,12 @@ export function AddDocumentDialog({ isOpen, onOpenChange, category, onAddDocumen
     if (!selectedFile) {
       toast({
         title: "No File Selected",
-        description: "Please select a file to add.",
+        description: "Please select a file to upload.",
         variant: "destructive",
       });
       return;
     }
-    onAddDocument(category.id, selectedFile);
+    onAddDocument(category.id, selectedFile); // This callback is for file uploads
     resetForm();
     onOpenChange(false); 
   };
@@ -72,7 +72,7 @@ export function AddDocumentDialog({ isOpen, onOpenChange, category, onAddDocumen
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Document to "{category.name}"</DialogTitle>
+            <DialogTitle>Upload File to "{category.name}"</DialogTitle>
             <DialogDescription>
               Select a file from your computer to upload to this category.
             </DialogDescription>
@@ -100,7 +100,6 @@ export function AddDocumentDialog({ isOpen, onOpenChange, category, onAddDocumen
               variant="outline"
               className="w-full justify-center gap-2 text-muted-foreground"
               onClick={() => toast({ title: "Google Drive (Coming Soon)", description: "Attaching files from Google Drive will be available in a future update."})}
-              disabled // Placeholder, can be enabled if file input is shared
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19.464 7.5H4.536L2 12.5l2.536 5h14.928l2.536-5-2.536-5zM8.733 15L6 10h3.267l2.733 5H8.733zm3.805-5h2.924l-1.462 2.5-1.462-2.5zm3.729 5H13l2.733-5H18l-2.733 5z" />
@@ -116,7 +115,7 @@ export function AddDocumentDialog({ isOpen, onOpenChange, category, onAddDocumen
             </DialogClose>
             <Button type="submit" disabled={!selectedFile}>
               <FileUp className="mr-2 h-4 w-4" />
-              Add Document
+              Upload File
             </Button>
           </DialogFooter>
         </form>
@@ -125,3 +124,4 @@ export function AddDocumentDialog({ isOpen, onOpenChange, category, onAddDocumen
   );
 }
 
+    
