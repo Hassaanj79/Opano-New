@@ -5,7 +5,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, ImageIcon, Smile, MoreHorizontal, Edit3, Trash2, ThumbsUp, Heart } from 'lucide-react';
+import { FileText, ImageIcon, Smile, MoreHorizontal, Edit3, Trash2, ThumbsUp, Heart, MessageSquareWarning, Edit, Brain, PartyPopper, AlertCircle } from 'lucide-react'; // Added Brain, PartyPopper, AlertCircle as placeholders for new emojis
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -158,15 +158,23 @@ export function MessageItem({ message }: MessageItemProps) {
                 "absolute top-[-12px] opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 p-0.5 rounded-full border bg-background shadow-sm",
                 isCurrentUserSender ? "right-2" : "left-2" 
             )}>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '👍')}>
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '👍')} aria-label="Thumbs Up">
                     <ThumbsUp className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '❤️')}>
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '❤️')} aria-label="Heart">
                     <Heart className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent">
+                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '🤯')} aria-label="Mind Blown">
+                    <Brain className="h-3.5 w-3.5 text-muted-foreground" /> {/* Using Brain as a proxy for mind blown */}
+                </Button>
+                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '😮')} aria-label="Shocked">
+                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" /> {/* Using AlertCircle as a proxy for shocked */}
+                </Button>
+                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '🎉')} aria-label="Party Popper">
+                    <PartyPopper className="h-3.5 w-3.5 text-muted-foreground"/>
+                </Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" aria-label="Add reaction with emoji picker">
                     <Smile className="h-3.5 w-3.5 text-muted-foreground"/>
-                     <span className="sr-only">Add reaction</span>
                 </Button>
                 {isCurrentUserSender && (
                   <DropdownMenu>
@@ -227,3 +235,6 @@ export function MessageItem({ message }: MessageItemProps) {
     </div>
   );
 }
+
+
+    
