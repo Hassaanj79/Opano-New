@@ -4,8 +4,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Coffee, LogOut, Play, Briefcase, TimerIcon, CheckCircle2, XCircle } from "lucide-react";
-import React, { useState, useEffect, useCallback } from 'react';
+import { Coffee, LogOut, Play, TimerIcon } from "lucide-react"; // Using TimerIcon as a generic work icon
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from "@/contexts/AppContext";
 import { UserAvatar } from "@/components/UserAvatar";
 
@@ -24,14 +24,14 @@ const formatDuration = (totalSeconds: number): string => {
 };
 
 const WorkTimerDisplay = ({ time, progressPercent }: { time: string, progressPercent: number }) => {
-  const radius = 100; // Increased radius for a larger timer
+  const radius = 100;
   const strokeWidth = 16;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (progressPercent / 100) * circumference;
 
   return (
     <div className="relative w-64 h-64 flex items-center justify-center my-6">
-      <svg className="absolute w-full h-full transform -rotate-90" viewBox="0 0 220 220"> {/* Adjusted viewBox */}
+      <svg className="absolute w-full h-full transform -rotate-90" viewBox="0 0 220 220">
         <circle cx="110" cy="110" r={radius} fill="transparent" stroke="hsl(var(--muted))" strokeWidth={strokeWidth} />
         <circle
           cx="110"
@@ -56,7 +56,7 @@ const WorkTimerDisplay = ({ time, progressPercent }: { time: string, progressPer
 };
 
 const InfoRow = ({ label, value, icon: Icon }: { label: string, value: string, icon?: React.ElementType }) => (
-  <div className="flex justify-between items-center py-2 border-b border-border/50">
+  <div className="flex justify-between items-center py-2 border-b border-border/50 last:border-b-0">
     <div className="flex items-center text-sm text-muted-foreground">
       {Icon && <Icon className="h-4 w-4 mr-2" />}
       {label}
@@ -72,12 +72,11 @@ export default function AttendancePage() {
   const [status, setStatus] = useState<AttendanceStatus>('not-clocked-in');
   const [clockInTime, setClockInTime] = useState<Date | null>(null);
   const [clockOutTime, setClockOutTime] = useState<Date | null>(null);
-  const [isOnBreak, setIsOnBreak] = useState<boolean>(false); // Kept for internal logic if needed, status drives UI more
+  const [isOnBreak, setIsOnBreak] = useState<boolean>(false);
   const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
   const [accumulatedBreakDuration, setAccumulatedBreakDuration] = useState<number>(0);
   const [workedSeconds, setWorkedSeconds] = useState<number>(0);
 
-  // Main timer effect
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
     if (status === 'working') {
@@ -92,7 +91,6 @@ export default function AttendancePage() {
     };
   }, [status]);
 
-  // Effect to update worked seconds based on clockInTime and breaks (e.g. when resuming from break)
   useEffect(() => {
     if (status === 'working' && clockInTime) {
       const elapsedSinceClockIn = Math.floor((new Date().getTime() - clockInTime.getTime()) / 1000);
@@ -115,12 +113,12 @@ export default function AttendancePage() {
     if (status === 'not-clocked-in' || status === 'clocked-out') return;
 
     let finalBreakDuration = accumulatedBreakDuration;
-    if (status === 'on-break' && breakStartTime) { // If clocking out while on break
+    if (status === 'on-break' && breakStartTime) {
       finalBreakDuration += Math.floor((new Date().getTime() - breakStartTime.getTime()) / 1000);
     }
     
     setClockOutTime(new Date());
-    setAccumulatedBreakDuration(finalBreakDuration);
+    setAccumulatedBreakDuration(finalBreakDuration); 
     setStatus('clocked-out');
     setIsOnBreak(false);
     setBreakStartTime(null);
@@ -148,7 +146,7 @@ export default function AttendancePage() {
       case 'not-clocked-in':
         return <Badge variant="outline" className="border-gray-400 text-gray-500">Ready to Work</Badge>;
       case 'working':
-        return <Badge variant="default" className="bg-green-500 hover:bg-green-600">Currently Working</Badge>;
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-primary-foreground">Currently Working</Badge>;
       case 'on-break':
         return <Badge variant="secondary" className="bg-yellow-400 text-yellow-800 hover:bg-yellow-500">On Break</Badge>;
       case 'clocked-out':
@@ -178,13 +176,17 @@ export default function AttendancePage() {
           </div>
           
           <div className="space-y-1 text-left px-2">
-            <InfoRow label="Clocked In At" value={formatTimeToAMPM(clockInTime) + (clockInTime ? " ETS" : "")} icon={Play} />
+            <InfoRow label="Clocked In At" value={formatTimeToAMPM(clockInTime) + (clockInTime ? " EST" : "")} icon={Play} />
             {status !== 'not-clocked-in' && (
               <InfoRow label="Total Break" value={formatDuration(accumulatedBreakDuration)} icon={Coffee} />
             )}
             {status === 'clocked-out' && clockOutTime && (
-              <InfoRow label="Clocked Out At" value={formatTimeToAMPM(clockOutTime) + " ETS"} icon={LogOut} />
+              <InfoRow label="Clocked Out At" value={formatTimeToAMPM(clockOutTime) + " EST"} icon={LogOut} />
             )}
+             {/* Placeholder for general work hours if needed, could be dynamic */}
+             {status !== 'clocked-out' && (
+                 <InfoRow label="Work Target" value={formatDuration(MAX_WORK_SECONDS)} icon={TimerIcon} />
+             )}
           </div>
         </CardContent>
 
@@ -219,10 +221,10 @@ export default function AttendancePage() {
 
           {status === 'clocked-out' && (
             <>
-              <div className="text-center text-sm text-muted-foreground mb-2 p-3 bg-muted/50 rounded-md">
-                <p className="font-semibold text-foreground">Session Summary</p>
-                <p>Total Time Worked: {formatDuration(workedSeconds)}</p>
-                <p>Total Break Time: {formatDuration(accumulatedBreakDuration)}</p>
+              <div className="text-center text-sm text-muted-foreground mb-2 p-3 bg-muted/50 rounded-md w-full">
+                <p className="font-semibold text-foreground text-base mb-1">Session Summary</p>
+                <InfoRow label="Total Time Worked" value={formatDuration(workedSeconds)} icon={TimerIcon} />
+                <InfoRow label="Total Break Time" value={formatDuration(accumulatedBreakDuration)} icon={Coffee} />
               </div>
               <Button onClick={handleClockIn} size="lg" className="w-full">
                  <Play className="mr-2 h-5 w-5" /> Start New Session
@@ -234,5 +236,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
-    
