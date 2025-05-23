@@ -1,13 +1,22 @@
 
 "use client";
 
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Briefcase, Megaphone, Settings, PlusCircle, FileText, Edit3, Trash2, DollarSign } from "lucide-react";
+import { Users, Briefcase, Megaphone, Settings, PlusCircle, FileText, Edit3, Trash2, DollarSign, type LucideIcon, FolderKanban } from "lucide-react";
 import Link from "next/link";
+import { AddDocumentCategoryDialog } from '@/components/dialogs/AddDocumentCategoryDialog'; // New Dialog
 
-// Define category data directly in the component for now
-const documentCategories = [
+export interface DocumentCategory {
+  id: string;
+  name: string;
+  description: string;
+  icon: LucideIcon; // lucide-react icon component
+}
+
+// Initial category data
+const initialDocumentCategories: DocumentCategory[] = [
   {
     id: "cat1",
     name: "Customer Success",
@@ -48,69 +57,89 @@ const mockDocuments = [
 
 
 export default function DocumentsPage() {
+  const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories);
+  const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
+
+  const handleAddCategory = (name: string, description: string) => {
+    const newCategory: DocumentCategory = {
+      id: `cat-${Date.now()}`, // Simple unique ID
+      name,
+      description,
+      icon: FolderKanban, // Default icon for new categories
+    };
+    setDocumentCategories(prevCategories => [...prevCategories, newCategory]);
+  };
+
   return (
-    <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
-      <div className="flex justify-start mb-4">
-        <Button variant="outline">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          New Category
-        </Button>
-      </div>
+    <>
+      <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
+        <div className="flex justify-start mb-4">
+          <Button variant="outline" onClick={() => setIsAddCategoryDialogOpen(true)}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            New Category
+          </Button>
+        </div>
 
-      <header className="mb-6 md:mb-8">
-        <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Document Management</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Organize, share, and manage all your important documents across different categories.
-        </p>
-      </header>
+        <header className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Document Management</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Organize, share, and manage all your important documents across different categories.
+          </p>
+        </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {documentCategories.map((category) => (
-          <Card key={category.id} className="flex flex-col hover:shadow-lg transition-shadow duration-150 bg-card">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3 mb-2">
-                <category.icon className="h-8 w-8 text-primary" />
-                <CardTitle className="text-xl font-semibold text-foreground">{category.name}</CardTitle>
-              </div>
-              <CardDescription className="text-xs leading-relaxed min-h-[40px] text-muted-foreground">
-                {category.description}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow flex flex-col pt-2">
-              <div className="border-t border-border pt-3 mt-auto">
-                <h4 className="text-sm font-medium text-foreground mb-2">Files (0)</h4>
-                {/* Placeholder for document list - will be built out later */}
-                {mockDocuments.length > 0 && category.id === "cat1" ? ( // Example: Show mock docs only for first category
-                     <div className="space-y-2 mb-3">
-                        {mockDocuments.map(doc => (
-                            <div key={doc.id} className="flex items-center justify-between p-2 rounded-md border bg-background/70 hover:bg-muted/40 transition-colors">
-                                <div className="flex items-center gap-2 truncate">
-                                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <span className="text-xs text-foreground truncate">{doc.name}</span>
-                                </div>
-                                <div className="flex items-center gap-1 shrink-0">
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary">
-                                        <Edit3 className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive">
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
-                     </div>
-                ) : (
-                    <p className="text-xs text-muted-foreground italic mb-3">No documents yet in this category.</p>
-                )}
-                <Button variant="outline" size="sm" className="w-full text-xs">
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Document
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {documentCategories.map((category) => (
+            <Card key={category.id} className="flex flex-col hover:shadow-lg transition-shadow duration-150 bg-card">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3 mb-2">
+                  <category.icon className="h-8 w-8 text-primary" />
+                  <CardTitle className="text-xl font-semibold text-foreground">{category.name}</CardTitle>
+                </div>
+                <CardDescription className="text-xs leading-relaxed min-h-[40px] text-muted-foreground">
+                  {category.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow flex flex-col pt-2">
+                <div className="border-t border-border pt-3 mt-auto">
+                  <h4 className="text-sm font-medium text-foreground mb-2">Files (0)</h4>
+                  {/* Placeholder for document list - will be built out later */}
+                  {mockDocuments.length > 0 && category.id === "cat1" ? ( // Example: Show mock docs only for first category
+                      <div className="space-y-2 mb-3">
+                          {mockDocuments.map(doc => (
+                              <div key={doc.id} className="flex items-center justify-between p-2 rounded-md border bg-background/70 hover:bg-muted/40 transition-colors">
+                                  <div className="flex items-center gap-2 truncate">
+                                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                                      <span className="text-xs text-foreground truncate">{doc.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary">
+                                          <Edit3 className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive">
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  ) : (
+                      <p className="text-xs text-muted-foreground italic mb-3">No documents yet in this category.</p>
+                  )}
+                  <Button variant="outline" size="sm" className="w-full text-xs">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Document
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
-    </div>
+      <AddDocumentCategoryDialog
+        isOpen={isAddCategoryDialogOpen}
+        onOpenChange={setIsAddCategoryDialogOpen}
+        onAddCategory={handleAddCategory}
+      />
+    </>
   );
 }
