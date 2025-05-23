@@ -7,11 +7,11 @@ import { Clock, Folder } from 'lucide-react';
 
 export default function MoreOptionsPage() {
   return (
-    <div className="flex flex-col items-center min-h-screen bg-background p-6 pt-12 md:pt-20">
+    <div className="flex flex-col items-center min-h-screen bg-background p-6 pt-12 md:pt-16">
       {/* Title Section - Not a card */}
-      <div className="text-center mb-10 md:mb-12">
-        <h1 className="text-3xl md:text-4xl font-semibold text-foreground">More Options</h1>
-        <p className="mt-2 text-md md:text-lg text-muted-foreground">
+      <div className="text-center mb-8 md:mb-10">
+        <h1 className="text-2xl md:text-3xl font-semibold text-foreground">More Options</h1>
+        <p className="mt-2 text-sm md:text-base text-muted-foreground">
           Additional features and settings.
         </p>
       </div>
