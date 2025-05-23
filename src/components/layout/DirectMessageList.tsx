@@ -18,22 +18,30 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
     user.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getDmInfo = (user: User, isSelf: boolean) => {
+  const getDmInfo = (user: User, isSelf: boolean, isActiveDm: boolean) => {
     if (isSelf) return { snippet: "Your personal notes and drafts", timeOrBadge: "" };
     
+    // Specific logic for u3 (Huzaifa) to show/hide badge
+    if (user.id === 'u3') {
+      return { 
+        snippet: "Here're my latest drone shots", 
+        timeOrBadge: isActiveDm 
+          ? "" // No badge if this DM is active
+          : <Badge variant="default" className="bg-primary text-primary-foreground h-5 px-1.5 text-xs">80</Badge> 
+      };
+    }
     // Existing logic for other users
-    if (user.id === 'u3') return { snippet: "Here're my latest drone shots", timeOrBadge: <Badge variant="default" className="bg-primary text-primary-foreground h-5 px-1.5 text-xs">80</Badge> };
     if (user.id === 'u2') return { snippet: "The weather will be perfect for th...", timeOrBadge: "9:41 AM" };
     if (user.id === 'u4') return { snippet: "Next time it's my turn!", timeOrBadge: "12/22/21" };
     return { snippet: user.designation || (user.isOnline ? 'Online' : 'Offline'), timeOrBadge: "" };
   };
 
   const isSelfActive = activeConversation?.type === 'dm' && activeConversation.id === currentUser.id;
-  const selfDmInfo = getDmInfo(currentUser, true);
+  const selfDmInfo = getDmInfo(currentUser, true, isSelfActive);
 
   return (
     <SidebarMenu>
-      {/* Current User's "Notes to Self" space - Always visible */}
+      {/* Current User's space */}
       <SidebarMenuItem key={currentUser.id + "-self"}>
         <SidebarMenuButton
           onClick={() => setActiveConversation('dm', currentUser.id)}
@@ -47,7 +55,6 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
               <span className={`truncate font-medium ${isSelfActive ? 'text-primary-foreground': ''}`}>
                 {currentUser.name} (you)
               </span>
-              {/* No time/badge for self-notes for now, or customize as needed */}
             </div>
             <p className={`text-xs truncate ${isSelfActive ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
               {selfDmInfo.snippet}
@@ -58,8 +65,9 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
 
       {/* List of other users */}
       {filteredOtherUsers.map(user => {
-        const dmInfo = getDmInfo(user, false);
         const isActive = activeConversation?.type === 'dm' && activeConversation.id === user.id;
+        const dmInfo = getDmInfo(user, false, isActive);
+        
         return (
         <SidebarMenuItem key={user.id}>
           <SidebarMenuButton
