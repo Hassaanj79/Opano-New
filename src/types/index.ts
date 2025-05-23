@@ -5,8 +5,8 @@ export type User = {
   avatarUrl?: string;
   isOnline: boolean;
   designation?: string;
-  email?: string; // Added email
-  phoneNumber?: string; // Added phone number
+  email: string; // Made email non-optional for profile editing
+  phoneNumber?: string;
 };
 
 export type Channel = {

@@ -18,9 +18,10 @@ import { OpanoLogo } from '@/components/OpanoLogo';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Settings, PlusCircle, UserPlus, Search, Edit, UserCheck, UserX } from 'lucide-react'; // Added Edit, UserCheck, UserX
+import { Settings, PlusCircle, UserPlus, Search, Edit, UserCheck, UserX } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
+import { EditProfileDialog } from '@/components/dialogs/EditProfileDialog'; // New import
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,12 +35,11 @@ export function ChatterboxSidebar() {
   const { currentUser, toggleCurrentUserStatus } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
+  const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false); // New state
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleEditProfile = () => {
-    // Placeholder for opening Edit Profile dialog
-    console.log("Edit Profile clicked");
-    // Future: setIsEditProfileDialogOpen(true);
+    setIsEditProfileDialogOpen(true);
   };
 
   return (
@@ -132,12 +132,6 @@ export function ChatterboxSidebar() {
                   )}
                   <span>{currentUser.isOnline ? 'Set to Away' : 'Set to Online'}</span>
                 </DropdownMenuItem>
-                {/* Placeholder for future Log Out */}
-                {/* <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log Out</span>
-                </DropdownMenuItem> */}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -146,7 +140,10 @@ export function ChatterboxSidebar() {
       </Sidebar>
       <AddChannelDialog isOpen={isAddChannelDialogOpen} onOpenChange={setIsAddChannelDialogOpen} />
       <InviteUserDialog isOpen={isInviteUserDialogOpen} onOpenChange={setIsInviteUserDialogOpen} />
-      {/* Future: <EditProfileDialog isOpen={isEditProfileDialogOpen} onOpenChange={setIsEditProfileDialogOpen} /> */}
+      <EditProfileDialog 
+        isOpen={isEditProfileDialogOpen} 
+        onOpenChange={setIsEditProfileDialogOpen} 
+      />
     </>
   );
 }

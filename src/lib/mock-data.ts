@@ -9,7 +9,8 @@ export const mockUsers: User[] = [
   { id: 'u5', name: 'Areeb', avatarUrl: 'https://placehold.co/40x40.png?text=AR', isOnline: false, designation: 'Frontend Dev', email: 'areeb@example.com' },
 ];
 
-export const mockCurrentUser: User = mockUsers[0]; // Hassaan
+// Ensure mockCurrentUser's email is non-optional
+export const mockCurrentUser: User = { ...mockUsers[0], email: mockUsers[0].email || 'currentuser@example.com' };
 
 export const mockChannels: Channel[] = [
   { id: 'c1', name: 'general', memberIds: ['u1', 'u2', 'u3', 'u4', 'u5'], description: 'General team discussions', isPrivate: false },
