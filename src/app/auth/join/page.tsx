@@ -11,20 +11,42 @@ import { AppleIcon } from '@/components/icons/AppleIcon';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Globe } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { fetchSignInMethodsForEmail } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export default function JoinPage() {
   const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
-  const handleContinue = (e: React.FormEvent) => {
+  const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Continue with email:', email);
-    toast({
-      title: "Next Step: Email Authentication",
-      description: "Email authentication flow to be implemented.",
-    });
-    // TODO: Implement Firebase email sign-in or sign-up flow
-    // e.g., check if email exists, then prompt for password or new account details.
+    if (!email.trim()) {
+      toast({ title: "Email required", description: "Please enter your email address.", variant: "destructive" });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const methods = await fetchSignInMethodsForEmail(auth, email);
+      if (methods.length > 0) {
+        // Email exists, redirect to sign-in
+        router.push(`/auth/signin?email=${encodeURIComponent(email)}`);
+      } else {
+        // Email does not exist, redirect to sign-up
+        router.push(`/auth/signup?email=${encodeURIComponent(email)}`);
+      }
+    } catch (error: any) {
+      console.error("Error checking email:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Could not process your request. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignIn = () => {
@@ -33,7 +55,6 @@ export default function JoinPage() {
       title: "Feature Coming Soon",
       description: "Google Sign-In will be implemented in a future update.",
     });
-    // TODO: Implement Firebase Google Sign-In
   };
 
   const handleAppleSignIn = () => {
@@ -42,7 +63,6 @@ export default function JoinPage() {
       title: "Feature Coming Soon",
       description: "Apple Sign-In will be implemented in a future update.",
     });
-    // TODO: Implement Firebase Apple Sign-In
   };
 
   return (
@@ -68,9 +88,10 @@ export default function JoinPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="h-12 text-base"
+              disabled={isLoading}
             />
-            <Button type="submit" className="w-full h-12 text-base bg-primary hover:bg-primary/90">
-              Continue
+            <Button type="submit" className="w-full h-12 text-base bg-primary hover:bg-primary/90" disabled={isLoading}>
+              {isLoading ? 'Processing...' : 'Continue'}
             </Button>
           </form>
 

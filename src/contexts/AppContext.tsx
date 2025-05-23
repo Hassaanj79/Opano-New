@@ -113,13 +113,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
+        // TODO: Fetch user's designation from Firestore user profile document
         const appUser: User = {
           id: firebaseUser.uid,
-          name: firebaseUser.displayName || firebaseUser.email || 'Anonymous User',
+          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous User',
           email: firebaseUser.email || 'no-email@example.com',
           avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${(firebaseUser.displayName || firebaseUser.email || 'AU').substring(0,2).toUpperCase()}`,
           isOnline: true, 
-          designation: '', 
+          designation: '', // This would come from your Firestore user profile
         };
         setCurrentUser(appUser);
         setAllUsersWithCurrent(prevAllUsers => {
@@ -127,16 +128,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             return [appUser, ...otherMockUsers];
         });
         setUsers(initialMockUsers.filter(u => u.id !== appUser.id && u.email !== appUser.email));
+        
+        // If user is on an auth page, redirect them to home
+        if (pathname.startsWith('/auth/') || pathname.startsWith('/join/')) {
+            router.replace('/');
+        }
 
       } else {
         setCurrentUser(null);
         setAllUsersWithCurrent(initialMockUsers); 
         setUsers(initialMockUsers); 
+        // Redirect to join page if not authenticated and not already on an auth/join page
+        const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
+        if (!isAuthPage) {
+             router.replace('/auth/join');
+        }
       }
       setIsLoadingAuth(false); 
     });
     return () => unsubscribe(); 
-  }, []);
+  }, [pathname, router]);
 
 
   useEffect(() => {
@@ -502,13 +513,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       },0);
       return false;
     }
+    // This function's responsibility has changed. Firebase Auth will handle user creation.
+    // We might still want to mark the invitation as "claimed" in a backend if we had one.
+    // For now, we just show a success toast and remove it from pending.
     setTimeout(() => {
-      toast({ title: "Welcome to Opano!", description: `User ${userDetails.name} with email ${invitation.email} is notionally ready to join.` });
+      toast({ title: "Invitation Verified!", description: `Account for ${invitation.email} can now be created via Firebase Auth.` });
     }, 0);
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
-    router.push('/'); 
+    // Redirection to sign-up or directly to app will be handled by Firebase Auth state changes
     return true;
-  }, [verifyInviteToken, toast, router]);
+  }, [verifyInviteToken, toast]);
 
   const toggleReaction = useCallback((messageId: string, emoji: string) => {
     if (!currentUser) return;
@@ -591,9 +605,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ...prevUser,
             name: profileData.name || prevUser.name, 
             designation: profileData.designation || prevUser.designation,
-            email: profileData.email === prevUser.email ? profileData.email : prevUser.email,
+            email: profileData.email === prevUser.email ? profileData.email : prevUser.email, // Email shouldn't really change here, handled by Firebase
             phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
-            avatarDataUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
+            avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
         };
         setTimeout(() => {
         toast({ title: "Profile Updated", description: "Your profile has been successfully updated. (Local simulation)" });
@@ -614,18 +628,33 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
 
   useEffect(() => {
-    if (!isLoadingAuth && !currentUser && typeof window !== 'undefined' && 
-        pathname !== '/join' && !pathname.startsWith('/join/') && pathname !== '/auth/join') {
-      router.push('/auth/join');
-    } else if (!isLoadingAuth && currentUser && channels.length > 0 && !activeConversation && currentView === 'chat') {
-       const selfDmUser = allUsersWithCurrent.find(u => u.id === currentUser.id);
-       if (selfDmUser) {
-         setActiveConversation('dm', currentUser.id);
-       } else if (channels[0]) {
-         setActiveConversation('channel', channels[0].id);
-       }
+    // This effect handles initial redirection for unauthenticated users
+    // AND redirection for authenticated users away from auth pages.
+    // The onAuthStateChanged effect above handles setting currentUser and initial redirection for logged-in users.
+    if (!isLoadingAuth) {
+      const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
+      if (!currentUser && !isAuthPage) {
+        router.replace('/auth/join');
+      } else if (currentUser && isAuthPage) {
+        router.replace('/');
+      }
     }
-  }, [isLoadingAuth, currentUser, channels, activeConversation, setActiveConversation, currentView, router, allUsersWithCurrent, pathname]);
+  }, [isLoadingAuth, currentUser, pathname, router]);
+
+  useEffect(() => {
+    // This effect handles setting the initial active conversation once the user is authenticated
+    // and not on an auth page.
+    if (!isLoadingAuth && currentUser && !pathname.startsWith('/auth/') && !pathname.startsWith('/join/')) {
+      if (channels.length > 0 && !activeConversation && currentView === 'chat') {
+        const selfDmUser = allUsersWithCurrent.find(u => u.id === currentUser.id);
+        if (selfDmUser) {
+          setActiveConversation('dm', currentUser.id);
+        } else if (channels[0]) {
+          setActiveConversation('channel', channels[0].id);
+        }
+      }
+    }
+  }, [isLoadingAuth, currentUser, channels, activeConversation, setActiveConversation, currentView, allUsersWithCurrent, pathname]);
 
 
   const getConversationName = useCallback((conversationId: string, conversationType: 'channel' | 'dm'): string => {
@@ -908,9 +937,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const trimmedQuery = query.trim().toLowerCase();
     const results: Array<{ doc: Document, category: DocumentCategory }> = [];
 
+    if (trimmedQuery === '') {
+      documentCategories.forEach(category => {
+        category.documents.forEach(doc => {
+          results.push({ doc, category });
+        });
+      });
+      return results;
+    }
+
     documentCategories.forEach(category => {
       category.documents.forEach(doc => {
-        if (trimmedQuery === '' || doc.name.toLowerCase().includes(trimmedQuery)) {
+        if (doc.name.toLowerCase().includes(trimmedQuery)) {
           results.push({ doc, category });
         }
       });

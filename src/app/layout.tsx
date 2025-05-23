@@ -31,7 +31,9 @@ export default function RootLayout({
   const pathname = heads.get('next-url') || ''; // Get current pathname
   
   // Determine if ThinIconBar should be shown
-  const showThinIconBar = !pathname.startsWith('/auth/join') && !pathname.startsWith('/join/');
+  const noBarPaths = ['/auth/join', '/auth/signin', '/auth/signup'];
+  const showThinIconBar = !noBarPaths.some(p => pathname === p) && !pathname.startsWith('/join/');
+
 
   return (
     <html lang="en">
