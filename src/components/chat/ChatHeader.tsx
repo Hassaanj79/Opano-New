@@ -2,13 +2,15 @@
 "use client";
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Hash, Sparkles, UserCircle2, Users } from 'lucide-react';
+import { Hash, Sparkles, UserCircle2, Users, UserPlus } from 'lucide-react'; // Added UserPlus
 import { useState } from 'react';
 import { SummarizeDialog } from './SummarizeDialog';
+import { AddMembersToChannelDialog } from '@/components/dialogs/AddMembersToChannelDialog'; // New Dialog
 
 export function ChatHeader() {
   const { activeConversation, generateSummary, currentSummary, isLoadingSummary, clearSummary } = useAppContext();
   const [isSummarizeDialogOpen, setIsSummarizeDialogOpen] = useState(false);
+  const [isAddMembersDialogOpen, setIsAddMembersDialogOpen] = useState(false); // State for new dialog
 
   if (!activeConversation) return null;
 
@@ -22,7 +24,7 @@ export function ChatHeader() {
   const handleDialogClose = (open: boolean) => {
     setIsSummarizeDialogOpen(open);
     if(!open) {
-      clearSummary(); // Clear summary when dialog closes
+      clearSummary();
     }
   }
 
@@ -38,7 +40,6 @@ export function ChatHeader() {
           {activeConversation.type === 'channel' ? (
             <Hash className="h-5 w-5 text-muted-foreground" />
           ) : (
-            // UserAvatar could be used here if preferred
             <UserCircle2 className="h-5 w-5 text-muted-foreground" /> 
           )}
           <div>
@@ -53,11 +54,22 @@ export function ChatHeader() {
               {isLoadingSummary ? 'Summarizing...' : 'AI Summary'}
             </Button>
           )}
-          {/* Placeholder for other actions like "View members" from image */}
-           {activeConversation.type === 'channel' && (
+          {activeConversation.type === 'channel' && (
              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
                 <Users className="h-4 w-4" />
                 <span className="sr-only">View members</span>
+             </Button>
+           )}
+           {activeConversation.type === 'channel' && activeConversation.id && (
+             <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsAddMembersDialogOpen(true)} 
+                className="text-xs"
+                aria-label="Add members to channel"
+              >
+                <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                Add Members
              </Button>
            )}
         </div>
@@ -69,6 +81,15 @@ export function ChatHeader() {
         isLoading={isLoadingSummary}
         channelName={activeConversation.type === 'channel' ? activeConversation.name : undefined}
       />
+      {activeConversation.type === 'channel' && activeConversation.id && (
+        <AddMembersToChannelDialog
+          isOpen={isAddMembersDialogOpen}
+          onOpenChange={setIsAddMembersDialogOpen}
+          channelId={activeConversation.id}
+        />
+      )}
     </>
   );
 }
+
+    

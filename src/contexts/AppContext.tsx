@@ -3,15 +3,16 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { User, Channel, Message, ActiveConversation, PendingInvitation } from '@/types';
-import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages } from '@/lib/mock-data'; // Added mockMessages here
+import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages } from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from 'next/navigation';
 
 interface AppContextType {
   currentUser: User;
-  users: User[];
+  users: User[]; // Users excluding current user
+  allUsersWithCurrent: User[]; // All users including current user
   channels: Channel[];
   activeConversation: ActiveConversation;
   setActiveConversation: (type: 'channel' | 'dm', id: string) => void;
@@ -29,6 +30,7 @@ interface AppContextType {
   toggleReaction: (messageId: string, emoji: string) => void;
   editMessage: (messageId: string, newContent: string) => void;
   deleteMessage: (messageId: string) => void;
+  addMembersToChannel: (channelId: string, userIdsToAdd: string[]) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -61,7 +63,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [channels, allUsersWithCurrent]);
 
-  // Fetch messages effect
   useEffect(() => {
     if (activeConversation) {
       const fetchedMessages = fetchMockMessages(activeConversation.id);
@@ -79,11 +80,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       content,
       timestamp: Date.now(),
       file: file ? { name: file.name, url: 'https://placehold.co/200x150.png', type: file.type.startsWith('image/') ? 'image' : 'document' } : undefined,
-      reactions: {}, // Initialize with empty reactions
+      reactions: {},
     };
-    // Update local state
     setMessages(prevMessages => [...prevMessages, newMessage]);
-    // Update mock data store (simulating backend)
     if (activeConversation) {
         const currentMockMessages = mockMessages[activeConversation.id] || [];
         mockMessages[activeConversation.id] = [...currentMockMessages, newMessage];
@@ -97,10 +96,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       description: description || '',
       memberIds: Array.from(new Set([currentUser.id, ...memberIds])),
     };
-    setChannels(prevChannels => [...prevChannels, newChannel]);
+    setChannels(prevChannels => {
+      const updatedChannels = [...prevChannels, newChannel];
+      // Update mockChannels as well
+      const channelIndex = mockChannels.findIndex(ch => ch.id === newChannel.id);
+      if (channelIndex === -1) { // Add if new
+        mockChannels.push(newChannel);
+      } else { // This case should not happen if IDs are unique, but as a safeguard
+        mockChannels[channelIndex] = newChannel;
+      }
+      return updatedChannels;
+    });
     setActiveConversation('channel', newChannel.id);
     toast({ title: "Channel Created", description: `Channel #${name} has been created.` });
   }, [currentUser.id, toast, setActiveConversation]);
+
+  const addMembersToChannel = useCallback((channelId: string, userIdsToAdd: string[]) => {
+    setChannels(prevChannels => {
+      return prevChannels.map(channel => {
+        if (channel.id === channelId) {
+          const newMemberIds = Array.from(new Set([...channel.memberIds, ...userIdsToAdd]));
+          const updatedChannel = { ...channel, memberIds: newMemberIds };
+
+          // Update mockChannels
+          const mockChannelIndex = mockChannels.findIndex(ch => ch.id === channelId);
+          if (mockChannelIndex !== -1) {
+            mockChannels[mockChannelIndex] = updatedChannel;
+          }
+          
+          // Update active conversation if it's the one being modified
+          if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
+            setActiveConversationState(prev => prev ? {...prev, channel: updatedChannel} : null);
+          }
+
+          toast({ title: "Members Added", description: `${userIdsToAdd.length} new member(s) added to #${channel.name}.` });
+          return updatedChannel;
+        }
+        return channel;
+      });
+    });
+  }, [toast, activeConversation]);
 
   const generateSummary = useCallback(async (channelId: string) => {
     const channel = channels.find(c => c.id === channelId);
@@ -108,7 +143,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Error", description: "Channel not found.", variant: "destructive" });
       return;
     }
-    const channelMessages = fetchMockMessages(channelId); // Ensure this gets latest from mockMessages
+    const channelMessages = fetchMockMessages(channelId);
     if (channelMessages.length === 0) {
       toast({ title: "Summary", description: "No messages in this channel to summarize." });
       setCurrentSummary("This channel has no messages yet.");
@@ -182,17 +217,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           variant: "destructive",
           duration: 15000,
         });
-        console.error(`Failed to send invitation email to ${email}. Error: ${emailResult.error}. Test Link: ${joinUrl}`);
+        console.error(`[sendInvitation] Failed to send invitation email to ${email}. Error: ${emailResult.error}. Test Link: ${joinUrl}`);
       }
     } catch (flowError) {
-      console.error("Error calling sendInvitationEmail flow:", flowError);
+      console.error("[sendInvitation] Error calling sendInvitationEmail flow:", flowError);
       toast({
           title: "Flow Error",
           description: `An error occurred while trying to send the email. For testing, use this link (also in console): ${joinUrl}`,
           variant: "destructive",
           duration: 15000,
         });
-      console.error(`Flow error sending invitation email to ${email}. Test Link: ${joinUrl}`);
+      console.error(`[sendInvitation] Flow error sending invitation email to ${email}. Test Link: ${joinUrl}`);
     }
     return token;
   }, [allUsersWithCurrent, pendingInvitations, toast]);
@@ -217,9 +252,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     setUsers(prevUsers => [...prevUsers, newUser]);
-    setAllUsersWithCurrent(prevAll => [...prevAll, newUser]);
-    // Also update mockUsers for wider availability if needed, and persistence across reloads of mock data
-    mockUsers.push(newUser); 
+    setAllUsersWithCurrent(prevAll => {
+      const updatedAll = [...prevAll, newUser];
+      mockUsers.push(newUser); // Ensure mockUsers (source of truth for all users) is updated
+      return updatedAll;
+    });
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
 
     toast({ title: "Welcome to Opano!", description: `User ${newUser.name} has joined the workspace.` });
@@ -235,18 +272,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const userList = reactions[emoji] || [];
           const userIndex = userList.indexOf(currentUser.id);
 
-          if (userIndex > -1) { // User already reacted, remove reaction
+          if (userIndex > -1) {
             userList.splice(userIndex, 1);
             if (userList.length === 0) {
               delete reactions[emoji];
             } else {
               reactions[emoji] = userList;
             }
-          } else { // User hasn't reacted, add reaction
+          } else {
             reactions[emoji] = [...userList, currentUser.id];
           }
           const updatedMsg = { ...msg, reactions };
-          // Update mock data store
           if (activeConversation) updateMockMessage(activeConversation.id, messageId, { reactions: updatedMsg.reactions });
           return updatedMsg;
         }
@@ -259,8 +295,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setMessages(prevMessages => 
       prevMessages.map(msg => {
         if (msg.id === messageId && msg.userId === currentUser.id) {
-          const updatedMsg = { ...msg, content: newContent, isEdited: true, timestamp: Date.now() }; // Update timestamp on edit
-           // Update mock data store
+          const updatedMsg = { ...msg, content: newContent, isEdited: true, timestamp: Date.now() };
           if (activeConversation) updateMockMessage(activeConversation.id, messageId, { content: newContent, isEdited: true, timestamp: updatedMsg.timestamp });
           return updatedMsg;
         }
@@ -273,19 +308,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setMessages(prevMessages =>
       prevMessages.filter(msg => {
         if (msg.id === messageId && msg.userId === currentUser.id) {
-          // Update mock data store by removing the message
           if (activeConversation && mockMessages[activeConversation.id]) {
             mockMessages[activeConversation.id] = mockMessages[activeConversation.id].filter(m => m.id !== messageId);
           }
-          return false; // Filter out
+          return false;
         }
-        return true; // Keep
+        return true;
       })
     );
   }, [currentUser.id, activeConversation]);
 
 
-  // Default to first channel if no active conversation
   useEffect(() => {
     if (channels.length > 0 && !activeConversation) {
       setActiveConversation('channel', channels[0].id);
@@ -296,12 +329,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     <AppContext.Provider value={{
       currentUser,
       users,
+      allUsersWithCurrent,
       channels,
       activeConversation,
       setActiveConversation,
       messages,
       addMessage,
       addChannel,
+      addMembersToChannel,
       currentSummary,
       isLoadingSummary,
       generateSummary,
@@ -327,3 +362,4 @@ export const useAppContext = (): AppContextType => {
   return context;
 };
 
+    
