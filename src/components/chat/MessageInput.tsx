@@ -23,7 +23,7 @@ export function MessageInput() {
     replyingToMessage,
     setReplyingToMessage,
     allUsersWithCurrent,
-    searchAllDocuments, // Added for document search
+    searchAllDocuments,
   } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -63,7 +63,9 @@ export function MessageInput() {
     addMessage(messageContent.trim());
     setMessageContent('');
     setShowMentionPopover(false);
-    setShowDocSearchPopover(false); // Ensure doc search popover also closes
+    setShowDocSearchPopover(false); 
+    setDocSearchQuery('');
+    setMentionQuery('');
   };
 
   const handleCancelReply = () => {
@@ -80,7 +82,8 @@ export function MessageInput() {
     // @mention logic
     const atMatch = textBeforeCursor.match(/@(\w*)$/);
     if (atMatch) {
-      setShowDocSearchPopover(false); // Hide doc search if @ is typed
+      setShowDocSearchPopover(false); 
+      setDocSearchQuery('');
       const query = atMatch[1];
       const startPos = atMatch.index;
 
@@ -96,34 +99,36 @@ export function MessageInput() {
         setActiveMentionIndex(0);
       } else {
         setShowMentionPopover(false);
+        setMentionQuery('');
       }
     } else {
       setShowMentionPopover(false);
+      setMentionQuery('');
       setMentionStartPosition(null);
     }
 
     // /share document logic
     const slashCommandIndex = textBeforeCursor.lastIndexOf(SLASH_COMMAND);
-    if (slashCommandIndex !== -1 && textBeforeCursor.endsWith(text.substring(slashCommandIndex))) {
-        setShowMentionPopover(false); // Hide mention if /share is typed
-        const query = text.substring(slashCommandIndex + SLASH_COMMAND.length);
-        setDocSearchQuery(query);
-        setSlashCommandStartPosition(slashCommandIndex);
+    // Check if the cursor is at or after the `/share ` command
+    if (slashCommandIndex !== -1 && cursorPosition >= slashCommandIndex + SLASH_COMMAND.length) {
+        setShowMentionPopover(false); 
+        setMentionQuery('');
         
-        if (query.trim().length > 0) {
-            const results = searchAllDocuments(query.trim());
-            setFilteredDocsForSharing(results);
-            setShowDocSearchPopover(results.length > 0);
-        } else {
-            // Show all documents or a prompt if query is empty after /share
-            const allDocs = searchAllDocuments(''); // Or some specific logic for empty query
-            setFilteredDocsForSharing(allDocs.slice(0, 5)); // Show top 5 or all
-            setShowDocSearchPopover(allDocs.length > 0);
-        }
+        const query = textBeforeCursor.substring(slashCommandIndex + SLASH_COMMAND.length);
+        setDocSearchQuery(query); // Update query state
+        setSlashCommandStartPosition(slashCommandIndex); // Set start position
+        
+        const results = searchAllDocuments(query.trim());
+        setFilteredDocsForSharing(query.trim() === '' ? results.slice(0, 5) : results);
+        setShowDocSearchPopover(results.length > 0);
         setActiveDocSearchIndex(0);
     } else {
+        // If not in /share mode or cursor is before command end, hide popover
+        if (slashCommandStartPosition !== null) { // Only reset if it was previously active
+            setSlashCommandStartPosition(null);
+        }
         setShowDocSearchPopover(false);
-        setSlashCommandStartPosition(null);
+        setDocSearchQuery('');
     }
   };
 
@@ -132,7 +137,7 @@ export function MessageInput() {
 
     const currentText = messageContent;
     const textBeforeMention = currentText.substring(0, mentionStartPosition);
-    const endOfMentionQuery = mentionStartPosition + 1 + mentionQuery.length;
+    const endOfMentionQuery = mentionStartPosition + 1 + mentionQuery.length; // +1 for @
     const textAfterMentionQuery = currentText.substring(endOfMentionQuery);
     
     const newText = `${textBeforeMention}@${user.name} ${textAfterMentionQuery}`;
@@ -154,13 +159,9 @@ export function MessageInput() {
   const handleDocShareSelect = (docData: { doc: Document, category: DocumentCategory }) => {
     const { doc, category } = docData;
     let shareMessage = `Shared document: "${doc.name}" from category "${category.name}".`;
-    // For now, just text. Future: link to /documents/[catId]#[docId] or similar
-    // if (doc.fileUrl) {
-    //   shareMessage += ` Link: ${doc.fileUrl}`;
-    // }
-
-    addMessage(shareMessage); // Send the message
-    setMessageContent(''); // Clear the input
+    
+    addMessage(shareMessage); 
+    setMessageContent(''); 
     
     setShowDocSearchPopover(false);
     setDocSearchQuery('');
@@ -278,7 +279,7 @@ export function MessageInput() {
 
   const originalReplySenderName = replyingToMessage ? allUsersWithCurrent.find(u => u.id === replyingToMessage.userId)?.name : '';
   
-  const popoverSideOffset = replyingToMessage ? 60 : 5; // Adjust offset if replying UI is shown
+  const popoverSideOffset = replyingToMessage ? 60 : 5; 
 
   return (
     <Popover open={showMentionPopover || showDocSearchPopover} onOpenChange={(open) => {
@@ -286,7 +287,6 @@ export function MessageInput() {
             setShowMentionPopover(false);
             setShowDocSearchPopover(false);
         }
-        // Popover component handles its own open state, this is for external control if needed
     }}>
       <div className="p-3 border-t border-border bg-background relative">
         {replyingToMessage && (
@@ -345,10 +345,9 @@ export function MessageInput() {
           </div>
         </PopoverAnchor>
         
-        {/* Combined PopoverContent logic */}
         {(showMentionPopover && filteredMentionUsers.length > 0) || (showDocSearchPopover && filteredDocsForSharing.length > 0) ? (
           <PopoverContent
-            className="p-1 w-[300px] max-h-60 overflow-y-auto" // Increased width
+            className="p-1 w-[300px] max-h-60 overflow-y-auto" 
             side="top"
             align="start"
             sideOffset={popoverSideOffset} 
@@ -406,5 +405,6 @@ export function MessageInput() {
     </Popover>
   );
 }
+    
 
     
