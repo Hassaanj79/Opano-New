@@ -20,6 +20,18 @@ interface MessageItemProps {
 
 export function MessageItem({ message }: MessageItemProps) {
   const { users, currentUser, toggleReaction, editMessage, deleteMessage } = useAppContext();
+  
+
+  if (message.isSystemMessage) {
+    return (
+      <div className="flex justify-center py-1.5 px-4 my-1">
+        <p className="text-xs text-muted-foreground italic bg-muted/40 px-2.5 py-1 rounded-full shadow-sm">
+          {message.content}
+        </p>
+      </div>
+    );
+  }
+
   const sender = users.find(u => u.id === message.userId) || (message.userId === currentUser.id ? currentUser : undefined);
   const isCurrentUserSender = sender?.id === currentUser.id;
 
@@ -228,3 +240,4 @@ export function MessageItem({ message }: MessageItemProps) {
     </div>
   );
 }
+

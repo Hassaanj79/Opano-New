@@ -133,14 +133,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
       return updatedChannels;
     });
-    setActiveConversation('channel', newChannel.id);
+    
+    const creatorName = currentUser.name;
+    const creationSystemMessage: Message = {
+        id: `sys-create-${Date.now()}`,
+        userId: 'system',
+        content: `${creatorName} created the channel #${name}.`,
+        timestamp: Date.now(),
+        isSystemMessage: true,
+    };
+    mockMessages[newChannel.id] = [creationSystemMessage];
+
+    const addedMembersOtherThanCreator = memberIds.filter(id => id !== currentUser.id);
+    if (addedMembersOtherThanCreator.length > 0) {
+        const addedUserNames = addedMembersOtherThanCreator
+            .map(id => allUsersWithCurrent.find(user => user.id === id)?.name)
+            .filter((name): name is string => !!name);
+
+        if (addedUserNames.length > 0) {
+            const addedMembersMessageContent = `${creatorName} added ${addedUserNames.join(', ')} to the channel.`;
+            const addedMembersSystemMessage: Message = {
+                id: `sys-add-init-${Date.now()}`,
+                userId: 'system',
+                content: addedMembersMessageContent,
+                timestamp: Date.now() + 1, // Ensure slightly different timestamp
+                isSystemMessage: true,
+            };
+            mockMessages[newChannel.id].push(addedMembersSystemMessage);
+        }
+    }
+
+    setActiveConversation('channel', newChannel.id); // This will trigger useEffect to load all messages for the new channel including system ones.
     toast({ title: "Channel Created", description: `Channel #${name} has been created.` });
-  }, [currentUser.id, toast, setActiveConversation]);
+  }, [currentUser.id, currentUser.name, toast, setActiveConversation, allUsersWithCurrent]);
 
   const addMembersToChannel = useCallback((channelId: string, userIdsToAdd: string[]) => {
+    let channelName = '';
     setChannels(prevChannels => {
       return prevChannels.map(channel => {
         if (channel.id === channelId) {
+          channelName = channel.name;
           const newMemberIds = Array.from(new Set([...channel.memberIds, ...userIdsToAdd]));
           const updatedChannel = { ...channel, memberIds: newMemberIds };
 
@@ -152,14 +184,39 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
             setActiveConversationState(prev => prev ? {...prev, channel: updatedChannel} : null);
           }
-
-          toast({ title: "Members Added", description: `${userIdsToAdd.length} new member(s) added to #${channel.name}.` });
           return updatedChannel;
         }
         return channel;
       });
     });
-  }, [toast, activeConversation]);
+
+    const addedUserNames = userIdsToAdd
+        .map(id => allUsersWithCurrent.find(user => user.id === id)?.name)
+        .filter((name): name is string => !!name);
+
+    if (addedUserNames.length > 0) {
+        const systemMessageContent = `${currentUser.name} added ${addedUserNames.join(', ')} to #${channelName}.`;
+        const systemMessage: Message = {
+            id: `sys-add-${Date.now()}`,
+            userId: 'system', // Special ID for system messages
+            content: systemMessageContent,
+            timestamp: Date.now(),
+            isSystemMessage: true,
+        };
+
+        if (mockMessages[channelId]) {
+            mockMessages[channelId].push(systemMessage);
+        } else {
+            mockMessages[channelId] = [systemMessage];
+        }
+
+        if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
+            setMessages(prevMessages => [...prevMessages, systemMessage]);
+        }
+        toast({ title: "Members Added", description: `${addedUserNames.length} new member(s) added to #${channelName}.` });
+    }
+
+  }, [toast, activeConversation, currentUser.name, allUsersWithCurrent]);
 
   const generateSummary = useCallback(async (channelId: string) => {
     const channel = channels.find(c => c.id === channelId);
@@ -167,10 +224,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Error", description: "Channel not found.", variant: "destructive" });
       return;
     }
-    const channelMessages = fetchMockMessages(channelId);
+    const channelMessages = fetchMockMessages(channelId).filter(msg => !msg.isSystemMessage); // Filter out system messages
     if (channelMessages.length === 0) {
-      toast({ title: "Summary", description: "No messages in this channel to summarize." });
-      setCurrentSummary("This channel has no messages yet.");
+      toast({ title: "Summary", description: "No user messages in this channel to summarize." });
+      setCurrentSummary("This channel has no user messages yet.");
       return;
     }
     setIsLoadingSummary(true);
@@ -277,8 +334,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     mockUsers.push(newUser);
-    setUsers(prevUsers => [...prevUsers, newUser]);
-    setAllUsersWithCurrent(prevAll => [...prevAll, newUser]);
+    setUsers(prevUsers => [...prevUsers.filter(u => u.id !== newUser.id), newUser]); // Ensure no duplicates if ID somehow matched
+    setAllUsersWithCurrent(prevAll => [...prevAll.filter(u => u.id !== newUser.id), newUser]);
+
 
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
 
@@ -419,3 +477,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+

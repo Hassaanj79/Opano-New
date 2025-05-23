@@ -31,6 +31,7 @@ export type Message = {
   file?: MessageFile;
   reactions?: { [emoji: string]: string[] }; // emoji: array of userIds
   isEdited?: boolean; // To indicate if a message was edited
+  isSystemMessage?: boolean; // Added for system messages
 };
 
 export type ActiveConversation = {
@@ -46,3 +47,4 @@ export type PendingInvitation = {
   token: string;
   timestamp: number;
 };
+
