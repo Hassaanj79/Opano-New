@@ -18,26 +18,26 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
     user.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getDmInfo = (user: User, isSelf: boolean, isActiveDm: boolean) => {
+  // Simplified: isActiveDm is no longer needed here as specific badge logic is in JSX
+  const getDmInfo = (user: User, isSelf: boolean) => {
     if (isSelf) return { snippet: "Your personal notes and drafts", timeOrBadge: "" };
     
-    // Specific logic for u3 (Huzaifa) to show/hide badge
-    if (user.id === 'u3') {
+    // Specific snippet for u3 (Huzaifa)
+    if (user.id === 'u3') { // Huzaifa
       return { 
         snippet: "Here're my latest drone shots", 
-        timeOrBadge: isActiveDm 
-          ? "" // No badge if this DM is active
-          : <Badge variant="default" className="bg-primary text-primary-foreground h-5 px-1.5 text-xs">80</Badge> 
+        // Badge logic is now handled directly in JSX below
+        timeOrBadge: "" // Default to no specific time/badge string from here
       };
     }
     // Existing logic for other users
-    if (user.id === 'u2') return { snippet: "The weather will be perfect for th...", timeOrBadge: "9:41 AM" };
-    if (user.id === 'u4') return { snippet: "Next time it's my turn!", timeOrBadge: "12/22/21" };
+    if (user.id === 'u2') return { snippet: "The weather will be perfect for th...", timeOrBadge: "9:41 AM" }; // Hanzlah
+    if (user.id === 'u4') return { snippet: "Next time it's my turn!", timeOrBadge: "12/22/21" }; // Fahad
     return { snippet: user.designation || (user.isOnline ? 'Online' : 'Offline'), timeOrBadge: "" };
   };
 
   const isSelfActive = activeConversation?.type === 'dm' && activeConversation.id === currentUser.id;
-  const selfDmInfo = getDmInfo(currentUser, true, isSelfActive);
+  const selfDmInfo = getDmInfo(currentUser, true);
 
   return (
     <SidebarMenu>
@@ -66,7 +66,9 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
       {/* List of other users */}
       {filteredOtherUsers.map(user => {
         const isActive = activeConversation?.type === 'dm' && activeConversation.id === user.id;
-        const dmInfo = getDmInfo(user, false, isActive);
+        // Pass isActive to getDmInfo in case it's used for other things like snippet styling, 
+        // but badge for u3 is now handled outside.
+        const dmInfo = getDmInfo(user, false); 
         
         return (
         <SidebarMenuItem key={user.id}>
@@ -82,11 +84,20 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
                 <span className={`truncate font-medium ${isActive ? 'text-primary-foreground': ''}`}>
                   {user.name}
                 </span>
-                {typeof dmInfo.timeOrBadge === 'string' && dmInfo.timeOrBadge && (
+                
+                {/* Logic for time string or generic badge for users NOT u3 */}
+                {user.id !== 'u3' && typeof dmInfo.timeOrBadge === 'string' && dmInfo.timeOrBadge && (
                   <span className={`text-xs ${isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{dmInfo.timeOrBadge}</span>
                 )}
-                 {typeof dmInfo.timeOrBadge !== 'string' && dmInfo.timeOrBadge && (
+                {user.id !== 'u3' && typeof dmInfo.timeOrBadge !== 'string' && dmInfo.timeOrBadge && (
                   <div className="flex-shrink-0">{dmInfo.timeOrBadge}</div>
+                )}
+
+                {/* Specific badge logic for user u3 (Huzaifa) - show only if not active */}
+                {user.id === 'u3' && !isActive && (
+                  <div className="flex-shrink-0">
+                    <Badge variant="default" className="bg-primary text-primary-foreground h-5 px-1.5 text-xs">80</Badge>
+                  </div>
                 )}
               </div>
               <p className={`text-xs truncate ${isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{dmInfo.snippet}</p>
