@@ -8,8 +8,6 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
-  // { href: '/attendance', icon: Clock, label: 'Attendance' }, // Moved to /more
-  // { href: '#/documents', icon: Folder, label: 'Documents' }, // Moved to /more
 ];
 const moreNavItem = { href: '/more', icon: MoreHorizontal, label: 'More Options' }; // Link to new /more page
 
@@ -17,7 +15,7 @@ export function ThinIconBar() {
   const pathname = usePathname();
 
   return (
-    <div className="flex flex-col items-center w-16 h-screen py-4 space-y-1 bg-neutral-800 text-neutral-300 shadow-lg">
+    <div className="flex flex-col items-center w-16 h-screen py-4 space-y-1 bg-neutral-800 text-neutral-300 shadow-lg z-10">
       <nav className="flex flex-col items-center space-y-1 w-full flex-grow">
         {navItems.map((item) => (
           <Link href={item.href} key={item.label} passHref legacyBehavior>
