@@ -39,13 +39,13 @@ export function DirectMessageList({ searchTerm }: DirectMessageListProps) {
           onClick={() => setActiveConversation('dm', currentUser.id)}
           isActive={isSelfActive}
           className={`gap-2 h-auto py-1.5 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:justify-center`}
-          tooltip="Notes to Self"
+          tooltip={`${currentUser.name} (you)`}
         >
           <UserAvatar user={currentUser} className="h-7 w-7 group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6" />
           <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
             <div className="flex justify-between items-center">
               <span className={`truncate font-medium ${isSelfActive ? 'text-primary-foreground': ''}`}>
-                Notes to Self
+                {currentUser.name} (you)
               </span>
               {/* No time/badge for self-notes for now, or customize as needed */}
             </div>
