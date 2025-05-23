@@ -2,9 +2,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Pause, Coffee, Play } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Pause, Coffee, Play, UserCircle } from "lucide-react";
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAppContext } from "@/contexts/AppContext";
+import { UserAvatar } from "@/components/UserAvatar"; // Import UserAvatar
 
 const MAX_WORK_SECONDS = 8 * 60 * 60; // 8 hours in seconds for progress calculation
 
@@ -28,9 +30,11 @@ const CircularTimer = ({ time, progressPercent }: { time: string, progressPercen
   const offset = circumference - (progressPercent / 100) * circumference;
 
   return (
-    <div className="relative w-56 h-56 flex items-center justify-center">
+    <div className="relative w-56 h-56 flex items-center justify-center my-6"> {/* Added margin for spacing */}
       <svg className="absolute w-full h-full transform -rotate-90" viewBox="0 0 200 200">
+        {/* Background track - light grey similar to image */}
         <circle cx="100" cy="100" r={radius} fill="transparent" stroke="hsl(var(--muted))" strokeWidth="18" />
+        {/* Progress arc - orange */}
         <circle
           cx="100"
           cy="100"
@@ -44,8 +48,9 @@ const CircularTimer = ({ time, progressPercent }: { time: string, progressPercen
           style={{ transition: 'stroke-dashoffset 0.3s ease-out' }}
         />
       </svg>
-      <div className="absolute w-[calc(100%-50px)] h-[calc(100%-50px)] bg-black rounded-full flex items-center justify-center">
-        <span className="text-white text-4xl font-mono font-semibold">
+      {/* Inner black circle */}
+      <div className="absolute w-[calc(100%-38px)] h-[calc(100%-38px)] bg-foreground rounded-full flex items-center justify-center">
+        <span className="text-background text-4xl font-mono font-semibold">
           {time}
         </span>
       </div>
@@ -53,54 +58,73 @@ const CircularTimer = ({ time, progressPercent }: { time: string, progressPercen
   );
 };
 
-const CircularActionButton = ({ icon: Icon, label, onClick, disabled, variant = "primary" }: { icon: React.ElementType, label: string, onClick?: () => void, disabled?: boolean, variant?: "primary" | "secondary" }) => {
-  const borderColorClass = variant === "primary" ? "border-primary" : "border-green-500";
-  const hoverBgClass = variant === "primary" ? "hover:bg-primary/10" : "hover:bg-green-500/10";
-  const groupHoverTextClass = variant === "primary" ? "group-hover:text-primary" : "group-hover:text-green-500";
+const CircularActionButton = ({ icon: Icon, label, onClick, disabled, variant = "primary", isActive = false }: { icon: React.ElementType, label: string, onClick?: () => void, disabled?: boolean, variant?: "primary" | "secondary", isActive?: boolean }) => {
+  // Using primary for orange as per the image
+  const borderColorClass = "border-primary"; 
+  const hoverBgClass = "hover:bg-primary/10";
+  const groupHoverTextClass = "group-hover:text-primary";
+  const activeBgClass = isActive ? "bg-primary/10" : "";
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex flex-col items-center justify-center w-28 h-28 rounded-full border-4 bg-black text-white transition-colors group disabled:opacity-50 disabled:cursor-not-allowed ${borderColorClass} ${hoverBgClass}`}
+      className={`flex flex-col items-center justify-center w-28 h-28 rounded-full border-4 bg-foreground text-background transition-colors group disabled:opacity-50 disabled:cursor-not-allowed ${borderColorClass} ${hoverBgClass} ${activeBgClass} shadow-md`}
     >
-      <Icon className={`w-8 h-8 mb-1 text-white ${disabled ? '' : groupHoverTextClass}`} />
-      <span className={`text-sm font-medium text-white ${disabled ? '' : groupHoverTextClass}`}>{label}</span>
+      <Icon className={`w-8 h-8 mb-1 text-background ${disabled ? '' : groupHoverTextClass}`} />
+      <span className={`text-sm font-medium text-background ${disabled ? '' : groupHoverTextClass}`}>{label}</span>
     </button>
   );
 };
 
 const TimeDisplayBox = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="px-4 py-2 border border-border rounded-md bg-card text-card-foreground text-sm shadow-sm min-w-[140px] text-center">
+    <div className="px-4 py-2 border border-border rounded-md bg-card text-card-foreground text-sm shadow-sm min-w-[160px] text-center">
       {children}
     </div>
   );
 };
 
 const DottedLine = () => {
-  return <div className="flex-grow border-t-2 border-dotted border-gray-400 mx-4 self-center h-0 min-w-[30px]"></div>;
+  return <div className="flex-grow border-t-2 border-dotted border-muted-foreground/50 mx-4 self-center h-0 min-w-[30px]"></div>;
 }
 
 type AttendanceStatus = 'not-clocked-in' | 'working' | 'on-break' | 'clocked-out';
 
 export default function AttendancePage() {
+  const { currentUser } = useAppContext();
   const [status, setStatus] = useState<AttendanceStatus>('not-clocked-in');
   const [clockInTime, setClockInTime] = useState<Date | null>(null);
   const [clockOutTime, setClockOutTime] = useState<Date | null>(null);
-  const [isOnBreak, setIsOnBreak] = useState<boolean>(false); // Derived from status, but useful for button text
+  const [isOnBreak, setIsOnBreak] = useState<boolean>(false);
   const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
   const [accumulatedBreakDuration, setAccumulatedBreakDuration] = useState<number>(0); // in seconds
   const [workedSeconds, setWorkedSeconds] = useState<number>(0);
 
   // Initial clock-in for demo purposes (simulating an ongoing session)
   useEffect(() => {
-    // To avoid hydration errors, set initial Date based values in useEffect
     const now = new Date();
-    // For demo, let's say user clocked in 55 minutes and 11 seconds ago
-    const mockClockIn = new Date(now.getTime() - (55 * 60 + 11) * 1000);
+    // For demo, let's say user clocked in at 11:20 AM, and it's now ~12:15 PM (55 mins worked)
+    // To match "00:55:xx" on timer
+    const mockClockInHour = 11;
+    const mockClockInMinute = 20;
+    
+    let mockClockIn = new Date(now.getFullYear(), now.getMonth(), now.getDate(), mockClockInHour, mockClockInMinute, 0, 0);
+
+    // If current time is before mock clock-in time (e.g. it's 9 AM), set clock-in to yesterday
+    if (now < mockClockIn) {
+        mockClockIn.setDate(mockClockIn.getDate() -1);
+    }
+    
     setClockInTime(mockClockIn);
     setStatus('working');
+    // Calculate initial workedSeconds based on this fixed clock-in time
+    const initialWorked = Math.floor((now.getTime() - mockClockIn.getTime()) / 1000);
+    // To match the 00:55:xx display, we can set it more directly too, but this is more realistic
+    // For precise image match of timer start at 00:55:xx:
+    // setWorkedSeconds(55 * 60 + 10); // 55 mins + 10 secs
+    setWorkedSeconds(Math.max(0, initialWorked));
+
   }, []);
 
   useEffect(() => {
@@ -119,7 +143,6 @@ export default function AttendancePage() {
     };
   }, [status]);
 
-  // Update workedSeconds based on clockInTime and accumulatedBreakDuration when status changes
    useEffect(() => {
     if (status === 'working' && clockInTime) {
       const elapsedSinceClockIn = Math.floor((new Date().getTime() - clockInTime.getTime()) / 1000);
@@ -147,9 +170,9 @@ export default function AttendancePage() {
     }
     
     setClockOutTime(new Date());
-    setAccumulatedBreakDuration(finalBreakDuration); // Ensure break duration is captured if clocking out from break
+    setAccumulatedBreakDuration(finalBreakDuration); 
     setStatus('clocked-out');
-    setIsOnBreak(false); // Ensure break is ended
+    setIsOnBreak(false);
   };
 
   const handleToggleBreak = () => {
@@ -169,12 +192,14 @@ export default function AttendancePage() {
   const timerDisplay = formatDuration(workedSeconds);
   const progressPercent = status === 'clocked-out' || status === 'not-clocked-in' ? 0 : Math.min(100, (workedSeconds / MAX_WORK_SECONDS) * 100);
 
-  const clockInDisplay = clockInTime ? formatTimeToAMPM(clockInTime) + " ETS" : "Clock In";
-  const clockOutDisplay = clockOutTime ? formatTimeToAMPM(clockOutTime) + " ETS" : (status === 'not-clocked-in' ? "Clock Out" : "--:-- -- ETS");
+  const clockInDisplay = clockInTime ? `${formatTimeToAMPM(clockInTime)} ETS` : "Clock In At --:-- -- ETS";
+  const clockOutDisplay = clockOutTime ? `${formatTimeToAMPM(clockOutTime)} ETS` : (status === 'not-clocked-in' ? "Clock Out At --:-- -- ETS" : "Clock Out At --:-- -- ETS");
+  
+  const idleTimeDisplay = formatDuration(accumulatedBreakDuration); // Using accumulatedBreakDuration for Idle Time
 
   if (status === 'not-clocked-in') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6">
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))] bg-background p-6">
         <Card className="w-full max-w-md p-6 md:p-10 shadow-xl text-center">
           <h1 className="text-2xl font-semibold mb-6">Attendance</h1>
           <Button onClick={handleClockIn} size="lg" className="w-full">
@@ -186,10 +211,25 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6">
-      <Card className="w-full max-w-4xl p-6 md:p-10 shadow-xl">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))] bg-background p-4 md:p-6">
+      <Card className="w-full max-w-4xl p-4 md:p-8 shadow-xl">
+        {/* Top User Info Section */}
+        <div className="flex items-center justify-between mb-8 px-2">
+          <div className="flex items-center gap-3">
+            <UserAvatar user={currentUser} className="h-12 w-12" />
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">{currentUser.name}</h2>
+              <p className="text-sm text-muted-foreground">{currentUser.designation || "No Designation"}</p>
+              {/* Placeholder for pronouns, can be made dynamic later */}
+              <p className="text-xs text-muted-foreground/80">She/Her</p> 
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => alert("View Profile clicked!")}>View Profile</Button>
+        </div>
+
+        {/* Main Timer Row */}
         <div className="flex items-center justify-around w-full">
-          <TimeDisplayBox>Clock In At<br/>{clockInDisplay.replace(' ETS', '')}</TimeDisplayBox>
+          <TimeDisplayBox>{clockInDisplay}</TimeDisplayBox>
           <DottedLine />
           <CircularActionButton 
             icon={Pause} 
@@ -205,12 +245,20 @@ export default function AttendancePage() {
             label={isOnBreak ? "Resume" : "Break"} 
             onClick={handleToggleBreak} 
             disabled={status === 'clocked-out'}
-            variant={isOnBreak ? "secondary" : "primary"}
+            variant={isOnBreak ? "secondary" : "primary"} // 'secondary' for green resume like in prev examples if needed
+            isActive={isOnBreak}
           />
           <DottedLine />
-          <TimeDisplayBox>Clock Out At<br/>{clockOutDisplay.replace(' ETS', '')}</TimeDisplayBox>
+          <TimeDisplayBox>{clockOutDisplay}</TimeDisplayBox>
+        </div>
+
+        {/* Bottom Idle Time Display */}
+        <div className="flex items-center justify-between mt-8 pt-4 border-t border-border/50 px-2">
+           <span className="text-sm text-muted-foreground">Idle Time</span>
+           <span className="text-sm font-medium text-foreground">{idleTimeDisplay.substring(3)}</span> {/* Display MM:SS part of idle time */}
         </div>
       </Card>
+
        {status === 'clocked-out' && (
         <div className="mt-8 text-center">
           <p className="text-lg font-semibold">Session Ended</p>
@@ -224,3 +272,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
