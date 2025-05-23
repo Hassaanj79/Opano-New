@@ -72,3 +72,11 @@ export type ActivityItem = {
 };
 
 export type CurrentView = 'chat' | 'replies' | 'activity' | 'drafts';
+
+export type AttendanceLogEntry = {
+  id: string;
+  clockInTime: Date;
+  clockOutTime: Date;
+  totalHoursWorked: number; // in seconds
+  totalActivityPercent: number;
+};

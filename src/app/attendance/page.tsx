@@ -3,10 +3,20 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Coffee, LogOut, Play, TimerIcon } from "lucide-react";
+import { Coffee, LogOut, Play, TimerIcon, Edit2, Trash } from "lucide-react";
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from "@/contexts/AppContext";
 import { UserAvatar } from "@/components/UserAvatar";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { format } from 'date-fns';
+import type { AttendanceLogEntry } from '@/types';
 
 const MAX_WORK_SECONDS = 8 * 60 * 60; // 8 hours in seconds for progress calculation
 
@@ -21,6 +31,20 @@ const formatDuration = (totalSeconds: number): string => {
   const seconds = totalSeconds % 60;
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
+
+const formatDurationForTable = (totalSeconds: number): string => {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (hours === 0 && minutes === 0) return `${totalSeconds} Secs`;
+  if (hours === 0) return `${minutes} Mins`;
+  const decimalHours = hours + minutes / 60;
+  return `${decimalHours.toFixed(2)} Hours`;
+};
+
+const formatDateForReportHeader = (date: Date): string => {
+  return format(date, 'dd-MMM-yyyy');
+};
+
 
 const WorkTimerDisplay = ({ time, progressPercent }: { time: string, progressPercent: number }) => {
   const radius = 100;
@@ -75,6 +99,9 @@ export default function AttendancePage() {
   const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
   const [accumulatedBreakDuration, setAccumulatedBreakDuration] = useState<number>(0);
   const [workedSeconds, setWorkedSeconds] = useState<number>(0);
+  const [attendanceLog, setAttendanceLog] = useState<AttendanceLogEntry[]>([]);
+  const [reportDate, setReportDate] = useState<Date>(new Date());
+
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
@@ -99,28 +126,45 @@ export default function AttendancePage() {
 
 
   const handleClockIn = () => {
-    setClockInTime(new Date());
+    const now = new Date();
+    setClockInTime(now);
     setClockOutTime(null);
     setIsOnBreak(false);
     setBreakStartTime(null);
     setAccumulatedBreakDuration(0);
     setWorkedSeconds(0);
     setStatus('working');
+    // If clocking in on a new day, reset the log and update reportDate
+    if (reportDate.toDateString() !== now.toDateString()) {
+      setAttendanceLog([]);
+      setReportDate(now);
+    }
   };
 
   const handleClockOut = () => {
-    if (status === 'not-clocked-in' || status === 'clocked-out') return;
+    if (status === 'not-clocked-in' || status === 'clocked-out' || !clockInTime) return;
 
     let finalBreakDuration = accumulatedBreakDuration;
     if (status === 'on-break' && breakStartTime) {
       finalBreakDuration += Math.floor((new Date().getTime() - breakStartTime.getTime()) / 1000);
     }
     
-    setClockOutTime(new Date());
+    const currentClockOutTime = new Date();
+    setClockOutTime(currentClockOutTime);
     setAccumulatedBreakDuration(finalBreakDuration); 
     setStatus('clocked-out');
     setIsOnBreak(false);
     setBreakStartTime(null);
+
+    // Add to log
+    const newLogEntry: AttendanceLogEntry = {
+      id: `log-${Date.now()}`,
+      clockInTime: clockInTime,
+      clockOutTime: currentClockOutTime,
+      totalHoursWorked: workedSeconds,
+      totalActivityPercent: Math.floor(Math.random() * 41) + 60, // Random 60-100%
+    };
+    setAttendanceLog(prevLog => [newLogEntry, ...prevLog]);
   };
 
   const handleToggleBreak = () => {
@@ -188,7 +232,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Centered Action Buttons Section */}
-      <div className="flex flex-col gap-3 pt-6 mt-auto w-full max-w-lg mx-auto pb-4"> {/* Added mt-auto and pb-4 */}
+      <div className="flex flex-col gap-3 pt-6 mt-auto w-full max-w-lg mx-auto pb-4">
         {status === 'not-clocked-in' && (
           <Button onClick={handleClockIn} size="lg" className="w-full">
             <Play className="mr-2 h-5 w-5" /> Clock In
@@ -230,7 +274,57 @@ export default function AttendancePage() {
           </>
         )}
       </div>
+
+      {/* Attendance Log Table Section */}
+      {attendanceLog.length > 0 && (
+        <div className="mt-10 w-full max-w-4xl mx-auto bg-card p-4 sm:p-6 rounded-lg shadow-lg">
+          <h2 className="text-xl font-semibold text-foreground mb-1">
+            Clock In / Clock Out Report of {formatDateForReportHeader(reportDate)}
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">Showing your activity for the selected date.</p>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[200px]">Employee Name</TableHead>
+                  <TableHead>Clock In Time</TableHead>
+                  <TableHead>Clock Out Time</TableHead>
+                  <TableHead>Total Hours Work</TableHead>
+                  <TableHead>Total Activity</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {attendanceLog.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <UserAvatar user={currentUser} className="h-8 w-8" />
+                        <div>
+                          <div className="font-medium">{currentUser.name}</div>
+                          <div className="text-xs text-muted-foreground">{currentUser.designation}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{formatTimeToAMPM(log.clockInTime)}</TableCell>
+                    <TableCell>{formatTimeToAMPM(log.clockOutTime)}</TableCell>
+                    <TableCell>{formatDurationForTable(log.totalHoursWorked)}</TableCell>
+                    <TableCell>{log.totalActivityPercent}%</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8">
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8">
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
