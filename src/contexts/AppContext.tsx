@@ -202,7 +202,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setActiveConversation('channel', newChannel.id);
-    toast({ title: "Channel Created", description: `Channel #${name} has been created.` });
+    setTimeout(() => {
+      toast({ title: "Channel Created", description: `Channel #${name} has been created.` });
+    }, 0);
   }, [currentUser.id, currentUser.name, toast, setActiveConversation, allUsersWithCurrent]);
 
   const addMembersToChannel = useCallback((channelId: string, userIdsToAdd: string[]) => {
@@ -251,7 +253,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
             setMessages(prevMessages => [...prevMessages, systemMessage]);
         }
-        toast({ title: "Members Added", description: `${addedUserNames.length} new member(s) added to #${channelName}.` });
+        setTimeout(() => {
+          toast({ title: "Members Added", description: `${addedUserNames.length} new member(s) added to #${channelName}.` });
+        }, 0);
     }
 
   }, [toast, activeConversation, currentUser.name, allUsersWithCurrent]);
@@ -259,12 +263,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const generateSummary = useCallback(async (channelId: string) => {
     const channel = channels.find(c => c.id === channelId);
     if (!channel) {
-      toast({ title: "Error", description: "Channel not found.", variant: "destructive" });
+      setTimeout(() => {
+        toast({ title: "Error", description: "Channel not found.", variant: "destructive" });
+      }, 0);
       return;
     }
     const channelMessages = fetchMockMessages(channelId).filter(msg => !msg.isSystemMessage);
     if (channelMessages.length === 0) {
-      toast({ title: "Summary", description: "No user messages in this channel to summarize." });
+      setTimeout(() => {
+        toast({ title: "Summary", description: "No user messages in this channel to summarize." });
+      }, 0);
       setCurrentSummary("This channel has no user messages yet.");
       return;
     }
@@ -276,10 +284,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         messages: channelMessages.map(m => `${allUsersWithCurrent.find(u => u.id === m.userId)?.name || 'Unknown User'}: ${m.content}`),
       });
       setCurrentSummary(result.summary);
-      toast({ title: "Summary Generated", description: `Summary for #${channel.name} is ready.` });
+      setTimeout(() => {
+        toast({ title: "Summary Generated", description: `Summary for #${channel.name} is ready.` });
+      }, 0);
     } catch (error) {
       console.error("Error generating summary:", error);
-      toast({ title: "Summarization Error", description: "Could not generate summary.", variant: "destructive" });
+      setTimeout(() => {
+        toast({ title: "Summarization Error", description: "Could not generate summary.", variant: "destructive" });
+      }, 0);
       setCurrentSummary("Failed to generate summary.");
     } finally {
       setIsLoadingSummary(false);
@@ -292,7 +304,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const sendInvitation = useCallback(async (email: string): Promise<string | null> => {
     if (allUsersWithCurrent.some(user => user.email === email) || pendingInvitations.some(inv => inv.email === email)) {
-      toast({ title: "Invitation Failed", description: `${email} is already a member or has a pending invitation.`, variant: "destructive" });
+      setTimeout(() => {
+        toast({ title: "Invitation Failed", description: `${email} is already a member or has a pending invitation.`, variant: "destructive" });
+      }, 0);
       return null;
     }
     const token = btoa(`${email}-${Date.now()}`);
@@ -308,12 +322,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       <p><a href="${joinUrl}" target="_blank">${joinUrl}</a></p>
       <p>If you did not expect this invitation, you can safely ignore this email.</p>
     `;
+    
+    setTimeout(() => {
+      toast({
+        title: "Sending Invitation...",
+        description: `Attempting to send an invitation email to ${email}.`,
+        duration: 5000, // Duration can be kept for toasts that are purely informational
+      });
+    },0);
 
-    toast({
-      title: "Sending Invitation...",
-      description: `Attempting to send an invitation email to ${email}.`,
-      duration: 5000,
-    });
 
     try {
       const emailResult = await sendInvitationEmail({
@@ -324,28 +341,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (emailResult.success) {
-        toast({
-          title: "Invitation Sent!",
-          description: `An invitation email has been sent to ${email}.`,
-          duration: 7000,
-        });
+        setTimeout(() => {
+          toast({
+            title: "Invitation Sent!",
+            description: `An invitation email has been sent to ${email}.`,
+            duration: 7000,
+          });
+        },0);
       } else {
-        toast({
-          title: "Email Sending Failed",
-          description: `Could not send email to ${email}. ${emailResult.error || ''} For testing, use this link (also in console): ${joinUrl}`,
-          variant: "destructive",
-          duration: 15000,
-        });
+        setTimeout(() => {
+          toast({
+            title: "Email Sending Failed",
+            description: `Could not send email to ${email}. ${emailResult.error || ''} For testing, use this link (also in console): ${joinUrl}`,
+            variant: "destructive",
+            duration: 15000,
+          });
+        }, 0);
         console.error(`[sendInvitation] Failed to send invitation email to ${email}. Error: ${emailResult.error}. Test Link: ${joinUrl}`);
       }
     } catch (flowError) {
       console.error("[sendInvitation] Error calling sendInvitationEmail flow:", flowError);
-      toast({
-          title: "Flow Error",
-          description: `An error occurred while trying to send the email. For testing, use this link (also in console): ${joinUrl}`,
-          variant: "destructive",
-          duration: 15000,
-        });
+      setTimeout(() => {
+        toast({
+            title: "Flow Error",
+            description: `An error occurred while trying to send the email. For testing, use this link (also in console): ${joinUrl}`,
+            variant: "destructive",
+            duration: 15000,
+          });
+      }, 0);
       console.error(`[sendInvitation] Flow error sending invitation email to ${email}. Test Link: ${joinUrl}`);
     }
     return token;
@@ -358,7 +381,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const acceptInvitation = useCallback((token: string, userDetails: { name: string; designation: string }): boolean => {
     const invitation = verifyInviteToken(token);
     if (!invitation) {
-      toast({ title: "Invalid Invitation", description: "This invitation link is not valid or has expired.", variant: "destructive" });
+      setTimeout(() => {
+        toast({ title: "Invalid Invitation", description: "This invitation link is not valid or has expired.", variant: "destructive" });
+      },0);
       return false;
     }
 
@@ -377,8 +402,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
-
-    toast({ title: "Welcome to Opano!", description: `User ${newUser.name} has joined the workspace.` });
+    setTimeout(() => {
+      toast({ title: "Welcome to Opano!", description: `User ${newUser.name} has joined the workspace.` });
+    }, 0);
     router.push('/');
     return true;
   }, [verifyInviteToken, toast, router]);
@@ -441,10 +467,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setCurrentUser(prevUser => {
       const newStatus = !prevUser.isOnline;
       const updatedCurrentUser = { ...prevUser, isOnline: newStatus };
-      toast({
-        title: "Status Updated",
-        description: `You are now ${newStatus ? 'Online' : 'Away'}.`,
-      });
+      // Defer the toast call
+      setTimeout(() => {
+        toast({
+          title: "Status Updated",
+          description: `You are now ${newStatus ? 'Online' : 'Away'}.`,
+        });
+      }, 0);
       return updatedCurrentUser;
     });
   }, [toast]);
@@ -459,7 +488,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
         avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
       };
-      toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
+      setTimeout(() => {
+        toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
+      }, 0);
       return updatedUser;
     });
   }, [toast]);
@@ -470,7 +501,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (draftIndex > -1) {
       initialMockDrafts.splice(draftIndex, 1);
     }
-    toast({ title: "Draft Deleted", description: "The draft has been removed." });
+    setTimeout(() => {
+      toast({ title: "Draft Deleted", description: "The draft has been removed." });
+    }, 0);
   }, [toast]);
 
 
@@ -609,3 +642,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
