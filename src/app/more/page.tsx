@@ -7,19 +7,20 @@ import { Clock, Folder } from 'lucide-react';
 
 export default function MoreOptionsPage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6">
-      <Card className="w-full max-w-md mb-8 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-center text-foreground">More Options</CardTitle>
-          <CardDescription className="text-center text-muted-foreground">
-            Additional features and settings.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-3xl">
+    <div className="flex flex-col items-center min-h-screen bg-background p-6 pt-12 md:pt-20">
+      {/* Title Section - Not a card */}
+      <div className="text-center mb-10 md:mb-12">
+        <h1 className="text-3xl md:text-4xl font-semibold text-foreground">More Options</h1>
+        <p className="mt-2 text-md md:text-lg text-muted-foreground">
+          Additional features and settings.
+        </p>
+      </div>
+
+      {/* Option Cards Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl">
         <Link href="/attendance" passHref legacyBehavior>
           <a className="block group">
-            <Card className="hover:shadow-xl hover:border-primary/50 transition-all duration-200 cursor-pointer h-full flex flex-col">
+            <Card className="hover:shadow-xl hover:border-primary/50 transition-all duration-200 cursor-pointer h-full flex flex-col bg-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-lg font-medium text-foreground group-hover:text-primary transition-colors">Attendance</CardTitle>
                 <Clock className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -35,7 +36,7 @@ export default function MoreOptionsPage() {
 
         <Link href="#/documents" passHref legacyBehavior>
           <a className="block group">
-            <Card className="hover:shadow-xl hover:border-primary/50 transition-all duration-200 cursor-pointer h-full flex flex-col">
+            <Card className="hover:shadow-xl hover:border-primary/50 transition-all duration-200 cursor-pointer h-full flex flex-col bg-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-lg font-medium text-foreground group-hover:text-primary transition-colors">Documents</CardTitle>
                 <Folder className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
