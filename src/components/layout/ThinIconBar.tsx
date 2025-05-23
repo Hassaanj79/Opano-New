@@ -8,10 +8,10 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/attendance', icon: Clock, label: 'Attendance' }, // Changed Clock href
-  { href: '#/documents', icon: Folder, label: 'Documents' },
+  // { href: '/attendance', icon: Clock, label: 'Attendance' }, // Moved to /more
+  // { href: '#/documents', icon: Folder, label: 'Documents' }, // Moved to /more
 ];
-const moreNavItem = { href: '#/more-options', icon: MoreHorizontal, label: 'More Options' };
+const moreNavItem = { href: '/more', icon: MoreHorizontal, label: 'More Options' }; // Link to new /more page
 
 export function ThinIconBar() {
   const pathname = usePathname();
