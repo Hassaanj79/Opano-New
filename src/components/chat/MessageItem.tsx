@@ -5,16 +5,10 @@ import { useAppContext } from '@/contexts/AppContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, ImageIcon, Smile, MoreHorizontal, Edit3, Trash2, ThumbsUp, Heart, MessageSquareWarning, Edit, Brain, PartyPopper, AlertCircle } from 'lucide-react'; // Added Brain, PartyPopper, AlertCircle as placeholders for new emojis
+import { FileText, ImageIcon, Smile, MoreHorizontal, Edit3, Trash2, ThumbsUp, Heart, Brain, PartyPopper, AlertCircle } from 'lucide-react'; 
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useState } from 'react';
 import { Textarea } from '../ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -165,10 +159,10 @@ export function MessageItem({ message }: MessageItemProps) {
                     <Heart className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
                  <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '🤯')} aria-label="Mind Blown">
-                    <Brain className="h-3.5 w-3.5 text-muted-foreground" /> {/* Using Brain as a proxy for mind blown */}
+                    <Brain className="h-3.5 w-3.5 text-muted-foreground" /> 
                 </Button>
                  <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '😮')} aria-label="Shocked">
-                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" /> {/* Using AlertCircle as a proxy for shocked */}
+                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" /> 
                 </Button>
                  <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '🎉')} aria-label="Party Popper">
                     <PartyPopper className="h-3.5 w-3.5 text-muted-foreground"/>
@@ -177,21 +171,14 @@ export function MessageItem({ message }: MessageItemProps) {
                     <Smile className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
                 {isCurrentUserSender && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent">
-                        <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground"/>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align={isCurrentUserSender ? "end" : "start"} sideOffset={5}>
-                      <DropdownMenuItem onClick={handleEdit} className="text-xs">
-                        <Edit3 className="mr-2 h-3.5 w-3.5" /> Edit message
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleDelete} className="text-xs text-destructive focus:text-destructive focus:bg-destructive/10">
-                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete message
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={handleEdit} aria-label="Edit message">
+                      <Edit3 className="h-3.5 w-3.5 text-muted-foreground"/>
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-destructive/20" onClick={handleDelete} aria-label="Delete message">
+                      <Trash2 className="h-3.5 w-3.5 text-destructive"/>
+                    </Button>
+                  </>
                 )}
             </div>
           )}
@@ -200,11 +187,11 @@ export function MessageItem({ message }: MessageItemProps) {
         {/* Reactions display */}
         {message.reactions && Object.keys(message.reactions).length > 0 && !isEditing && (
             <div className={cn(
-                "flex gap-1 mt-1 flex-wrap", // Added flex-wrap
+                "flex gap-1 mt-1 flex-wrap", 
                 isCurrentUserSender ? "justify-end" : ""
             )}>
                 {Object.entries(message.reactions).map(([emoji, userIds]) => (
-                    userIds.length > 0 && ( // Only render if there are users for this reaction
+                    userIds.length > 0 && ( 
                         <button 
                             key={emoji} 
                             onClick={() => toggleReaction(message.id, emoji)}
@@ -235,6 +222,3 @@ export function MessageItem({ message }: MessageItemProps) {
     </div>
   );
 }
-
-
-    
