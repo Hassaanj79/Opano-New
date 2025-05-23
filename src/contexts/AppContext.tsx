@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView } from '@/types';
-import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages, mockDrafts as initialMockDrafts } from '@/lib/mock-data';
+import { mockUsers, mockChannels, mockCurrentUser, getMessagesForConversation as fetchMockMessages, updateMockMessage, mockMessages as allMockMessages, mockDrafts as initialMockDrafts } from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
@@ -157,21 +157,33 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       ...replyData,
     };
     setMessages(prevMessages => [...prevMessages, newMessage]);
-    if (activeConversation && mockMessages[activeConversation.id]) {
-        mockMessages[activeConversation.id] = [...mockMessages[activeConversation.id], newMessage];
+    if (activeConversation && allMockMessages[activeConversation.id]) {
+        allMockMessages[activeConversation.id] = [...allMockMessages[activeConversation.id], newMessage];
     } else if (activeConversation) {
-        mockMessages[activeConversation.id] = [newMessage];
+        allMockMessages[activeConversation.id] = [newMessage];
     }
     setReplyingToMessage(null); // Clear reply context after sending
   }, [activeConversation, currentUser.id, replyingToMessage, allUsersWithCurrent]);
 
   const addChannel = useCallback((name: string, description?: string, memberIds: string[] = [], isPrivate: boolean = false) => {
+    const trimmedName = name.trim();
+    if (channels.some(channel => channel.name.toLowerCase() === trimmedName.toLowerCase())) {
+      setTimeout(() => {
+        toast({
+          title: "Channel Name Exists",
+          description: `A channel named "${trimmedName}" already exists. Please choose a different name.`,
+          variant: "destructive",
+        });
+      }, 0);
+      return;
+    }
+
     const newChannel: Channel = {
       id: `c${Date.now()}`,
-      name,
+      name: trimmedName,
       description: description || '',
       memberIds: Array.from(new Set([currentUser.id, ...memberIds])),
-      isPrivate, // Use the passed isPrivate value
+      isPrivate,
     };
     setChannels(prevChannels => {
       const updatedChannels = [...prevChannels, newChannel];
@@ -188,11 +200,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const creationSystemMessage: Message = {
         id: `sys-create-${Date.now()}`,
         userId: 'system',
-        content: `${creatorName} created the ${isPrivate ? 'private ' : ''}channel #${name}.`,
+        content: `${creatorName} created the ${isPrivate ? 'private ' : ''}channel #${trimmedName}.`,
         timestamp: Date.now(),
         isSystemMessage: true,
     };
-    mockMessages[newChannel.id] = [creationSystemMessage];
+    allMockMessages[newChannel.id] = [creationSystemMessage];
 
     const addedMembersOtherThanCreator = memberIds.filter(id => id !== currentUser.id);
     if (addedMembersOtherThanCreator.length > 0) {
@@ -209,15 +221,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 timestamp: Date.now() + 1, // Ensure slightly different timestamp
                 isSystemMessage: true,
             };
-            mockMessages[newChannel.id].push(addedMembersSystemMessage);
+            allMockMessages[newChannel.id].push(addedMembersSystemMessage);
         }
     }
 
     setActiveConversation('channel', newChannel.id);
     setTimeout(() => {
-      toast({ title: "Channel Created", description: `Channel #${name} has been created.` });
+      toast({ title: "Channel Created", description: `Channel #${trimmedName} has been created.` });
     }, 0);
-  }, [currentUser.id, currentUser.name, toast, setActiveConversation, allUsersWithCurrent]);
+  }, [currentUser.id, currentUser.name, toast, setActiveConversation, allUsersWithCurrent, channels]);
 
   const addMembersToChannel = useCallback((channelId: string, userIdsToAdd: string[]) => {
     let channelName = '';
@@ -258,10 +270,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             isSystemMessage: true,
         };
 
-        if (mockMessages[channelId]) {
-            mockMessages[channelId].push(systemMessage);
+        if (allMockMessages[channelId]) {
+            allMockMessages[channelId].push(systemMessage);
         } else {
-            mockMessages[channelId] = [systemMessage];
+            allMockMessages[channelId] = [systemMessage];
         }
 
         if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
@@ -467,8 +479,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setMessages(prevMessages =>
       prevMessages.filter(msg => {
         if (msg.id === messageId && msg.userId === currentUser.id) {
-          if (activeConversation && mockMessages[activeConversation.id]) {
-            mockMessages[activeConversation.id] = mockMessages[activeConversation.id].filter(m => m.id !== messageId);
+          if (activeConversation && allMockMessages[activeConversation.id]) {
+            allMockMessages[activeConversation.id] = allMockMessages[activeConversation.id].filter(m => m.id !== messageId);
           }
           return false;
         }
@@ -540,7 +552,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [channels, allUsersWithCurrent]);
 
   const replies = useMemo(() => {
-    const allMsgs: Message[] = Object.values(mockMessages).flat();
+    const allMsgs: Message[] = Object.values(allMockMessages).flat();
     return allMsgs.filter(msg =>
       msg.content.toLowerCase().includes(`@${currentUser.name.toLowerCase()}`) &&
       msg.userId !== currentUser.id && 
@@ -550,7 +562,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const activities: ActivityItem[] = useMemo(() => {
     const myMessageIds = new Set<string>();
-    const allMsgs: Message[] = Object.values(mockMessages).flat();
+    const allMsgs: Message[] = Object.values(allMockMessages).flat();
     allMsgs.forEach(msg => {
       if (msg.userId === currentUser.id) {
         myMessageIds.add(msg.id);
@@ -569,7 +581,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 let convType: 'channel' | 'dm' = 'channel';
                 let convName = 'Unknown Conversation';
 
-                for (const [key, messagesInConv] of Object.entries(mockMessages)) {
+                for (const [key, messagesInConv] of Object.entries(allMockMessages)) {
                     if (messagesInConv.some(m => m.id === msg.id)) {
                         convId = key;
                         const channel = channels.find(c => c.id === key);
