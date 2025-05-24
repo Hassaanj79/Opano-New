@@ -31,7 +31,7 @@ import {
     MoreHorizontal,
     Plus,
     LogIn, 
-    LogOut, // Added LogOut icon
+    LogOut,
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
@@ -56,11 +56,19 @@ const topNavItems: { label: string; icon: React.ElementType; view: CurrentView |
 ];
 
 export function ChatterboxSidebar() {
-  const { currentUser, toggleCurrentUserStatus, setActiveSpecialView, currentView, isLoadingAuth, signOutUser } = useAppContext();
+  const { 
+    currentUser, 
+    toggleCurrentUserStatus, 
+    setActiveSpecialView, 
+    currentView, 
+    isLoadingAuth, 
+    signOutUser,
+    openUserProfilePanel // Get openUserProfilePanel from context
+  } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
   const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // Search term remains local to sidebar
   const router = useRouter();
   const pathname = usePathname();
 
@@ -84,7 +92,12 @@ export function ChatterboxSidebar() {
 
   const handleLogout = async () => {
     await signOutUser();
-    // Redirection to /auth/join will be handled by AppContext's onAuthStateChanged
+  };
+
+  const handleViewOwnProfile = () => {
+    if (currentUser) {
+      openUserProfilePanel(currentUser);
+    }
   };
 
   if (isLoadingAuth) {
@@ -189,7 +202,13 @@ export function ChatterboxSidebar() {
                 <span className="ml-2 group-data-[collapsible=icon]:hidden">Invite User</span>
               </Button>
               <SidebarSeparator className="my-1"/>
-              <div className="flex items-center p-1 gap-2 rounded-md group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center">
+              <div 
+                className="flex items-center p-1 gap-2 rounded-md group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center hover:bg-sidebar-accent cursor-pointer"
+                onClick={handleViewOwnProfile} // Added onClick to open profile
+                role="button"
+                tabIndex={0}
+                aria-label={`View profile for ${currentUser.name}`}
+              >
                 <UserAvatar user={currentUser} className="h-8 w-8" />
                 <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
                   <p className="font-semibold text-sm truncate text-sidebar-foreground">{currentUser.name}</p>
@@ -198,9 +217,14 @@ export function ChatterboxSidebar() {
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground ml-auto" // Added ml-auto
+                      onClick={(e) => e.stopPropagation()} // Prevent parent div's onClick
+                      aria-label="User settings"
+                    >
                       <Settings className="h-4 w-4"/>
-                      <span className="sr-only">User Settings</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="end" className="w-56">

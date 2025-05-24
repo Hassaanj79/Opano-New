@@ -12,14 +12,14 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Textarea } from '../ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { UserProfilePopover } from './UserProfilePopover';
+// Removed UserProfilePopover import as we'll use the main panel
 
 interface MessageItemProps {
   message: Message;
 }
 
 export function MessageItem({ message }: MessageItemProps) {
-  const { users, currentUser, toggleReaction, editMessage, deleteMessage, setReplyingToMessage, allUsersWithCurrent } = useAppContext();
+  const { users, currentUser, toggleReaction, editMessage, deleteMessage, setReplyingToMessage, allUsersWithCurrent, openUserProfilePanel } = useAppContext();
   
 
   if (message.isSystemMessage) {
@@ -33,7 +33,7 @@ export function MessageItem({ message }: MessageItemProps) {
   }
 
   const sender = allUsersWithCurrent.find(u => u.id === message.userId);
-  const isCurrentUserSender = sender?.id === currentUser.id;
+  const isCurrentUserSender = sender?.id === currentUser?.id; // Added null check for currentUser
 
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
@@ -74,14 +74,24 @@ export function MessageItem({ message }: MessageItemProps) {
   
   const handleDelete = () => {
     deleteMessage(message.id);
-    toast({ title: "Message Deleted" });
+    // Toast for delete is handled by AppContext now
   };
 
   const handleReply = () => {
     setReplyingToMessage(message);
   };
 
-  const avatarElement = <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />;
+  const handleAvatarClick = () => {
+    if (sender) {
+      openUserProfilePanel(sender);
+    }
+  };
+
+  const avatarElement = (
+    <button onClick={!isCurrentUserSender ? handleAvatarClick : undefined} className={cn(!isCurrentUserSender && "cursor-pointer")}>
+      <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />
+    </button>
+  );
 
   const renderFileAttachment = () => {
     if (!message.file) return null;
@@ -109,7 +119,7 @@ export function MessageItem({ message }: MessageItemProps) {
               {message.file.name}
             </a>
           </div>
-          {message.file.type === 'image' && message.file.url && ( // Check if url exists before rendering image
+          {message.file.type === 'image' && message.file.url && ( 
              <Image 
                 src={message.file.url} 
                 alt={message.file.name} 
@@ -130,12 +140,7 @@ export function MessageItem({ message }: MessageItemProps) {
       "group flex gap-2.5 py-1.5 px-4 hover:bg-muted/20 relative",
       isCurrentUserSender ? "justify-end" : "justify-start"
     )}>
-      {!isCurrentUserSender && sender && (
-        <UserProfilePopover user={sender} popoverSide="right" popoverAlign="start">
-          {avatarElement}
-        </UserProfilePopover>
-      )}
-      {!isCurrentUserSender && !sender && avatarElement}
+      {!isCurrentUserSender && avatarElement}
       
       <div className={cn(
         "flex flex-col max-w-[70%]",
@@ -197,7 +202,7 @@ export function MessageItem({ message }: MessageItemProps) {
             </>
           )}
 
-          {!isEditing && (
+          {!isEditing && currentUser && ( // Ensure currentUser exists before rendering actions
             <div className={cn(
                 "absolute top-[-12px] opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 p-0.5 rounded-full border bg-background shadow-sm",
                 isCurrentUserSender ? "right-2" : "left-2" 
@@ -237,7 +242,7 @@ export function MessageItem({ message }: MessageItemProps) {
           )}
         </div>
 
-        {message.reactions && Object.keys(message.reactions).length > 0 && !isEditing && (
+        {message.reactions && Object.keys(message.reactions).length > 0 && !isEditing && currentUser && ( // Ensure currentUser exists
             <div className={cn(
                 "flex gap-1 mt-1 flex-wrap", 
                 isCurrentUserSender ? "justify-end" : ""
@@ -268,9 +273,7 @@ export function MessageItem({ message }: MessageItemProps) {
           </div>
         )}
       </div>
-      {isCurrentUserSender && (
-         avatarElement 
-      )}
+      {isCurrentUserSender && avatarElement}
     </div>
   );
 }
