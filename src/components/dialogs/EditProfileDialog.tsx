@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/form";
 import { UserAvatar } from '@/components/UserAvatar';
 import { useToast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area'; // Import ScrollArea
 
 interface EditProfileDialogProps {
   isOpen: boolean;
@@ -35,12 +36,12 @@ interface EditProfileDialogProps {
 
 const profileFormSchema = z.object({
   name: z.string().min(1, { message: "Name is required." }).max(50, { message: "Name must be 50 characters or less."}),
+  pronouns: z.string().max(30, { message: "Pronouns must be 30 characters or less."}).optional().or(z.literal('')),
   designation: z.string().max(50, { message: "Designation must be 50 characters or less."}).optional().or(z.literal('')),
   email: z.string().email({ message: "Invalid email address." }),
   phoneNumber: z.string().max(20, { message: "Phone number must be 20 characters or less."}).optional().or(z.literal('')),
   avatarDataUrl: z.string().optional(),
   linkedinProfileUrl: z.string().url({ message: "Invalid LinkedIn URL (must include http:// or https://)" }).max(200, {message: "URL too long"}).optional().or(z.literal('')),
-  pronouns: z.string().max(30, { message: "Pronouns must be 30 characters or less."}).optional().or(z.literal('')),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -54,12 +55,12 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: '',
+      pronouns: '',
       designation: '',
       email: '',
       phoneNumber: '',
       avatarDataUrl: '',
       linkedinProfileUrl: '',
-      pronouns: '',
     },
   });
 
@@ -67,12 +68,12 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
     if (currentUser && isOpen) {
       form.reset({
         name: currentUser.name,
+        pronouns: currentUser.pronouns || '',
         designation: currentUser.designation || '',
         email: currentUser.email,
         phoneNumber: currentUser.phoneNumber || '',
         avatarDataUrl: currentUser.avatarUrl || '',
         linkedinProfileUrl: currentUser.linkedinProfileUrl || '',
-        pronouns: currentUser.pronouns || '',
       });
       setAvatarPreview(currentUser.avatarUrl);
     }
@@ -94,12 +95,12 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
   const onSubmit = (data: ProfileFormValues) => {
     const updateData: UserProfileUpdateData = {
       name: data.name,
+      pronouns: data.pronouns,
       designation: data.designation,
       email: data.email,
       phoneNumber: data.phoneNumber,
       avatarDataUrl: data.avatarDataUrl !== currentUser?.avatarUrl ? data.avatarDataUrl : undefined,
       linkedinProfileUrl: data.linkedinProfileUrl,
-      pronouns: data.pronouns,
     };
     updateUserProfile(updateData);
     onOpenChange(false);
@@ -110,12 +111,12 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
         setAvatarPreview(currentUser.avatarUrl);
         form.reset({
             name: currentUser.name,
+            pronouns: currentUser.pronouns || '',
             designation: currentUser.designation || '',
             email: currentUser.email,
             phoneNumber: currentUser.phoneNumber || '',
             avatarDataUrl: currentUser.avatarUrl || '',
             linkedinProfileUrl: currentUser.linkedinProfileUrl || '',
-            pronouns: currentUser.pronouns || '',
         });
     }
     onOpenChange(false);
@@ -132,102 +133,104 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
                 Update your personal information and profile picture.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <FormItem>
-                <FormLabel>Profile Picture</FormLabel>
-                <div className="flex items-center gap-4">
-                  <UserAvatar user={{...currentUser, name: form.getValues('name') || 'User', email: form.getValues('email') || '', isOnline: currentUser?.isOnline || false, avatarUrl: avatarPreview}} className="h-16 w-16" />
-                  <Input
-                    id="avatarUpload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarChange}
-                    className="text-sm file:mr-2 file:py-1.5 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                  />
-                </div>
-                <FormMessage>{/* For potential avatar-related errors */}</FormMessage>
-              </FormItem>
+            <ScrollArea className="max-h-[65vh] py-4 pr-3"> {/* Added ScrollArea and max-height */}
+              <div className="grid gap-4"> {/* Removed py-4 from here, added to ScrollArea */}
+                <FormItem>
+                  <FormLabel>Profile Picture</FormLabel>
+                  <div className="flex items-center gap-4">
+                    <UserAvatar user={{...(currentUser || { name: '', email: '', isOnline: false }), name: form.getValues('name') || 'User', email: form.getValues('email') || '', isOnline: currentUser?.isOnline || false, avatarUrl: avatarPreview}} className="h-16 w-16" />
+                    <Input
+                      id="avatarUpload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="text-sm file:mr-2 file:py-1.5 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                    />
+                  </div>
+                  <FormMessage>{/* For potential avatar-related errors */}</FormMessage>
+                </FormItem>
 
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Full Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Alex Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="pronouns"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pronouns (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. He/Him, She/Her, They/Them" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="designation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Designation / Role</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Software Engineer" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email Address</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="e.g. alex.doe@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phoneNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone Number (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. +1 123-456-7890" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="linkedinProfileUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>LinkedIn Profile URL (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. https://linkedin.com/in/yourprofile" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <DialogFooter>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Alex Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="pronouns"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pronouns (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. He/Him, She/Her, They/Them" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="designation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Designation / Role</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Software Engineer" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email Address</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="e.g. alex.doe@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. +1 123-456-7890" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="linkedinProfileUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>LinkedIn Profile URL (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. https://linkedin.com/in/yourprofile" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </ScrollArea>
+            <DialogFooter className="pt-4"> {/* Added some top padding to footer for separation */}
               <DialogClose asChild>
                 <Button type="button" variant="outline" onClick={handleDialogClose}>
                   Cancel
@@ -241,3 +244,4 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
     </Dialog>
   );
 }
+
