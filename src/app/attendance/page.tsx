@@ -3,7 +3,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, Coffee, LogOut, Play, TimerIcon, Edit2, Trash, PlusCircle } from "lucide-react";
+import { Calendar as CalendarIcon, Coffee, LogOut, Play, TimerIcon, Edit2, Trash, PlusCircle, UserCircle, Users } from "lucide-react"; // Added UserCircle, Users
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from "@/contexts/AppContext";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -37,7 +37,7 @@ import type { DateRange } from 'react-day-picker';
 import type { AttendanceLogEntry } from '@/types';
 import { EditAttendanceLogDialog } from "@/components/dialogs/EditAttendanceLogDialog";
 import { cn } from "@/lib/utils";
-import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner"; // Import spinner
 
 const MAX_WORK_SECONDS = 8 * 60 * 60; // 8 hours in seconds for progress calculation
 
@@ -262,11 +262,7 @@ export default function AttendancePage() {
   if (isLoadingAuth) {
     return (
       <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full items-center justify-center">
-        <Skeleton className="h-10 w-48 mb-4" />
-        <Skeleton className="rounded-full h-64 w-64 mb-6" />
-        <Skeleton className="h-8 w-32 mb-6" />
-        <Skeleton className="h-12 w-full max-w-sm mb-2" />
-        <Skeleton className="h-10 w-full max-w-sm" />
+        <LoadingSpinner size="lg" />
       </div>
     );
   }

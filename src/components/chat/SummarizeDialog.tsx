@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner"; // Import spinner
 
 interface SummarizeDialogProps {
   isOpen: boolean;
@@ -32,12 +33,11 @@ export function SummarizeDialog({ isOpen, onOpenChange, summary, isLoading, chan
         </DialogHeader>
         <ScrollArea className="h-64 max-h-[60vh] pr-2">
           {isLoading ? (
-            <div className="space-y-2">
+            <div className="space-y-2 flex flex-col items-center justify-center h-full">
+              <LoadingSpinner size="md" className="mb-2" />
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-4/5" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/5" />
             </div>
           ) : (
             <p className="text-sm whitespace-pre-wrap">{summary || "No summary available or an error occurred."}</p>

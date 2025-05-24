@@ -5,15 +5,16 @@ import { ChatterboxSidebar } from "@/components/layout/ChatterboxSidebar";
 import { ChatView } from "@/components/chat/ChatView";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { OpanoLogo } from "@/components/OpanoLogo";
-import { MessageSquareDashed } from 'lucide-react';
+import { MessageSquareDashed, PanelLeft } from 'lucide-react'; // Added PanelLeft
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner"; // Import the spinner
 
 import { RepliesView } from '@/components/views/RepliesView';
 import { ActivityView } from '@/components/views/ActivityView';
 import { DraftsView } from '@/components/views/DraftsView';
-import { CallingDialog } from "@/components/dialogs/CallingDialog"; // Import CallingDialog
+import { CallingDialog } from "@/components/dialogs/CallingDialog";
 
 export default function OpanoPage() {
-  const { activeConversation, currentView, isCallActive } = useAppContext(); // Get isCallActive
+  const { activeConversation, currentView, isCallActive, isLoadingAuth, currentUser } = useAppContext(); 
 
   const renderMainContent = () => {
     switch (currentView) {
@@ -37,11 +38,19 @@ export default function OpanoPage() {
       default:
         return (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-4">
-            <p className="text-lg">Loading...</p>
+            <p className="text-lg">Loading view...</p>
           </div>
         );
     }
   };
+
+  if (isLoadingAuth && !currentUser) {
+    return (
+      <div className="flex flex-grow min-w-0 h-full items-center justify-center bg-background">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-grow min-w-0 h-full">
@@ -61,7 +70,7 @@ export default function OpanoPage() {
           </div>
         </SidebarInset>
       </SidebarProvider>
-      {isCallActive && <CallingDialog />} {/* Conditionally render CallingDialog */}
+      {isCallActive && <CallingDialog />} 
     </div>
   );
 }

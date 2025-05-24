@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { SummarizeDialog } from './SummarizeDialog';
 import { AddMembersToChannelDialog } from '@/components/dialogs/AddMembersToChannelDialog';
 import { ViewChannelMembersDialog } from '@/components/dialogs/ViewChannelMembersDialog'; 
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'; // Import spinner
 
 export function ChatHeader() {
   const { 
@@ -18,13 +19,13 @@ export function ChatHeader() {
     startCall,
     isCallActive,
     callingWith,
-    currentUser // Added currentUser to check if logged in
+    currentUser 
   } = useAppContext();
   const [isSummarizeDialogOpen, setIsSummarizeDialogOpen] = useState(false);
   const [isAddMembersDialogOpen, setIsAddMembersDialogOpen] = useState(false);
   const [isViewMembersDialogOpen, setIsViewMembersDialogOpen] = useState(false);
 
-  if (!activeConversation || !currentUser) return null; // Don't render if no active convo or no user
+  if (!activeConversation || !currentUser) return null; 
 
   const handleSummarize = async () => {
     if (activeConversation.type === 'channel') {
@@ -72,7 +73,7 @@ export function ChatHeader() {
             variant="outline"
             size="sm"
             onClick={handleCall}
-            disabled={isDifferentCallActive || !currentUser} // Disable if no current user
+            disabled={isDifferentCallActive || !currentUser} 
             className="text-xs"
             aria-label="Start call"
           >
@@ -81,7 +82,11 @@ export function ChatHeader() {
           </Button>
           {activeConversation.type === 'channel' && (
             <Button variant="outline" size="sm" onClick={handleSummarize} disabled={isLoadingSummary || !currentUser} className="text-xs">
-              <Sparkles className={`mr-1.5 h-3.5 w-3.5 ${isLoadingSummary ? 'animate-spin' : ''}`} />
+              {isLoadingSummary ? (
+                <LoadingSpinner size="sm" className="mr-1.5 h-3.5 w-3.5" />
+              ) : (
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              )}
               {isLoadingSummary ? 'Summarizing...' : 'AI Summary'}
             </Button>
           )}
@@ -112,7 +117,7 @@ export function ChatHeader() {
            )}
         </div>
       </div>
-      {currentUser && ( // Only render dialogs if user is logged in
+      {currentUser && ( 
         <>
           <SummarizeDialog
             isOpen={isSummarizeDialogOpen}
