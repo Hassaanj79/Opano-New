@@ -12,12 +12,13 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Globe } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { fetchSignInMethodsForEmail } from 'firebase/auth';
+import { fetchSignInMethodsForEmail, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
 export default function JoinPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -49,12 +50,26 @@ export default function JoinPage() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    console.log('Continue with Google clicked');
-    toast({
-      title: "Feature Coming Soon",
-      description: "Google Sign-In will be implemented in a future update.",
-    });
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      // Firebase's onAuthStateChanged listener in AppContext will handle redirection
+      // and setting the current user. We can show a success toast here if desired,
+      // though it might be quick if redirection happens fast.
+      toast({ title: "Signed In with Google", description: "Welcome!"});
+      // router.push('/'); // AppContext should handle redirection
+    } catch (error: any) {
+      console.error("Google Sign-In Error:", error);
+      toast({
+        title: "Google Sign-In Failed",
+        description: error.message || "Could not sign in with Google. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   const handleAppleSignIn = () => {
@@ -88,9 +103,9 @@ export default function JoinPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="h-12 text-base"
-              disabled={isLoading}
+              disabled={isLoading || isGoogleLoading}
             />
-            <Button type="submit" className="w-full h-12 text-base bg-primary hover:bg-primary/90" disabled={isLoading}>
+            <Button type="submit" className="w-full h-12 text-base bg-primary hover:bg-primary/90" disabled={isLoading || isGoogleLoading}>
               {isLoading ? 'Processing...' : 'Continue'}
             </Button>
           </form>
@@ -102,11 +117,18 @@ export default function JoinPage() {
           </div>
 
           <div className="space-y-3">
-            <Button variant="outline" className="w-full h-12 text-base border-border hover:bg-muted/50" onClick={handleGoogleSignIn}>
-              <GoogleIcon className="mr-2 h-5 w-5" />
-              Continue With Google
+            <Button variant="outline" className="w-full h-12 text-base border-border hover:bg-muted/50" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+              {isGoogleLoading ? (
+                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <GoogleIcon className="mr-2 h-5 w-5" />
+              )}
+              {isGoogleLoading ? 'Signing In...' : 'Continue With Google'}
             </Button>
-            <Button variant="outline" className="w-full h-12 text-base border-border hover:bg-muted/50" onClick={handleAppleSignIn}>
+            <Button variant="outline" className="w-full h-12 text-base border-border hover:bg-muted/50" onClick={handleAppleSignIn} disabled={isLoading || isGoogleLoading}>
               <AppleIcon className="mr-2 h-5 w-5" />
               Continue With Apple
             </Button>
