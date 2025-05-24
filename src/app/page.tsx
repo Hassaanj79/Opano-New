@@ -7,7 +7,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { OpanoLogo } from "@/components/OpanoLogo";
 import { MessageSquareDashed, PanelLeft } from 'lucide-react';
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { UserProfilePanel } from '@/components/profile/UserProfilePanel'; // New Import
+import { UserProfilePanel } from '@/components/profile/UserProfilePanel';
 import { cn } from "@/lib/utils";
 
 import { RepliesView } from '@/components/views/RepliesView';
@@ -55,31 +55,33 @@ export default function OpanoPage() {
   }
 
   return (
-    <SidebarProvider> {/* Moved SidebarProvider to wrap the entire content */}
+    <SidebarProvider>
       <div className="flex flex-grow min-w-0 h-full bg-background">
-        <ChatterboxSidebar /> {/* This sidebar uses the context */}
+        <ChatterboxSidebar />
 
-        {isUserProfilePanelOpen && (
-          <div className="flex-shrink-0 w-80 h-full border-r border-border bg-card overflow-y-auto shadow-lg z-20">
-            <UserProfilePanel />
-          </div>
-        )}
-
-        {/* Main content area that might be "shortened" by the profile panel */}
+        {/* Main content area - Now in the middle */}
         <div className="flex-grow flex flex-col h-full overflow-hidden">
-          {/* Mobile Header - This might need adjustments if the profile panel can also appear on mobile */}
+          {/* Mobile Header */}
           {currentView === 'chat' && (
               <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-card p-2 md:hidden h-[60px]">
                 <div className="flex items-center gap-2">
-                    <SidebarTrigger className="h-8 w-8" /> {/* This trigger also uses the context */}
+                    <SidebarTrigger className="h-8 w-8" />
                     <OpanoLogo />
                 </div>
               </header>
           )}
-          <div className="flex-grow overflow-auto"> {/* Changed to overflow-auto to allow main content scrolling */}
+          <div className="flex-grow overflow-auto">
             {renderMainContent()}
           </div>
         </div>
+
+        {/* User Profile Panel - Moved to the right */}
+        {isUserProfilePanelOpen && (
+          <div className="flex-shrink-0 w-80 h-full bg-card overflow-y-auto shadow-lg z-20">
+            {/* The UserProfilePanel itself has border-l defined */}
+            <UserProfilePanel />
+          </div>
+        )}
 
         {isCallActive && <CallingDialog />}
       </div>
