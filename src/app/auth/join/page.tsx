@@ -14,6 +14,7 @@ import { Globe } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { fetchSignInMethodsForEmail, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'; // Import the new spinner
 
 export default function JoinPage() {
   const [email, setEmail] = useState('');
@@ -55,18 +56,31 @@ export default function JoinPage() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      // Firebase's onAuthStateChanged listener in AppContext will handle redirection
-      // and setting the current user. We can show a success toast here if desired,
-      // though it might be quick if redirection happens fast.
       toast({ title: "Signed In with Google", description: "Welcome!"});
-      // router.push('/'); // AppContext should handle redirection
+      // AppContext should handle redirection
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
-      toast({
-        title: "Google Sign-In Failed",
-        description: error.message || "Could not sign in with Google. Please try again.",
-        variant: "destructive",
-      });
+      // Check for specific error codes if needed, e.g., auth/popup-closed-by-user
+      if (error.code === 'auth/popup-closed-by-user') {
+        toast({
+          title: "Google Sign-In Cancelled",
+          description: "The sign-in process was cancelled.",
+          variant: "default",
+        });
+      } else if (error.code === 'auth/unauthorized-domain') {
+         toast({
+          title: "Domain Not Authorized",
+          description: "This domain is not authorized for Firebase Authentication. Please contact support.",
+          variant: "destructive",
+        });
+      }
+      else {
+        toast({
+          title: "Google Sign-In Failed",
+          description: error.message || "Could not sign in with Google. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsGoogleLoading(false);
     }
@@ -106,7 +120,7 @@ export default function JoinPage() {
               disabled={isLoading || isGoogleLoading}
             />
             <Button type="submit" className="w-full h-12 text-base bg-primary hover:bg-primary/90" disabled={isLoading || isGoogleLoading}>
-              {isLoading ? 'Processing...' : 'Continue'}
+              {isLoading ? <LoadingSpinner size="sm" className="text-primary-foreground" /> : 'Continue'}
             </Button>
           </form>
 
@@ -117,14 +131,11 @@ export default function JoinPage() {
           </div>
 
           <div className="space-y-3">
-            <Button variant="outline" className="w-full h-12 text-base border-border hover:bg-muted/50" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+            <Button variant="outline" className="w-full h-12 text-base border-border hover:bg-muted/50 flex items-center justify-center gap-2" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
               {isGoogleLoading ? (
-                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                 <LoadingSpinner size="sm" />
               ) : (
-                <GoogleIcon className="mr-2 h-5 w-5" />
+                <GoogleIcon className="h-5 w-5" />
               )}
               {isGoogleLoading ? 'Signing In...' : 'Continue With Google'}
             </Button>

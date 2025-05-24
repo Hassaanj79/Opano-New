@@ -13,6 +13,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { useAppContext } from '@/contexts/AppContext';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'; // Import the new spinner
 
 function SignInFormContent() {
   const router = useRouter();
@@ -59,7 +60,7 @@ function SignInFormContent() {
   if (isLoadingAuth) {
       return (
         <div className="flex items-center justify-center h-full">
-            <p>Loading...</p>
+            <LoadingSpinner size="lg" />
         </div>
       )
   }
@@ -86,7 +87,7 @@ function SignInFormContent() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              readOnly={!!searchParams.get('email')} // Readonly if email came from query
+              readOnly={!!searchParams.get('email')} 
               className={searchParams.get('email') ? "bg-muted/50" : ""}
             />
           </div>
@@ -103,7 +104,7 @@ function SignInFormContent() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Signing In...' : 'Sign In'}
+            {isLoading ? <LoadingSpinner size="sm" className="text-primary-foreground"/> : 'Sign In'}
           </Button>
           <p className="text-xs text-center text-muted-foreground">
             Not you or new here? <Link href="/auth/join" className="underline hover:text-primary">Start over</Link>.
@@ -118,7 +119,7 @@ function SignInFormContent() {
 export default function SignInPage() {
     return (
       <div className="flex flex-col min-h-screen items-center justify-center p-6 bg-background">
-        <Suspense fallback={<div className="flex items-center justify-center h-full"><p>Loading...</p></div>}>
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner size="lg"/></div>}>
             <SignInFormContent />
         </Suspense>
       </div>

@@ -13,6 +13,7 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { useAppContext } from '@/contexts/AppContext';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'; // Import the new spinner
 
 
 function SignUpFormContent() {
@@ -79,7 +80,7 @@ function SignUpFormContent() {
   if (isLoadingAuth) {
       return (
         <div className="flex items-center justify-center h-full">
-            <p>Loading...</p>
+            <LoadingSpinner size="lg" />
         </div>
       )
   }
@@ -152,7 +153,7 @@ function SignUpFormContent() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Creating Account...' : 'Sign Up & Join'}
+            {isLoading ? <LoadingSpinner size="sm" className="text-primary-foreground" /> : 'Sign Up & Join'}
           </Button>
            <p className="text-xs text-center text-muted-foreground">
             Already have an account? <Link href={`/auth/signin?email=${encodeURIComponent(email)}`} className="underline hover:text-primary">Sign In</Link>.
@@ -166,7 +167,7 @@ function SignUpFormContent() {
 export default function SignUpPage() {
     return (
       <div className="flex flex-col min-h-screen items-center justify-center p-6 bg-background">
-         <Suspense fallback={<div className="flex items-center justify-center h-full"><p>Loading...</p></div>}>
+         <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner size="lg" /></div>}>
             <SignUpFormContent />
         </Suspense>
       </div>
