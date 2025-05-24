@@ -145,10 +145,9 @@ export default function JoinPage() {
             </Button>
           </div>
 
-          <div className="mt-8 p-4 bg-muted/50 rounded-md text-sm text-muted-foreground text-left">
+          <div className="mt-8 p-4 bg-muted/50 rounded-md text-sm text-muted-foreground text-center">
             <p>
-              Don&apos;t have a company email address or not invited yet?
-              Contact your workspace administrator at Opano Workspace for an invitation.
+              Already have an account? <Link href="/auth/signin" className="font-medium text-primary hover:underline">Sign in here</Link>.
             </p>
           </div>
         </div>
