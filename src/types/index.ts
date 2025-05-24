@@ -5,8 +5,9 @@ export type User = {
   avatarUrl?: string;
   isOnline: boolean;
   designation?: string;
-  email: string; // Made email non-optional for profile editing
+  email: string;
   phoneNumber?: string;
+  linkedinProfileUrl?: string; // Added LinkedIn URL
 };
 
 export type Channel = {
@@ -14,28 +15,28 @@ export type Channel = {
   name: string;
   memberIds: string[];
   description?: string;
-  isPrivate?: boolean; // Added for lock icon
+  isPrivate?: boolean;
 };
 
 export type MessageFile = {
   name: string;
   url: string;
-  type: 'image' | 'document' | 'audio' | 'other'; // Added 'audio'
-  duration?: number; // Optional: for audio/video duration
+  type: 'image' | 'document' | 'audio' | 'other';
+  duration?: number;
 };
 
 export type Message = {
   id: string;
   userId: string;
   content: string;
-  timestamp: number; // Unix timestamp
+  timestamp: number;
   file?: MessageFile;
-  reactions?: { [emoji: string]: string[] }; // emoji: array of userIds
-  isEdited?: boolean; // To indicate if a message was edited
-  isSystemMessage?: boolean; // Added for system messages
-  replyToMessageId?: string; // ID of the message this is a reply to
-  originalMessageSenderName?: string; // Name of the sender of the original message
-  originalMessageContent?: string; // Snippet of the original message content
+  reactions?: { [emoji: string]: string[] };
+  isEdited?: boolean;
+  isSystemMessage?: boolean;
+  replyToMessageId?: string;
+  originalMessageSenderName?: string;
+  originalMessageContent?: string;
 };
 
 export type ActiveConversation = {
@@ -54,20 +55,20 @@ export type PendingInvitation = {
 
 export type Draft = {
   id: string;
-  targetConversationId: string; // Can be a channel ID or a user ID for DMs
-  targetConversationName: string; // e.g., "#general" or "Hanzlah"
+  targetConversationId: string;
+  targetConversationName: string;
   targetConversationType: 'channel' | 'dm';
   content: string;
   timestamp: number;
 };
 
 export type ActivityItem = {
-  id: string; // Unique ID for the activity item, e.g., messageId + reactorId + emoji
+  id: string;
   message: Message;
   reactor: User;
   emoji: string;
-  timestamp: number; // Could be reaction timestamp if available, or message timestamp
-  conversationName: string; // e.g. "#general" or "DM with Hanzlah"
+  timestamp: number;
+  conversationName: string;
   conversationId: string;
   conversationType: 'channel' | 'dm';
 };
@@ -78,27 +79,25 @@ export type AttendanceLogEntry = {
   id: string;
   clockInTime: Date;
   clockOutTime: Date;
-  totalHoursWorked: number; // in seconds
+  totalHoursWorked: number;
   totalActivityPercent: number;
 };
 
-// Document Management Types
 export interface Document {
   id: string;
   name: string;
-  type: string; // e.g., 'pdf', 'docx', 'png' for file uploads, 'text/plain' for created docs, 'external/link' for URLs
-  docType: 'file' | 'text' | 'url'; // Distinguishes between uploaded files, in-app created text docs, and external links
-  lastModified: string; // ISO string or formatted date
-  fileUrl?: string; // For local preview of uploaded files (URL.createObjectURL) OR the external URL for 'url' type
-  fileObject?: File; // Store the actual file object if needed (not persisted for files)
-  textContent?: string; // Content for in-app created text documents
+  type: string;
+  docType: 'file' | 'text' | 'url';
+  lastModified: string;
+  fileUrl?: string;
+  fileObject?: File;
+  textContent?: string;
 }
 
 export interface DocumentCategory {
   id: string;
   name: string;
   description: string;
-  // Storing icon name as string, to be resolved to component in UI
   iconName: keyof typeof import("lucide-react") | 'Users' | 'Briefcase' | 'Megaphone' | 'Settings' | 'DollarSign' | 'FolderKanban';
   documents: Document[];
 }

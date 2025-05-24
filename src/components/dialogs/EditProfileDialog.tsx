@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,7 +13,6 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -27,7 +25,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { UserAvatar } from '@/components/UserAvatar'; // For preview
+import { UserAvatar } from '@/components/UserAvatar';
 import { useToast } from '@/hooks/use-toast';
 
 interface EditProfileDialogProps {
@@ -40,7 +38,8 @@ const profileFormSchema = z.object({
   designation: z.string().max(50, { message: "Designation must be 50 characters or less."}).optional().or(z.literal('')),
   email: z.string().email({ message: "Invalid email address." }),
   phoneNumber: z.string().max(20, { message: "Phone number must be 20 characters or less."}).optional().or(z.literal('')),
-  avatarDataUrl: z.string().optional(), // For storing the data URL of the new avatar
+  avatarDataUrl: z.string().optional(),
+  linkedinProfileUrl: z.string().url({ message: "Invalid LinkedIn URL (must include http:// or https://)" }).max(200, {message: "URL too long"}).optional().or(z.literal('')),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -58,6 +57,7 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
       email: '',
       phoneNumber: '',
       avatarDataUrl: '',
+      linkedinProfileUrl: '',
     },
   });
 
@@ -68,7 +68,8 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
         designation: currentUser.designation || '',
         email: currentUser.email,
         phoneNumber: currentUser.phoneNumber || '',
-        avatarDataUrl: currentUser.avatarUrl || '', // Initialize with current avatar
+        avatarDataUrl: currentUser.avatarUrl || '',
+        linkedinProfileUrl: currentUser.linkedinProfileUrl || '',
       });
       setAvatarPreview(currentUser.avatarUrl);
     }
@@ -81,7 +82,7 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
         setAvatarPreview(dataUrl);
-        form.setValue('avatarDataUrl', dataUrl); // Set the data URL in the form
+        form.setValue('avatarDataUrl', dataUrl);
       };
       reader.readAsDataURL(file);
     }
@@ -93,14 +94,14 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
       designation: data.designation,
       email: data.email,
       phoneNumber: data.phoneNumber,
-      avatarDataUrl: data.avatarDataUrl !== currentUser?.avatarUrl ? data.avatarDataUrl : undefined, // Only pass if changed
+      avatarDataUrl: data.avatarDataUrl !== currentUser?.avatarUrl ? data.avatarDataUrl : undefined,
+      linkedinProfileUrl: data.linkedinProfileUrl,
     };
     updateUserProfile(updateData);
-    onOpenChange(false); 
+    onOpenChange(false);
   };
 
   const handleDialogClose = () => {
-    // Reset preview and form when dialog is closed
     if (currentUser) {
         setAvatarPreview(currentUser.avatarUrl);
         form.reset({
@@ -109,6 +110,7 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
             email: currentUser.email,
             phoneNumber: currentUser.phoneNumber || '',
             avatarDataUrl: currentUser.avatarUrl || '',
+            linkedinProfileUrl: currentUser.linkedinProfileUrl || '',
         });
     }
     onOpenChange(false);
@@ -138,7 +140,7 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
                     className="text-sm file:mr-2 file:py-1.5 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                   />
                 </div>
-                <FormMessage>{/* For potential avatar-related errors if needed */}</FormMessage>
+                <FormMessage>{/* For potential avatar-related errors */}</FormMessage>
               </FormItem>
 
               <FormField
@@ -188,6 +190,19 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
                     <FormLabel>Phone Number (Optional)</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g. +1 123-456-7890" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="linkedinProfileUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>LinkedIn Profile URL (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. https://linkedin.com/in/yourprofile" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

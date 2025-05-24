@@ -3,9 +3,9 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView, DocumentCategory, Document } from '@/types';
-import { auth } from '@/lib/firebase'; // Import Firebase auth
-import type { User as FirebaseUser } from 'firebase/auth'; // Firebase user type
-import { onAuthStateChanged, signOut } from 'firebase/auth'; // Added signOut
+import { auth } from '@/lib/firebase';
+import type { User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 import {
     mockUsers as initialMockUsers,
@@ -19,18 +19,18 @@ import {
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter, usePathname } from 'next/navigation'; // Added usePathname
+import { useRouter, usePathname } from 'next/navigation';
 import { format } from 'date-fns';
 import { ToastAction } from '@/components/ui/toast';
 
 
-// Define the shape of the data for updating a user profile
 export type UserProfileUpdateData = {
   name: string;
   designation?: string;
   email: string;
   phoneNumber?: string;
   avatarDataUrl?: string;
+  linkedinProfileUrl?: string; // Added LinkedIn URL
 };
 
 interface AppContextType {
@@ -57,7 +57,7 @@ interface AppContextType {
   addMembersToChannel: (channelId: string, userIdsToAdd: string[]) => void;
   toggleCurrentUserStatus: () => void;
   updateUserProfile: (profileData: UserProfileUpdateData) => void;
-  signOutUser: () => Promise<void>; // Added signOutUser
+  signOutUser: () => Promise<void>;
 
   currentView: CurrentView;
   setActiveSpecialView: (view: 'replies' | 'activity' | 'drafts') => void;
@@ -86,7 +86,6 @@ interface AppContextType {
 
   isLoadingAuth: boolean;
 
-  // User Profile Panel State
   isUserProfilePanelOpen: boolean;
   viewingUserProfile: User | null;
   openUserProfilePanel: (user: User) => void;
@@ -108,7 +107,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const { toast } = useToast();
   const router = useRouter();
-  const pathname = usePathname(); 
+  const pathname = usePathname();
 
   const [currentView, setCurrentViewState] = useState<CurrentView>('chat');
   const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts);
@@ -123,20 +122,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const openUserProfilePanel = (userToView: User) => {
     setViewingUserProfile(userToView);
     setIsUserProfilePanelOpen(true);
-    // If a chat was active, keep it, panel appears next to it.
-    // If a special view was active, we might want to switch back to chat or clear it.
-    // For now, let's keep currentView as is, or switch to chat if a special view was active
     if (currentView !== 'chat') {
-        // setCurrentViewState('chat'); // Optionally switch to chat view or clear activeConversation
-        // setActiveConversationState(null); // Or keep it, user might want to message from profile
+      // setCurrentViewState('chat'); // Optionally switch to chat view
     }
   };
 
   const closeUserProfilePanel = () => {
     setIsUserProfilePanelOpen(false);
-    // Do not clear viewingUserProfile immediately to allow for closing animation if any
-    // Set to null after a delay or if re-opening with another user.
-    // For simplicity now, clear it.
     setViewingUserProfile(null);
   };
 
@@ -145,27 +137,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       console.log("[AppContext] onAuthStateChanged triggered. Firebase user:", firebaseUser?.uid || 'null');
       if (firebaseUser) {
+        // Attempt to find existing mock user data by email to preserve designations etc.
+        const existingMockUser = initialMockUsers.find(u => u.email === firebaseUser.email);
         const appUser: User = {
           id: firebaseUser.uid,
           name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous User',
           email: firebaseUser.email || 'no-email@example.com',
           avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${(firebaseUser.displayName || firebaseUser.email || 'AU').substring(0,2).toUpperCase()}`,
-          isOnline: true, // Default, can be fetched from Firestore later
-          designation: '', // This would come from your Firestore user profile
+          isOnline: true,
+          designation: existingMockUser?.designation || '',
+          phoneNumber: existingMockUser?.phoneNumber || '',
+          linkedinProfileUrl: existingMockUser?.linkedinProfileUrl || '',
         };
         setCurrentUser(appUser);
         setAllUsersWithCurrent(prevAllUsers => {
-            const otherMockUsers = initialMockUsers.filter(u => u.id !== appUser.id && u.email !== appUser.email);
+            const otherMockUsers = initialMockUsers.filter(u => u.email !== appUser.email); // Filter by email to avoid duplicates if uid differs
             return [appUser, ...otherMockUsers];
         });
-        setUsers(initialMockUsers.filter(u => u.id !== appUser.id && u.email !== appUser.email));
+        setUsers(initialMockUsers.filter(u => u.email !== appUser.email));
       } else {
         setCurrentUser(null);
         setActiveConversationState(null);
         setCurrentViewState('chat');
-        setAllUsersWithCurrent(initialMockUsers);
+        setAllUsersWithCurrent(initialMockUsers); // Reset to full mock list if no one is logged in
         setUsers(initialMockUsers);
-        closeUserProfilePanel(); // Close profile panel on logout
+        closeUserProfilePanel();
       }
       setIsLoadingAuth(false);
       console.log("[AppContext] isLoadingAuth set to false.");
@@ -174,7 +170,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.log("[AppContext] Unsubscribing from Firebase onAuthStateChanged.");
       unsubscribe();
     };
-  }, []); 
+  }, []);
 
   useEffect(() => {
     if (!isLoadingAuth) {
@@ -205,7 +201,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const setActiveConversation = useCallback((type: 'channel' | 'dm', id: string) => {
     setCurrentSummary(null);
-    closeUserProfilePanel(); // Close profile panel when changing main conversation
+    closeUserProfilePanel();
     if (type === 'channel') {
       const channel = channels.find(c => c.id === id);
       if (channel) {
@@ -235,7 +231,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setCurrentViewState(view);
     setActiveConversationState(null);
     setReplyingToMessage(null);
-    closeUserProfilePanel(); // Close profile panel when switching to special views
+    closeUserProfilePanel();
   }, []);
 
 
@@ -281,7 +277,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         name: file.name,
         url: fileUrl,
         type: fileType,
-        fileObject: file,
       };
     }
 
@@ -557,14 +552,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       },0);
       return false;
     }
-    // With Firebase Auth, user creation happens via Firebase flows.
-    // This function now mostly serves to remove the pending invitation.
     setTimeout(() => {
       toast({ title: "Invitation Verified!", description: `Account for ${invitation.email} can now be created via Firebase Auth.` });
     }, 0);
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
-    // The user would then proceed to a Firebase sign-up flow.
-    // Redirection to '/' happens when Firebase Auth state changes.
     return true;
   }, [verifyInviteToken, toast]);
 
@@ -651,13 +642,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ...prevUser,
             name: profileData.name || prevUser.name,
             designation: profileData.designation || prevUser.designation,
-            email: profileData.email, // Assuming email can be updated; Firebase email update is a separate process
+            email: profileData.email,
             phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
             avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
+            linkedinProfileUrl: profileData.linkedinProfileUrl || prevUser.linkedinProfileUrl,
         };
         
+        setAllUsersWithCurrent(prevAll => prevAll.map(u => u.id === updatedUser.id ? updatedUser : u));
+        // Also update the users list (which excludes current user) if any of those details were visible/used there
+        setUsers(prevUsers => prevUsers.map(u => u.id === updatedUser.id ? updatedUser : u));
+
+        // Update mock-data.ts (simulation)
+        const mockUserIndex = initialMockUsers.findIndex(u => u.id === updatedUser.id || u.email === updatedUser.email);
+        if (mockUserIndex !== -1) {
+            initialMockUsers[mockUserIndex] = {
+                ...initialMockUsers[mockUserIndex],
+                ...updatedUser
+            };
+        }
+        
         setTimeout(() => {
-            toast({ title: "Profile Updated", description: "Your profile has been successfully updated. (Local simulation)" });
+            toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
         },0);
       return updatedUser;
     });
@@ -770,7 +775,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   message: msg,
                   reactor,
                   emoji,
-                  timestamp: msg.timestamp, // Assuming reaction timestamp is close to message timestamp for mock
+                  timestamp: msg.timestamp,
                   conversationId: convId,
                   conversationType: convType,
                   conversationName: convName,
@@ -987,9 +992,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const trimmedQuery = query.trim().toLowerCase();
     const results: Array<{ doc: Document, category: DocumentCategory }> = [];
 
-    if (trimmedQuery === '') { 
+    if (trimmedQuery === '') {
         documentCategories.forEach(category => {
-            category.documents.slice(0, 5).forEach(doc => { // Return first 5 from each category if query is empty
+            category.documents.slice(0, 5).forEach(doc => {
                 results.push({ doc, category });
             });
         });
@@ -1002,7 +1007,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           });
         });
     }
-    return results.slice(0, 10); // Limit total results shown in popover
+    return results.slice(0, 10);
   }, [documentCategories]);
 
   const startCall = (conversation: ActiveConversation | null) => {
@@ -1127,4 +1132,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-    
