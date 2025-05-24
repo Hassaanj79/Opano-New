@@ -7,7 +7,8 @@ export type User = {
   designation?: string;
   email: string;
   phoneNumber?: string;
-  linkedinProfileUrl?: string; // Added LinkedIn URL
+  linkedinProfileUrl?: string;
+  pronouns?: string; // Added pronouns
 };
 
 export type Channel = {

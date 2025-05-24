@@ -30,7 +30,8 @@ export type UserProfileUpdateData = {
   email: string;
   phoneNumber?: string;
   avatarDataUrl?: string;
-  linkedinProfileUrl?: string; // Added LinkedIn URL
+  linkedinProfileUrl?: string;
+  pronouns?: string; // Added pronouns
 };
 
 interface AppContextType {
@@ -137,7 +138,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       console.log("[AppContext] onAuthStateChanged triggered. Firebase user:", firebaseUser?.uid || 'null');
       if (firebaseUser) {
-        // Attempt to find existing mock user data by email to preserve designations etc.
         const existingMockUser = initialMockUsers.find(u => u.email === firebaseUser.email);
         const appUser: User = {
           id: firebaseUser.uid,
@@ -148,10 +148,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           designation: existingMockUser?.designation || '',
           phoneNumber: existingMockUser?.phoneNumber || '',
           linkedinProfileUrl: existingMockUser?.linkedinProfileUrl || '',
+          pronouns: existingMockUser?.pronouns || '',
         };
         setCurrentUser(appUser);
         setAllUsersWithCurrent(prevAllUsers => {
-            const otherMockUsers = initialMockUsers.filter(u => u.email !== appUser.email); // Filter by email to avoid duplicates if uid differs
+            const otherMockUsers = initialMockUsers.filter(u => u.email !== appUser.email); 
             return [appUser, ...otherMockUsers];
         });
         setUsers(initialMockUsers.filter(u => u.email !== appUser.email));
@@ -159,7 +160,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setCurrentUser(null);
         setActiveConversationState(null);
         setCurrentViewState('chat');
-        setAllUsersWithCurrent(initialMockUsers); // Reset to full mock list if no one is logged in
+        setAllUsersWithCurrent(initialMockUsers); 
         setUsers(initialMockUsers);
         closeUserProfilePanel();
       }
@@ -174,7 +175,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!isLoadingAuth) {
-      console.log("[AppContext] Redirection check. isLoadingAuth: false, currentUser:", currentUser?.uid || 'null', "pathname:", pathname);
+      console.log("[AppContext] Redirection check. isLoadingAuth: false, currentUser:", currentUser?.id || 'null', "pathname:", pathname);
       const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
       if (!currentUser && !isAuthPage) {
         console.log("[AppContext] Redirecting to /auth/join");
@@ -642,17 +643,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ...prevUser,
             name: profileData.name || prevUser.name,
             designation: profileData.designation || prevUser.designation,
-            email: profileData.email,
+            email: profileData.email, // Assuming email doesn't change, or handle appropriately
             phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
-            avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
+            avatarDataUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
             linkedinProfileUrl: profileData.linkedinProfileUrl || prevUser.linkedinProfileUrl,
+            pronouns: profileData.pronouns || prevUser.pronouns,
         };
         
         setAllUsersWithCurrent(prevAll => prevAll.map(u => u.id === updatedUser.id ? updatedUser : u));
-        // Also update the users list (which excludes current user) if any of those details were visible/used there
         setUsers(prevUsers => prevUsers.map(u => u.id === updatedUser.id ? updatedUser : u));
 
-        // Update mock-data.ts (simulation)
         const mockUserIndex = initialMockUsers.findIndex(u => u.id === updatedUser.id || u.email === updatedUser.email);
         if (mockUserIndex !== -1) {
             initialMockUsers[mockUserIndex] = {

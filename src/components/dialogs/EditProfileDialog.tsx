@@ -40,6 +40,7 @@ const profileFormSchema = z.object({
   phoneNumber: z.string().max(20, { message: "Phone number must be 20 characters or less."}).optional().or(z.literal('')),
   avatarDataUrl: z.string().optional(),
   linkedinProfileUrl: z.string().url({ message: "Invalid LinkedIn URL (must include http:// or https://)" }).max(200, {message: "URL too long"}).optional().or(z.literal('')),
+  pronouns: z.string().max(30, { message: "Pronouns must be 30 characters or less."}).optional().or(z.literal('')),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -58,6 +59,7 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
       phoneNumber: '',
       avatarDataUrl: '',
       linkedinProfileUrl: '',
+      pronouns: '',
     },
   });
 
@@ -70,6 +72,7 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
         phoneNumber: currentUser.phoneNumber || '',
         avatarDataUrl: currentUser.avatarUrl || '',
         linkedinProfileUrl: currentUser.linkedinProfileUrl || '',
+        pronouns: currentUser.pronouns || '',
       });
       setAvatarPreview(currentUser.avatarUrl);
     }
@@ -96,6 +99,7 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
       phoneNumber: data.phoneNumber,
       avatarDataUrl: data.avatarDataUrl !== currentUser?.avatarUrl ? data.avatarDataUrl : undefined,
       linkedinProfileUrl: data.linkedinProfileUrl,
+      pronouns: data.pronouns,
     };
     updateUserProfile(updateData);
     onOpenChange(false);
@@ -111,6 +115,7 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
             phoneNumber: currentUser.phoneNumber || '',
             avatarDataUrl: currentUser.avatarUrl || '',
             linkedinProfileUrl: currentUser.linkedinProfileUrl || '',
+            pronouns: currentUser.pronouns || '',
         });
     }
     onOpenChange(false);
@@ -131,7 +136,7 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
               <FormItem>
                 <FormLabel>Profile Picture</FormLabel>
                 <div className="flex items-center gap-4">
-                  <UserAvatar user={{...currentUser, avatarUrl: avatarPreview}} className="h-16 w-16" />
+                  <UserAvatar user={{...currentUser, name: form.getValues('name') || 'User', email: form.getValues('email') || '', isOnline: currentUser?.isOnline || false, avatarUrl: avatarPreview}} className="h-16 w-16" />
                   <Input
                     id="avatarUpload"
                     type="file"
@@ -151,6 +156,19 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
                     <FormLabel>Full Name</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g. Alex Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="pronouns"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pronouns (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. He/Him, She/Her, They/Them" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

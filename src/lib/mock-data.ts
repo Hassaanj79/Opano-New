@@ -3,11 +3,11 @@ import type { User, Channel, Message, Draft, DocumentCategory, Document } from '
 import { format } from 'date-fns';
 
 export const mockUsers: User[] = [
-  { id: 'u1', name: 'Hassaan', avatarUrl: 'https://placehold.co/40x40.png?text=HA', isOnline: true, designation: 'Lead Designer', email: 'hassaan@example.com', phoneNumber: '123-456-7890', linkedinProfileUrl: 'https://linkedin.com/in/hassaanmock' },
-  { id: 'u2', name: 'Hanzlah', avatarUrl: 'https://placehold.co/40x40.png?text=HA', isOnline: false, designation: 'Engineer', email: 'hanzlah@example.com', linkedinProfileUrl: 'https://linkedin.com/in/hanzlahmock' },
-  { id: 'u3', name: 'Huzaifa', avatarUrl: 'https://placehold.co/40x40.png?text=HU', isOnline: true, designation: 'Product Manager', email: 'huzaifa@example.com' },
-  { id: 'u4', name: 'Fahad', avatarUrl: 'https://placehold.co/40x40.png?text=FA', isOnline: true, designation: 'UX Researcher', email: 'fahad@example.com' },
-  { id: 'u5', name: 'Areeb', avatarUrl: 'https://placehold.co/40x40.png?text=AR', isOnline: false, designation: 'Frontend Dev', email: 'areeb@example.com' },
+  { id: 'u1', name: 'Hassaan', avatarUrl: 'https://placehold.co/40x40.png?text=HA', isOnline: true, designation: 'Lead Designer', email: 'hassaan@example.com', phoneNumber: '123-456-7890', linkedinProfileUrl: 'https://linkedin.com/in/hassaanmock', pronouns: 'He/Him' },
+  { id: 'u2', name: 'Hanzlah', avatarUrl: 'https://placehold.co/40x40.png?text=HA', isOnline: false, designation: 'Engineer', email: 'hanzlah@example.com', linkedinProfileUrl: 'https://linkedin.com/in/hanzlahmock', pronouns: 'He/Him' },
+  { id: 'u3', name: 'Huzaifa', avatarUrl: 'https://placehold.co/40x40.png?text=HU', isOnline: true, designation: 'Product Manager', email: 'huzaifa@example.com', pronouns: 'He/Him' },
+  { id: 'u4', name: 'Fahad', avatarUrl: 'https://placehold.co/40x40.png?text=FA', isOnline: true, designation: 'UX Researcher', email: 'fahad@example.com', pronouns: 'They/Them' },
+  { id: 'u5', name: 'Areeb', avatarUrl: 'https://placehold.co/40x40.png?text=AR', isOnline: false, designation: 'Frontend Dev', email: 'areeb@example.com', pronouns: 'She/Her' },
 ];
 
 export const mockCurrentUser: User = { ...mockUsers[0], email: mockUsers[0].email || 'currentuser@example.com' };
