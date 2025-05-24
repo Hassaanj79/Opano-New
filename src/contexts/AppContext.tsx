@@ -5,7 +5,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView, DocumentCategory, Document } from '@/types';
 import { auth } from '@/lib/firebase'; // Import Firebase auth
 import type { User as FirebaseUser } from 'firebase/auth'; // Firebase user type
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth'; // Added signOut
 
 import {
     mockUsers as initialMockUsers,
@@ -57,6 +57,7 @@ interface AppContextType {
   addMembersToChannel: (channelId: string, userIdsToAdd: string[]) => void;
   toggleCurrentUserStatus: () => void; 
   updateUserProfile: (profileData: UserProfileUpdateData) => void; 
+  signOutUser: () => Promise<void>; // Added signOutUser
 
   currentView: CurrentView;
   setActiveSpecialView: (view: 'replies' | 'activity' | 'drafts') => void;
@@ -136,6 +137,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       } else {
         setCurrentUser(null);
+        setActiveConversationState(null); // Clear active conversation on logout
+        setCurrentViewState('chat'); // Reset view on logout
         setAllUsersWithCurrent(initialMockUsers); 
         setUsers(initialMockUsers); 
         // Redirect to join page if not authenticated and not already on an auth/join page
@@ -238,6 +241,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         name: file.name,
         url: fileUrl,
         type: fileType,
+        fileObject: file,
       };
     }
 
@@ -513,14 +517,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       },0);
       return false;
     }
-    // This function's responsibility has changed. Firebase Auth will handle user creation.
-    // We might still want to mark the invitation as "claimed" in a backend if we had one.
-    // For now, we just show a success toast and remove it from pending.
     setTimeout(() => {
       toast({ title: "Invitation Verified!", description: `Account for ${invitation.email} can now be created via Firebase Auth.` });
     }, 0);
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
-    // Redirection to sign-up or directly to app will be handled by Firebase Auth state changes
     return true;
   }, [verifyInviteToken, toast]);
 
@@ -605,7 +605,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ...prevUser,
             name: profileData.name || prevUser.name, 
             designation: profileData.designation || prevUser.designation,
-            email: profileData.email === prevUser.email ? profileData.email : prevUser.email, // Email shouldn't really change here, handled by Firebase
+            email: profileData.email === prevUser.email ? profileData.email : prevUser.email,
             phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
             avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
         };
@@ -615,6 +615,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return updatedUser;
     });
   }, [toast, currentUser]);
+
+  const signOutUser = useCallback(async () => {
+    try {
+      await signOut(auth);
+      // onAuthStateChanged will handle setting currentUser to null and redirection.
+      setTimeout(() => {
+        toast({ title: "Signed Out", description: "You have been successfully signed out." });
+      }, 0);
+    } catch (error) {
+      console.error("Error signing out: ", error);
+      setTimeout(() => {
+        toast({ title: "Sign Out Error", description: "Could not sign you out. Please try again.", variant: "destructive" });
+      }, 0);
+    }
+  }, [toast]);
+
 
   const deleteDraft = useCallback((draftId: string) => {
     setDrafts(prevDrafts => prevDrafts.filter(draft => draft.id !== draftId));
@@ -628,9 +644,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
 
   useEffect(() => {
-    // This effect handles initial redirection for unauthenticated users
-    // AND redirection for authenticated users away from auth pages.
-    // The onAuthStateChanged effect above handles setting currentUser and initial redirection for logged-in users.
     if (!isLoadingAuth) {
       const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
       if (!currentUser && !isAuthPage) {
@@ -642,8 +655,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [isLoadingAuth, currentUser, pathname, router]);
 
   useEffect(() => {
-    // This effect handles setting the initial active conversation once the user is authenticated
-    // and not on an auth page.
     if (!isLoadingAuth && currentUser && !pathname.startsWith('/auth/') && !pathname.startsWith('/join/')) {
       if (channels.length > 0 && !activeConversation && currentView === 'chat') {
         const selfDmUser = allUsersWithCurrent.find(u => u.id === currentUser.id);
@@ -937,18 +948,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const trimmedQuery = query.trim().toLowerCase();
     const results: Array<{ doc: Document, category: DocumentCategory }> = [];
 
-    if (trimmedQuery === '') {
-      documentCategories.forEach(category => {
-        category.documents.forEach(doc => {
-          results.push({ doc, category });
-        });
-      });
-      return results;
-    }
-
     documentCategories.forEach(category => {
       category.documents.forEach(doc => {
-        if (doc.name.toLowerCase().includes(trimmedQuery)) {
+        if (trimmedQuery === '' || doc.name.toLowerCase().includes(trimmedQuery)) {
           results.push({ doc, category });
         }
       });
@@ -1038,6 +1040,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       deleteMessage,
       toggleCurrentUserStatus,
       updateUserProfile,
+      signOutUser,
       currentView,
       setActiveSpecialView,
       drafts,

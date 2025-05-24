@@ -30,7 +30,8 @@ import {
     Send,
     MoreHorizontal,
     Plus,
-    LogIn, // For a conceptual login button if user is null
+    LogIn, 
+    LogOut, // Added LogOut icon
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
@@ -45,7 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { CurrentView } from '@/types';
 import { useRouter, usePathname } from 'next/navigation';
-import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import { Skeleton } from '@/components/ui/skeleton'; 
 
 const topNavItems: { label: string; icon: React.ElementType; view: CurrentView | 'more' }[] = [
     { label: 'Replies', icon: MessageSquareReply, view: 'replies' },
@@ -55,7 +56,7 @@ const topNavItems: { label: string; icon: React.ElementType; view: CurrentView |
 ];
 
 export function ChatterboxSidebar() {
-  const { currentUser, toggleCurrentUserStatus, setActiveSpecialView, currentView, isLoadingAuth } = useAppContext();
+  const { currentUser, toggleCurrentUserStatus, setActiveSpecialView, currentView, isLoadingAuth, signOutUser } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
   const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
@@ -77,12 +78,13 @@ export function ChatterboxSidebar() {
     }
   };
 
-  // Placeholder for login action if currentUser is null
   const handleLogin = () => {
-    // In a real app, this would redirect to a login page or open a login modal
-    // For now, it can just log a message.
-    console.log("Login action triggered. Implement Firebase sign-in UI.");
-    alert("Login functionality not yet implemented. Please sign in via Firebase console for testing.");
+    router.push('/auth/join');
+  };
+
+  const handleLogout = async () => {
+    await signOutUser();
+    // Redirection to /auth/join will be handled by AppContext's onAuthStateChanged
   };
 
   if (isLoadingAuth) {
@@ -120,7 +122,7 @@ export function ChatterboxSidebar() {
         </SidebarHeader>
 
         <SidebarContent className="p-0">
-          {currentUser && ( // Only show these sections if a user is logged in
+          {currentUser && ( 
             <>
               <SidebarGroup className="pt-2 pb-1 group-data-[collapsible=icon]:px-0">
                 <SidebarMenu>
@@ -215,6 +217,11 @@ export function ChatterboxSidebar() {
                         <UserCheck className="mr-2 h-4 w-4" />
                       )}
                       <span>{currentUser.isOnline ? 'Set to Away' : 'Set to Online'}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Logout</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
