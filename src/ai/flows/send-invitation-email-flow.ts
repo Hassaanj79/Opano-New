@@ -49,7 +49,8 @@ const sendInvitationEmailFlow = ai.defineFlow(
     }
     
     console.log(`[sendInvitationEmailFlow] Attempting to send invitation to ${to}. Join URL for testing: ${joinUrl}`);
-    console.log(`[sendInvitationEmailFlow] Using Gmail Email: ${gmailEmail ? 'Loaded' : 'NOT LOADED'}, App Password: ${gmailAppPassword ? 'Loaded' : 'NOT LOADED'}`);
+    // Updated logging to show the actual email being used and length of the app password
+    console.log(`[sendInvitationEmailFlow] Using Gmail Email: ${gmailEmail || 'NOT LOADED'}, App Password: ${gmailAppPassword ? `Loaded (length: ${gmailAppPassword.length})` : 'NOT LOADED'}`);
 
 
     const transporter = nodemailer.createTransport({
@@ -63,7 +64,7 @@ const sendInvitationEmailFlow = ai.defineFlow(
     });
 
     const mailOptions = {
-      from: `"Opano App" <${gmailEmail}>`, // Changed from Chatterbox
+      from: `"Opano App" <${gmailEmail}>`,
       to: to,
       subject: subject,
       html: htmlBody,
