@@ -4,18 +4,17 @@ import { useAppContext } from '@/contexts/AppContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { X, Mail, Phone, Edit3, MessageSquare, PhoneCall, FileText } from 'lucide-react';
+import { X, Mail, Phone, Edit3, MessageSquare, PhoneCall, CalendarDays, Laptop, Moon, Clock } from 'lucide-react'; // Added Laptop, Moon, Clock, CalendarDays
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge'; // Keep for potential future use if needed
 
 export function UserProfilePanel() {
   const { 
     viewingUserProfile, 
     closeUserProfilePanel, 
     currentUser, 
-    openUserProfilePanel, // For "Edit Profile" button on self
-    setActiveConversation, // For "Message" button
-    startCall // For "Call" button
+    setActiveConversation,
+    startCall
   } = useAppContext();
 
   if (!viewingUserProfile) {
@@ -23,20 +22,24 @@ export function UserProfilePanel() {
   }
 
   const isCurrentUserProfile = currentUser?.id === viewingUserProfile.id;
-  const [hours, minutes] = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }).split(':');
-  const localTime = `${hours}:${minutes}`;
+
+  // Mock data to match the image
+  const mockPronouns = "She/her/hers";
+  const mockStatus = "Away, notifications snoozed";
+  const mockLocalTime = "6:20 AM local time";
+  const mockStartDate = "Dec 6, 2022 (7 months ago)";
+  const mockLinkedInProfile = "https://linkedin.com/in/placeholder";
 
 
   const handleMessageUser = () => {
-    if (viewingUserProfile.id !== currentUser?.id) { // Don't message self from here
+    if (viewingUserProfile.id !== currentUser?.id) { 
       setActiveConversation('dm', viewingUserProfile.id);
-      closeUserProfilePanel(); // Close panel after navigating to DM
+      closeUserProfilePanel(); 
     }
   };
   
   const handleCallUser = () => {
      if (viewingUserProfile.id !== currentUser?.id) {
-      // Construct a minimal ActiveConversation object for the call
       const conversationForCall = {
         type: 'dm' as 'dm',
         id: viewingUserProfile.id,
@@ -44,57 +47,100 @@ export function UserProfilePanel() {
         recipient: viewingUserProfile
       };
       startCall(conversationForCall);
-      // Do not close panel, call dialog will overlay
     }
   };
 
   const handleEditProfile = () => {
-    if(isCurrentUserProfile && currentUser) {
-      // This would typically open an EditProfileDialog
-      // For now, we re-use openUserProfilePanel to signal an intent to edit or close this one and open another
-      // In a real app, you'd have a dedicated EditProfileDialog and state for it
-      console.log("Edit profile clicked for:", currentUser.name);
-      // If you have an EditProfileDialog, trigger it here.
-      // For now, let's assume we would close this and the sidebar would handle opening the edit dialog.
-      closeUserProfilePanel(); 
-      // The actual EditProfileDialog is triggered from ChatterboxSidebar
-    }
+    // This should trigger the EditProfileDialog, currently in ChatterboxSidebar
+    // For now, it can remain a console log or be wired to a context function
+    console.log("Edit profile clicked for:", currentUser?.name);
+    // Example: appContext.openEditProfileDialog(); // if such function existed
+    closeUserProfilePanel(); // Close this panel, user settings dropdown from sidebar will open the actual edit dialog
   }
 
   return (
-    <div className="h-full flex flex-col p-0">
+    <div className="h-full flex flex-col p-0 bg-card text-card-foreground">
       {/* Panel Header */}
       <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card z-10">
         <h2 className="text-lg font-semibold text-foreground">Profile</h2>
-        <Button variant="ghost" size="icon" onClick={closeUserProfilePanel} className="text-muted-foreground hover:text-foreground">
-          <X className="h-5 w-5" />
-          <span className="sr-only">Close profile</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Laptop className="h-5 w-5 text-muted-foreground" />
+          <Button variant="ghost" size="icon" onClick={closeUserProfilePanel} className="text-muted-foreground hover:text-foreground">
+            <X className="h-5 w-5" />
+            <span className="sr-only">Close profile</span>
+          </Button>
+        </div>
       </div>
 
       {/* Scrollable Content Area */}
       <div className="flex-grow overflow-y-auto p-4 space-y-6">
+        {/* User Image */}
+        <div className="flex justify-center">
+            <img 
+                src="https://placehold.co/600x400.png" 
+                alt={viewingUserProfile.name} 
+                className="rounded-lg object-cover w-full max-w-xs aspect-[3/2]" 
+                data-ai-hint="profile photo"
+            />
+        </div>
+        
         {/* User Info Section */}
-        <div className="flex flex-col items-center text-center space-y-2">
-          <UserAvatar user={viewingUserProfile} className="h-28 w-28 text-4xl mb-2 ring-2 ring-offset-2 ring-offset-card ring-primary" />
-          <div className="flex items-center gap-2">
-            <h3 className="text-2xl font-bold text-foreground">{viewingUserProfile.name}</h3>
-            <Badge variant={viewingUserProfile.isOnline ? "default" : "secondary"} className={`capitalize text-xs px-2 py-0.5 ${viewingUserProfile.isOnline ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-gray-300 text-gray-700'}`}>
-              {viewingUserProfile.isOnline ? "Online" : "Offline"}
-            </Badge>
-          </div>
-          <p className="text-sm text-muted-foreground">{viewingUserProfile.designation || 'No designation specified'}</p>
-          {isCurrentUserProfile && (
-            <Button variant="outline" size="sm" onClick={handleEditProfile} className="mt-2 text-xs">
-              <Edit3 className="mr-1.5 h-3.5 w-3.5" />
+        <div className="text-left space-y-1 mt-4">
+          <h3 className="text-2xl font-bold text-foreground">{viewingUserProfile.name}</h3>
+          <p className="text-md text-muted-foreground">{viewingUserProfile.designation || 'No designation'}</p>
+          <p className="text-sm text-muted-foreground/80">{mockPronouns}</p>
+        </div>
+
+        <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <Moon className="h-4 w-4" />
+                <span>{mockStatus}</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                <span>{mockLocalTime}</span>
+            </div>
+        </div>
+        
+        {isCurrentUserProfile ? (
+            <Button variant="outline" size="sm" onClick={handleEditProfile} className="w-full mt-2">
+              <Edit3 className="mr-2 h-4 w-4" />
               Edit Profile
             </Button>
-          )}
-        </div>
+          ) : (
+            <div className="space-y-2 mt-4">
+                <Button variant="outline" className="w-full justify-start" onClick={handleMessageUser}>
+                    <MessageSquare className="mr-2 h-4 w-4" /> Message
+                </Button>
+                <Button variant="outline" className="w-full justify-start" onClick={handleCallUser}>
+                    <PhoneCall className="mr-2 h-4 w-4" /> Call 
+                </Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => alert("Calendar feature coming soon!")}>
+                    <CalendarDays className="mr-2 h-4 w-4" /> Calendar
+                </Button>
+            </div>
+        )}
 
         <Separator />
 
-        {/* Contact Info */}
+        {/* About Me */}
+        <div>
+          <h4 className="text-md font-semibold text-foreground mb-2">About me</h4>
+          <div className="space-y-1 text-sm">
+            <p className="text-muted-foreground">Start Date</p>
+            <p className="text-foreground">{mockStartDate}</p>
+          </div>
+          <div className="space-y-1 text-sm mt-3">
+            <p className="text-muted-foreground">LinkedIn</p>
+            <a href={mockLinkedInProfile} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                My LinkedIn profile
+            </a>
+          </div>
+        </div>
+
+        {/* Original Contact Info (can be removed if image implies it's not needed) */}
+        {/* 
+        <Separator />
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-muted-foreground mb-1">Contact Information</h4>
           {viewingUserProfile.email && (
@@ -109,56 +155,17 @@ export function UserProfilePanel() {
               <span className="text-foreground">{viewingUserProfile.phoneNumber}</span>
             </div>
           )}
-           <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground font-medium w-20">Local Time:</span>
-              <span className="text-foreground">{localTime} (Mock)</span>
-            </div>
         </div>
-        
-        {!isCurrentUserProfile && (
-          <>
-            <Separator />
-            <div className="flex gap-2 w-full">
-              <Button variant="outline" className="flex-1" onClick={handleMessageUser}>
-                <MessageSquare className="mr-2 h-4 w-4" /> Message
-              </Button>
-              <Button variant="outline" className="flex-1" onClick={handleCallUser}>
-                <PhoneCall className="mr-2 h-4 w-4" /> Call
-              </Button>
-            </div>
-          </>
-        )}
+        */}
 
+        {/* Original Files Placeholder (can be removed or redesigned based on image) */}
+        {/*
         <Separator />
-
-        {/* About Me (Placeholder) */}
-        <div>
-          <h4 className="text-sm font-medium text-muted-foreground mb-1">About Me</h4>
-          <p className="text-sm text-foreground italic">
-            {viewingUserProfile.id === 'u1' ? "Focused on creating intuitive and beautiful user experiences." : 
-             viewingUserProfile.id === 'u2' ? "Building robust and scalable backend systems." :
-             "User has not added an 'About Me' section yet."}
-          </p>
-        </div>
-
-        <Separator />
-        
-        {/* Files (Placeholder) */}
         <div>
           <h4 className="text-sm font-medium text-muted-foreground mb-2">Files Shared (Placeholder)</h4>
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 hover:bg-muted/80 cursor-pointer">
-              <FileText className="h-4 w-4 text-primary"/>
-              <span>Project_Alpha_Brief.pdf</span>
-            </div>
-             <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 hover:bg-muted/80 cursor-pointer">
-              <FileText className="h-4 w-4 text-primary"/>
-              <span>User_Research_Summary.docx</span>
-            </div>
-             <p className="text-xs text-center py-2">No files shared yet by this user.</p>
-          </div>
+          <p className="text-xs text-center py-2 text-muted-foreground">No files shared yet by this user.</p>
         </div>
-
+        */}
       </div>
     </div>
   );
