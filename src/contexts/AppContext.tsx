@@ -35,7 +35,7 @@ export type UserProfileUpdateData = {
 
 interface AppContextType {
   currentUser: User | null;
-  users: User[]; 
+  users: User[];
   allUsersWithCurrent: User[];
   channels: Channel[];
   activeConversation: ActiveConversation;
@@ -55,8 +55,8 @@ interface AppContextType {
   editMessage: (messageId: string, newContent: string) => void;
   deleteMessage: (messageId: string) => void;
   addMembersToChannel: (channelId: string, userIdsToAdd: string[]) => void;
-  toggleCurrentUserStatus: () => void; 
-  updateUserProfile: (profileData: UserProfileUpdateData) => void; 
+  toggleCurrentUserStatus: () => void;
+  updateUserProfile: (profileData: UserProfileUpdateData) => void;
   signOutUser: () => Promise<void>; // Added signOutUser
 
   currentView: CurrentView;
@@ -91,8 +91,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true); 
-  const [users, setUsers] = useState<User[]>(initialMockUsers.filter(u => u.id !== currentUser?.id)); 
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [users, setUsers] = useState<User[]>(initialMockUsers.filter(u => u.id !== currentUser?.id));
   const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>(initialMockUsers);
   const [channels, setChannels] = useState<Channel[]>(initialMockChannels);
   const [activeConversation, setActiveConversationState] = useState<ActiveConversation>(null);
@@ -111,16 +111,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [isCallActive, setIsCallActive] = useState(false);
   const [callingWith, setCallingWith] = useState<ActiveConversation | null>(null);
 
+  // Effect for Firebase Authentication state listener
   useEffect(() => {
+    console.log("[AppContext] Subscribing to Firebase onAuthStateChanged.");
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      console.log("[AppContext] onAuthStateChanged triggered. Firebase user:", firebaseUser?.uid || 'null');
       if (firebaseUser) {
-        // TODO: Fetch user's designation from Firestore user profile document
         const appUser: User = {
           id: firebaseUser.uid,
           name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous User',
           email: firebaseUser.email || 'no-email@example.com',
           avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${(firebaseUser.displayName || firebaseUser.email || 'AU').substring(0,2).toUpperCase()}`,
-          isOnline: true, 
+          isOnline: true,
           designation: '', // This would come from your Firestore user profile
         };
         setCurrentUser(appUser);
@@ -129,28 +131,36 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             return [appUser, ...otherMockUsers];
         });
         setUsers(initialMockUsers.filter(u => u.id !== appUser.id && u.email !== appUser.email));
-        
-        // If user is on an auth page, redirect them to home
-        if (pathname.startsWith('/auth/') || pathname.startsWith('/join/')) {
-            router.replace('/');
-        }
-
       } else {
         setCurrentUser(null);
-        setActiveConversationState(null); // Clear active conversation on logout
-        setCurrentViewState('chat'); // Reset view on logout
-        setAllUsersWithCurrent(initialMockUsers); 
-        setUsers(initialMockUsers); 
-        // Redirect to join page if not authenticated and not already on an auth/join page
-        const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
-        if (!isAuthPage) {
-             router.replace('/auth/join');
-        }
+        setActiveConversationState(null);
+        setCurrentViewState('chat');
+        setAllUsersWithCurrent(initialMockUsers);
+        setUsers(initialMockUsers);
       }
-      setIsLoadingAuth(false); 
+      setIsLoadingAuth(false);
+      console.log("[AppContext] isLoadingAuth set to false.");
     });
-    return () => unsubscribe(); 
-  }, [pathname, router]);
+    return () => {
+      console.log("[AppContext] Unsubscribing from Firebase onAuthStateChanged.");
+      unsubscribe();
+    };
+  }, []); // Empty dependency array ensures this runs once on mount and cleans up on unmount
+
+  // Effect for redirection based on auth state and pathname
+  useEffect(() => {
+    if (!isLoadingAuth) {
+      console.log("[AppContext] Redirection check. isLoadingAuth: false, currentUser:", currentUser?.uid || 'null', "pathname:", pathname);
+      const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
+      if (!currentUser && !isAuthPage) {
+        console.log("[AppContext] Redirecting to /auth/join");
+        router.replace('/auth/join');
+      } else if (currentUser && isAuthPage) {
+        console.log("[AppContext] Redirecting to /");
+        router.replace('/');
+      }
+    }
+  }, [isLoadingAuth, currentUser, pathname, router]);
 
 
   useEffect(() => {
@@ -182,7 +192,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
         setActiveConversationState({ type, id, name: channel.name, channel });
       }
-    } else { 
+    } else {
       const user = allUsersWithCurrent.find(u => u.id === id);
       if (user) {
         setActiveConversationState({ type, id, name: user.name, recipient: user });
@@ -284,7 +294,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       id: `c${Date.now()}`,
       name: trimmedName,
       description: description || '',
-      memberIds: Array.from(new Set([currentUser.id, ...memberIds])), 
+      memberIds: Array.from(new Set([currentUser.id, ...memberIds])),
       isPrivate,
     };
     setChannels(prevChannels => {
@@ -603,9 +613,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (!prevUser) return null;
         const updatedUser = {
             ...prevUser,
-            name: profileData.name || prevUser.name, 
+            name: profileData.name || prevUser.name,
             designation: profileData.designation || prevUser.designation,
-            email: profileData.email === prevUser.email ? profileData.email : prevUser.email,
+            email: profileData.email === prevUser.email ? profileData.email : prevUser.email, // Email should not change here, this is a mistake
             phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
             avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
         };
@@ -618,13 +628,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const signOutUser = useCallback(async () => {
     try {
+      console.log("[AppContext] Attempting to sign out user.");
       await signOut(auth);
       // onAuthStateChanged will handle setting currentUser to null and redirection.
       setTimeout(() => {
         toast({ title: "Signed Out", description: "You have been successfully signed out." });
       }, 0);
+      console.log("[AppContext] User signed out successfully.");
     } catch (error) {
-      console.error("Error signing out: ", error);
+      console.error("[AppContext] Error signing out: ", error);
       setTimeout(() => {
         toast({ title: "Sign Out Error", description: "Could not sign you out. Please try again.", variant: "destructive" });
       }, 0);
@@ -643,24 +655,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 0);
   }, [toast]);
 
-  useEffect(() => {
-    if (!isLoadingAuth) {
-      const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
-      if (!currentUser && !isAuthPage) {
-        router.replace('/auth/join');
-      } else if (currentUser && isAuthPage) {
-        router.replace('/');
-      }
-    }
-  }, [isLoadingAuth, currentUser, pathname, router]);
-
+  // Effect to set initial active conversation
   useEffect(() => {
     if (!isLoadingAuth && currentUser && !pathname.startsWith('/auth/') && !pathname.startsWith('/join/')) {
       if (channels.length > 0 && !activeConversation && currentView === 'chat') {
         const selfDmUser = allUsersWithCurrent.find(u => u.id === currentUser.id);
         if (selfDmUser) {
+          console.log("[AppContext] Setting initial active conversation to self DM.");
           setActiveConversation('dm', currentUser.id);
         } else if (channels[0]) {
+          console.log("[AppContext] Setting initial active conversation to first channel:", channels[0].name);
           setActiveConversation('channel', channels[0].id);
         }
       }
@@ -731,7 +735,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   message: msg,
                   reactor,
                   emoji,
-                  timestamp: msg.timestamp, 
+                  timestamp: msg.timestamp,
                   conversationId: convId,
                   conversationType: convType,
                   conversationName: convName,
@@ -763,7 +767,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       documents: [],
     };
     setDocumentCategories(prev => [...prev, newCategory]);
-    initialDocumentCategories.push(newCategory); 
+    initialDocumentCategories.push(newCategory);
     setTimeout(() => {
       toast({ title: "Category Added", description: `Category "${name}" has been created.` });
     }, 0);
@@ -803,7 +807,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
     }, 0);
 
-    const generalChannelId = 'c1'; 
+    const generalChannelId = 'c1';
     const systemMessageContent = `${currentUser.name} added a new document: "${newDocument.name}" to the "${categoryName}" category.`;
     const systemMessage: Message = {
         id: `sys-doc-add-${Date.now()}`,
@@ -948,13 +952,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const trimmedQuery = query.trim().toLowerCase();
     const results: Array<{ doc: Document, category: DocumentCategory }> = [];
 
-    documentCategories.forEach(category => {
-      category.documents.forEach(doc => {
-        if (trimmedQuery === '' || doc.name.toLowerCase().includes(trimmedQuery)) {
-          results.push({ doc, category });
-        }
-      });
-    });
+    if (trimmedQuery === '') { // Return all documents if query is empty
+        documentCategories.forEach(category => {
+            category.documents.forEach(doc => {
+                results.push({ doc, category });
+            });
+        });
+    } else {
+        documentCategories.forEach(category => {
+          category.documents.forEach(doc => {
+            if (doc.name.toLowerCase().includes(trimmedQuery)) {
+              results.push({ doc, category });
+            }
+          });
+        });
+    }
     return results;
   }, [documentCategories]);
 
@@ -1000,13 +1012,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         timestamp: Date.now(),
         isSystemMessage: true,
       };
-      
+
       if (allMockMessages[callingWith.id]) {
         allMockMessages[callingWith.id].push(systemMessage);
       } else {
         allMockMessages[callingWith.id] = [systemMessage];
       }
-      
+
       if (activeConversation?.id === callingWith.id) {
         setMessages(prevMessages => [...prevMessages, systemMessage]);
       }
@@ -1076,3 +1088,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
