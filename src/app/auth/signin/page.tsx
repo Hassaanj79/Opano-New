@@ -13,7 +13,8 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { useAppContext } from '@/contexts/AppContext';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'; // Import the new spinner
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Eye, EyeOff } from 'lucide-react'; // Import Eye and EyeOff icons
 
 function SignInFormContent() {
   const router = useRouter();
@@ -24,6 +25,7 @@ function SignInFormContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // State for password visibility
 
   useEffect(() => {
     const emailFromQuery = searchParams.get('email');
@@ -55,6 +57,10 @@ function SignInFormContent() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   if (isLoadingAuth) {
@@ -93,13 +99,26 @@ function SignInFormContent() {
           </div>
           <div className="space-y-1">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="pr-10" // Add padding to the right for the icon
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={togglePasswordVisibility}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
