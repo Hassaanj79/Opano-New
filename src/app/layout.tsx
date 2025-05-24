@@ -41,7 +41,7 @@ export default function RootLayout({
         <AppProvider>
           <div className="flex h-screen bg-background">
             {showThinIconBar && <ThinIconBar />}
-            <main className="flex-grow flex flex-col overflow-hidden">
+            <main className="flex-grow flex flex-col overflow-y-auto"> {/* Changed overflow-hidden to overflow-y-auto */}
               {children}
             </main>
           </div>

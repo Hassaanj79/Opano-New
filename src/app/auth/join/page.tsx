@@ -14,7 +14,7 @@ import { Globe } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { fetchSignInMethodsForEmail, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'; // Import the new spinner
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export default function JoinPage() {
   const [email, setEmail] = useState('');
@@ -95,7 +95,7 @@ export default function JoinPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col bg-background"> {/* Removed min-h-screen */}
       <header className="py-8 px-6 md:px-10">
         <OpanoLogo />
       </header>
