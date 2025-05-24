@@ -5,8 +5,10 @@ import { ChatterboxSidebar } from "@/components/layout/ChatterboxSidebar";
 import { ChatView } from "@/components/chat/ChatView";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { OpanoLogo } from "@/components/OpanoLogo";
-import { MessageSquareDashed, PanelLeft } from 'lucide-react'; // Added PanelLeft
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner"; // Import the spinner
+import { MessageSquareDashed, PanelLeft } from 'lucide-react'; 
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner"; 
+import { UserProfilePanel } from '@/components/profile/UserProfilePanel'; // New Import
+import { cn } from "@/lib/utils";
 
 import { RepliesView } from '@/components/views/RepliesView';
 import { ActivityView } from '@/components/views/ActivityView';
@@ -14,7 +16,7 @@ import { DraftsView } from '@/components/views/DraftsView';
 import { CallingDialog } from "@/components/dialogs/CallingDialog";
 
 export default function OpanoPage() {
-  const { activeConversation, currentView, isCallActive, isLoadingAuth, currentUser } = useAppContext(); 
+  const { activeConversation, currentView, isCallActive, isLoadingAuth, currentUser, isUserProfilePanelOpen } = useAppContext(); 
 
   const renderMainContent = () => {
     switch (currentView) {
@@ -53,24 +55,35 @@ export default function OpanoPage() {
   }
 
   return (
-    <div className="flex flex-grow min-w-0 h-full">
-      <SidebarProvider> 
+    <div className="flex flex-grow min-w-0 h-full bg-background">
+      <SidebarProvider> {/* This provider is for ChatterboxSidebar */}
         <ChatterboxSidebar />
-        <SidebarInset className="flex flex-col h-full">
-          {currentView === 'chat' && (
-             <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-card p-2 md:hidden h-[60px]">
-               <div className="flex items-center gap-2">
-                   <SidebarTrigger className="h-8 w-8" />
-                   <OpanoLogo />
-               </div>
-             </header>
-          )}
-          <div className="flex-grow overflow-hidden">
-            {renderMainContent()}
-          </div>
-        </SidebarInset>
       </SidebarProvider>
+
+      {isUserProfilePanelOpen && (
+        <div className="flex-shrink-0 w-80 h-full border-r border-border bg-card overflow-y-auto shadow-lg z-20">
+          <UserProfilePanel />
+        </div>
+      )}
+
+      {/* Main content area that might be "shortened" by the profile panel */}
+      <div className="flex-grow flex flex-col h-full overflow-hidden">
+        {/* Mobile Header - This might need adjustments if the profile panel can also appear on mobile */}
+        {currentView === 'chat' && (
+            <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-card p-2 md:hidden h-[60px]">
+              <div className="flex items-center gap-2">
+                  <SidebarTrigger className="h-8 w-8" /> {/* This trigger is for ChatterboxSidebar */}
+                  <OpanoLogo />
+              </div>
+            </header>
+        )}
+        <div className="flex-grow overflow-auto"> {/* Changed to overflow-auto to allow main content scrolling */}
+          {renderMainContent()}
+        </div>
+      </div>
+
       {isCallActive && <CallingDialog />} 
     </div>
   );
 }
+    

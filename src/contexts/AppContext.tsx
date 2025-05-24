@@ -85,6 +85,12 @@ interface AppContextType {
   endCall: () => void;
 
   isLoadingAuth: boolean;
+
+  // User Profile Panel State
+  isUserProfilePanelOpen: boolean;
+  viewingUserProfile: User | null;
+  openUserProfilePanel: (user: User) => void;
+  closeUserProfilePanel: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -102,7 +108,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const { toast } = useToast();
   const router = useRouter();
-  const pathname = usePathname(); // Get current pathname
+  const pathname = usePathname(); 
 
   const [currentView, setCurrentViewState] = useState<CurrentView>('chat');
   const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts);
@@ -111,7 +117,29 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [isCallActive, setIsCallActive] = useState(false);
   const [callingWith, setCallingWith] = useState<ActiveConversation | null>(null);
 
-  // Effect for Firebase Authentication state listener
+  const [isUserProfilePanelOpen, setIsUserProfilePanelOpen] = useState(false);
+  const [viewingUserProfile, setViewingUserProfile] = useState<User | null>(null);
+
+  const openUserProfilePanel = (userToView: User) => {
+    setViewingUserProfile(userToView);
+    setIsUserProfilePanelOpen(true);
+    // If a chat was active, keep it, panel appears next to it.
+    // If a special view was active, we might want to switch back to chat or clear it.
+    // For now, let's keep currentView as is, or switch to chat if a special view was active
+    if (currentView !== 'chat') {
+        // setCurrentViewState('chat'); // Optionally switch to chat view or clear activeConversation
+        // setActiveConversationState(null); // Or keep it, user might want to message from profile
+    }
+  };
+
+  const closeUserProfilePanel = () => {
+    setIsUserProfilePanelOpen(false);
+    // Do not clear viewingUserProfile immediately to allow for closing animation if any
+    // Set to null after a delay or if re-opening with another user.
+    // For simplicity now, clear it.
+    setViewingUserProfile(null);
+  };
+
   useEffect(() => {
     console.log("[AppContext] Subscribing to Firebase onAuthStateChanged.");
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
@@ -122,7 +150,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous User',
           email: firebaseUser.email || 'no-email@example.com',
           avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${(firebaseUser.displayName || firebaseUser.email || 'AU').substring(0,2).toUpperCase()}`,
-          isOnline: true,
+          isOnline: true, // Default, can be fetched from Firestore later
           designation: '', // This would come from your Firestore user profile
         };
         setCurrentUser(appUser);
@@ -137,6 +165,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setCurrentViewState('chat');
         setAllUsersWithCurrent(initialMockUsers);
         setUsers(initialMockUsers);
+        closeUserProfilePanel(); // Close profile panel on logout
       }
       setIsLoadingAuth(false);
       console.log("[AppContext] isLoadingAuth set to false.");
@@ -145,9 +174,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.log("[AppContext] Unsubscribing from Firebase onAuthStateChanged.");
       unsubscribe();
     };
-  }, []); // Empty dependency array ensures this runs once on mount and cleans up on unmount
+  }, []); 
 
-  // Effect for redirection based on auth state and pathname
   useEffect(() => {
     if (!isLoadingAuth) {
       console.log("[AppContext] Redirection check. isLoadingAuth: false, currentUser:", currentUser?.uid || 'null', "pathname:", pathname);
@@ -177,6 +205,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const setActiveConversation = useCallback((type: 'channel' | 'dm', id: string) => {
     setCurrentSummary(null);
+    closeUserProfilePanel(); // Close profile panel when changing main conversation
     if (type === 'channel') {
       const channel = channels.find(c => c.id === id);
       if (channel) {
@@ -206,6 +235,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setCurrentViewState(view);
     setActiveConversationState(null);
     setReplyingToMessage(null);
+    closeUserProfilePanel(); // Close profile panel when switching to special views
   }, []);
 
 
@@ -457,10 +487,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setPendingInvitations(prev => [...prev, newInvitation]);
 
     const joinUrl = `${window.location.origin}/join/${token}`;
-    const emailSubject = "You're invited to join Opano!";
+    const emailSubject = `You're invited to join ${process.env.NEXT_PUBLIC_APP_NAME || "Opano"}!`;
     const emailHtmlBody = `
-      <h1>Welcome to Opano!</h1>
-      <p>You've been invited to join the Opano workspace.</p>
+      <h1>Welcome to ${process.env.NEXT_PUBLIC_APP_NAME || "Opano"}!</h1>
+      <p>You've been invited to join the ${process.env.NEXT_PUBLIC_APP_NAME || "Opano"} workspace.</p>
       <p>Please click the link below to complete your registration:</p>
       <p><a href="${joinUrl}" target="_blank">${joinUrl}</a></p>
       <p>If you did not expect this invitation, you can safely ignore this email.</p>
@@ -527,10 +557,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       },0);
       return false;
     }
+    // With Firebase Auth, user creation happens via Firebase flows.
+    // This function now mostly serves to remove the pending invitation.
     setTimeout(() => {
       toast({ title: "Invitation Verified!", description: `Account for ${invitation.email} can now be created via Firebase Auth.` });
     }, 0);
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
+    // The user would then proceed to a Firebase sign-up flow.
+    // Redirection to '/' happens when Firebase Auth state changes.
     return true;
   }, [verifyInviteToken, toast]);
 
@@ -597,12 +631,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (!prevUser) return null;
         const newStatus = !prevUser.isOnline;
         const updatedCurrentUser = { ...prevUser, isOnline: newStatus };
+        
         setTimeout(() => {
-        toast({
-          title: "Status Updated",
-          description: `You are now ${newStatus ? 'Online' : 'Away'}. (Local simulation)`,
-        });
-      }, 0);
+            toast({
+              title: "Status Updated",
+              description: `You are now ${newStatus ? 'Online' : 'Away'}. (Local simulation)`,
+            });
+        },0);
+
       return updatedCurrentUser;
     });
   }, [toast, currentUser]);
@@ -615,13 +651,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ...prevUser,
             name: profileData.name || prevUser.name,
             designation: profileData.designation || prevUser.designation,
-            email: profileData.email === prevUser.email ? profileData.email : prevUser.email, // Email should not change here, this is a mistake
+            email: profileData.email, // Assuming email can be updated; Firebase email update is a separate process
             phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
             avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
         };
+        
         setTimeout(() => {
-        toast({ title: "Profile Updated", description: "Your profile has been successfully updated. (Local simulation)" });
-      }, 0);
+            toast({ title: "Profile Updated", description: "Your profile has been successfully updated. (Local simulation)" });
+        },0);
       return updatedUser;
     });
   }, [toast, currentUser]);
@@ -630,7 +667,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("[AppContext] Attempting to sign out user.");
       await signOut(auth);
-      // onAuthStateChanged will handle setting currentUser to null and redirection.
       setTimeout(() => {
         toast({ title: "Signed Out", description: "You have been successfully signed out." });
       }, 0);
@@ -655,7 +691,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 0);
   }, [toast]);
 
-  // Effect to set initial active conversation
   useEffect(() => {
     if (!isLoadingAuth && currentUser && !pathname.startsWith('/auth/') && !pathname.startsWith('/join/')) {
       if (channels.length > 0 && !activeConversation && currentView === 'chat') {
@@ -735,7 +770,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   message: msg,
                   reactor,
                   emoji,
-                  timestamp: msg.timestamp,
+                  timestamp: msg.timestamp, // Assuming reaction timestamp is close to message timestamp for mock
                   conversationId: convId,
                   conversationType: convType,
                   conversationName: convName,
@@ -952,9 +987,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const trimmedQuery = query.trim().toLowerCase();
     const results: Array<{ doc: Document, category: DocumentCategory }> = [];
 
-    if (trimmedQuery === '') { // Return all documents if query is empty
+    if (trimmedQuery === '') { 
         documentCategories.forEach(category => {
-            category.documents.forEach(doc => {
+            category.documents.slice(0, 5).forEach(doc => { // Return first 5 from each category if query is empty
                 results.push({ doc, category });
             });
         });
@@ -967,7 +1002,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           });
         });
     }
-    return results;
+    return results.slice(0, 10); // Limit total results shown in popover
   }, [documentCategories]);
 
   const startCall = (conversation: ActiveConversation | null) => {
@@ -1075,6 +1110,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       startCall,
       endCall,
       isLoadingAuth,
+      isUserProfilePanelOpen,
+      viewingUserProfile,
+      openUserProfilePanel,
+      closeUserProfilePanel,
     }}>
       {children}
     </AppContext.Provider>
@@ -1088,5 +1127,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
     
