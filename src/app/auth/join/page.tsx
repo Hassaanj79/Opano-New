@@ -112,7 +112,7 @@ export default function JoinPage() {
 
           <div className="my-6 flex items-center">
             <Separator className="flex-grow" />
-            <span className="mx-4 text-xs text-muted-foreground">OR</span>
+            <span className="flex-shrink-0 mx-4 text-xs text-muted-foreground">OR</span>
             <Separator className="flex-grow" />
           </div>
 
