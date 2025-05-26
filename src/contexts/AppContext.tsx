@@ -8,13 +8,13 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 import {
-    initialMockUsers, 
-    initialMockChannels, 
+    initialMockUsers,
+    initialMockChannels,
     getMessagesForConversation as fetchMockMessages,
     updateMockMessage,
-    mockMessages, // Changed from allMockMessages
-    mockDrafts as initialMockDrafts, 
-    initialDocumentCategories 
+    mockMessages,
+    mockDrafts as initialMockDrafts,
+    initialDocumentCategories
 } from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
@@ -101,9 +101,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [users, setUsers] = useState<User[]>([]); 
-  const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>([]); 
-  const [channels, setChannels] = useState<Channel[]>([]); 
+  const [users, setUsers] = useState<User[]>(initialMockUsers);
+  const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>(initialMockUsers);
+  const [channels, setChannels] = useState<Channel[]>(initialMockChannels);
   const [activeConversation, setActiveConversationState] = useState<ActiveConversation>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentSummary, setCurrentSummary] = useState<string | null>(null);
@@ -114,9 +114,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   const [currentView, setCurrentViewState] = useState<CurrentView>('chat');
-  const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts); 
+  const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
-  const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories); 
+  const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories);
   const [isCallActive, setIsCallActive] = useState(false);
   const [callingWith, setCallingWith] = useState<ActiveConversation | null>(null);
 
@@ -124,196 +124,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [viewingUserProfile, setViewingUserProfile] = useState<User | null>(null);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
 
-  useEffect(() => {
-    setUsers(initialMockUsers.filter(u => u.id !== currentUser?.id));
-    setAllUsersWithCurrent(currentUser ? initialMockUsers.map(u => u.id === currentUser.id ? currentUser : u) : initialMockUsers);
-    setChannels(initialMockChannels);
-    setDocumentCategories(initialDocumentCategories);
-    setDrafts(initialMockDrafts);
-  }, [currentUser]);
-
-
-  const handleAddLeaveRequest = useCallback(async (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => {
-    if (!currentUser) {
-        setTimeout(() => toast({ title: "Error", description: "You must be logged in to request leave.", variant: "destructive" }), 0);
-        return;
-    }
-    const newLeaveRequest: LeaveRequest = {
-      ...newRequestData,
-      id: `leave-${Date.now()}`,
-      userId: currentUser.id,
-      requestDate: new Date(),
-      status: 'pending',
-    };
-    setLeaveRequests(prev => [...prev, newLeaveRequest].sort((a,b) => b.requestDate.getTime() - a.requestDate.getTime()));
-
-    setTimeout(() => {
-        toast({
-            title: "Leave Request Submitted",
-            description: `Your leave request for ${currentUser.name} has been submitted for approval.`,
-        });
-    }, 0);
-
-    const configuredAdminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-    let adminEmail = configuredAdminEmail || "hassyku786@gmail.com";
-
-    if (!configuredAdminEmail) {
-      console.log("[AppContext] NEXT_PUBLIC_ADMIN_EMAIL not set in .env.local, defaulting admin notifications for leave requests to hassyku786@gmail.com");
-    }
-
-    const durationDays = differenceInDays(newLeaveRequest.endDate, newLeaveRequest.startDate) + 1;
-    const subject = `New Leave Request from ${currentUser.name}`;
-    const htmlBody = `
-      <p>Hello Admin,</p>
-      <p>A new leave request has been submitted by <strong>${currentUser.name}</strong> (ID: ${currentUser.id}).</p>
-      <p><strong>Details:</strong></p>
-      <ul>
-        <li><strong>Start Date:</strong> ${format(newLeaveRequest.startDate, 'PPP')}</li>
-        <li><strong>End Date:</strong> ${format(newLeaveRequest.endDate, 'PPP')}</li>
-        <li><strong>Duration:</strong> ${durationDays} day(s)</li>
-        <li><strong>Reason:</strong> ${newLeaveRequest.reason}</li>
-      </ul>
-      <p>Please review this request in the Opano system.</p>
-    `;
-    try {
-      console.log(`[AppContext] Attempting to send leave notification to admin: ${adminEmail}`);
-      const emailResult = await sendInvitationEmail({
-        to: adminEmail,
-        subject: subject,
-        htmlBody: htmlBody,
-        joinUrl: `${window.location.origin}/attendance`
-      });
-      if (emailResult.success) {
-        console.log(`[AppContext] Leave notification email sent successfully to ${adminEmail}. Message ID: ${emailResult.messageId}`);
-      } else {
-        console.error(`[AppContext] Failed to send leave notification email to ${adminEmail}. Error: ${emailResult.error}`);
-        setTimeout(() => {
-          toast({
-            title: "Admin Notification Failed",
-            description: `Could not notify admin about the leave request. Error: ${emailResult.error}`,
-            variant: "destructive",
-            duration: 7000
-          });
-        }, 0);
-      }
-    } catch (error) {
-      console.error("[AppContext] Error calling sendInvitationEmail flow for admin notification:", error);
-       setTimeout(() => {
-          toast({
-            title: "Admin Notification Error",
-            description: "An unexpected error occurred while trying to notify the admin.",
-            variant: "destructive",
-            duration: 7000
-          });
-        }, 0);
-    }
-
-  }, [currentUser, toast]);
-
-  const openUserProfilePanel = (userToView: User) => {
-    setViewingUserProfile(userToView);
-    setIsUserProfilePanelOpen(true);
-  };
-
-  const closeUserProfilePanel = () => {
+  // Define Callbacks First
+  const closeUserProfilePanel = useCallback(() => {
     setIsUserProfilePanelOpen(false);
     setViewingUserProfile(null);
-  };
-
-  useEffect(() => {
-    console.log("[AppContext] Subscribing to Firebase onAuthStateChanged.");
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-      console.log("[AppContext] onAuthStateChanged triggered. Firebase user:", firebaseUser?.uid || 'null');
-      if (firebaseUser) {
-        let appUser: User | undefined = initialMockUsers.find(u => u.id === firebaseUser.uid);
-        let userRole: UserRole = 'member'; // Default role
-
-        if (!appUser) { // New user to our system, or first ever user
-          if (initialMockUsers.length === 0) {
-            userRole = 'admin'; // First user is admin
-            console.log(`[AppContext] First user detected (${firebaseUser.email}), assigning 'admin' role.`);
-          }
-          appUser = {
-            id: firebaseUser.uid,
-            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous User',
-            email: firebaseUser.email || 'no-email@example.com',
-            avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${(firebaseUser.displayName || firebaseUser.email || 'AU').substring(0,2).toUpperCase()}`,
-            isOnline: true,
-            designation: '', 
-            phoneNumber: '', 
-            linkedinProfileUrl: '',
-            pronouns: '',
-            role: userRole, 
-          };
-          initialMockUsers.push(appUser); // Simulate saving the new user with their role
-          console.log(`[AppContext] New app user created: ${appUser.name}, Role: ${appUser.role}`);
-        } else {
-          // Existing user in our system, just update online status and ensure role is set
-          appUser = { ...appUser, isOnline: true, role: appUser.role || 'member' };
-          const userIndex = initialMockUsers.findIndex(u => u.id === appUser!.id);
-          if (userIndex !== -1) {
-            initialMockUsers[userIndex] = appUser; // Update in mock "DB"
-          }
-          console.log(`[AppContext] Existing app user found: ${appUser.name}, Role: ${appUser.role}`);
-        }
-        
-        setCurrentUser(appUser);
-        setUsers(initialMockUsers.filter(u => u.id !== appUser!.id)); // Update 'users' for DM list
-        setAllUsersWithCurrent([...initialMockUsers]); // Update 'allUsersWithCurrent'
-      } else {
-        setCurrentUser(null);
-        setActiveConversationState(null);
-        setCurrentViewState('chat');
-        setUsers([]); // Clear other users if no one is logged in
-        setAllUsersWithCurrent([]);
-        closeUserProfilePanel();
-      }
-      setIsLoadingAuth(false);
-      console.log("[AppContext] isLoadingAuth set to false.");
-    });
-    return () => {
-      console.log("[AppContext] Unsubscribing from Firebase onAuthStateChanged.");
-      unsubscribe();
-    };
-  }, []); 
-
-
-  useEffect(() => {
-    if (isLoadingAuth) return; // Don't run redirection logic while auth is loading
-
-    console.log("[AppContext] Redirection check. currentUser:", currentUser?.id || 'null', "pathname:", pathname);
-    const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
-    const isAdminPage = pathname.startsWith('/admin/');
-    
-    if (!currentUser && !isAuthPage) {
-      console.log("[AppContext] Not logged in, not on auth page. Redirecting to /auth/join");
-      router.replace('/auth/join');
-    } else if (currentUser && isAuthPage) {
-       console.log("[AppContext] User logged in and on auth page, redirecting to /");
-      router.replace('/');
-    } else if (currentUser && isAdminPage && currentUser.role !== 'admin') {
-      console.log("[AppContext] Non-admin trying to access admin page. Redirecting to /");
-      router.replace('/');
-    } else if (currentUser && pathname === '/' && !activeConversation && channels.length === 0 && users.length === 0 && currentView === 'chat') {
-      console.log("[AppContext] Blank slate. Setting initial active conversation to self DM.");
-      setActiveConversation('dm', currentUser.id);
-    } else if (currentUser && pathname === '/' && !activeConversation && channels.length > 0 && currentView === 'chat') {
-      const generalChannel = channels.find(c => c.name.toLowerCase() === 'general');
-      if (generalChannel) {
-        console.log("[AppContext] Setting initial active conversation to #general channel.");
-        setActiveConversation('channel', generalChannel.id);
-      } else {
-        console.log("[AppContext] No #general, setting to self DM.");
-        setActiveConversation('dm', currentUser.id);
-      }
-    }
-
-
-  }, [isLoadingAuth, currentUser, pathname, router, activeConversation, channels, users, currentView, setActiveConversation]);
+  }, []);
 
   const setActiveConversation = useCallback((type: 'channel' | 'dm', id: string) => {
     setCurrentSummary(null);
     closeUserProfilePanel();
+    let foundConversation: ActiveConversation = null;
     if (type === 'channel') {
       const channel = channels.find(c => c.id === id);
       if (channel) {
@@ -327,24 +147,126 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           }, 0);
           return;
         }
-        setActiveConversationState({ type, id, name: channel.name, channel });
+        foundConversation = { type, id, name: channel.name, channel };
       }
     } else {
       const user = allUsersWithCurrent.find(u => u.id === id);
       if (user) {
-        setActiveConversationState({ type, id, name: user.name, recipient: user });
+        foundConversation = { type, id, name: user.name, recipient: user };
       }
     }
+    setActiveConversationState(foundConversation);
     setCurrentViewState('chat');
     setReplyingToMessage(null);
-  }, [channels, allUsersWithCurrent, currentUser, toast]);
+  }, [channels, allUsersWithCurrent, currentUser, toast, closeUserProfilePanel, setReplyingToMessage]);
 
   const setActiveSpecialView = useCallback((view: 'replies' | 'activity' | 'drafts') => {
     setCurrentViewState(view);
     setActiveConversationState(null);
     setReplyingToMessage(null);
     closeUserProfilePanel();
-  }, []);
+  }, [closeUserProfilePanel, setReplyingToMessage]);
+
+
+  useEffect(() => {
+    console.log("[AppContext] Subscribing to Firebase onAuthStateChanged.");
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      console.log("[AppContext] onAuthStateChanged triggered. Firebase user:", firebaseUser?.uid || 'null');
+      if (firebaseUser) {
+        let appUser: User | undefined = initialMockUsers.find(u => u.id === firebaseUser.uid);
+        let userRole: UserRole = 'member';
+
+        if (!appUser) {
+          if (initialMockUsers.length === 0) {
+            userRole = 'admin';
+            console.log(`[AppContext] First user detected (${firebaseUser.email}), assigning 'admin' role.`);
+          }
+          appUser = {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous User',
+            email: firebaseUser.email || 'no-email@example.com',
+            avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${(firebaseUser.displayName || firebaseUser.email || 'AU').substring(0,2).toUpperCase()}`,
+            isOnline: true,
+            designation: '',
+            phoneNumber: '',
+            linkedinProfileUrl: '',
+            pronouns: '',
+            role: userRole,
+          };
+          initialMockUsers.push(appUser); // Add to our mock "DB"
+          console.log(`[AppContext] New app user created: ${appUser.name}, Role: ${appUser.role}`);
+        } else {
+            appUser = { ...appUser, isOnline: true, role: appUser.role || 'member' }; // Ensure role is set, default to member
+            const userIndex = initialMockUsers.findIndex(u => u.id === appUser!.id);
+            if (userIndex !== -1) {
+                initialMockUsers[userIndex] = appUser;
+            }
+            console.log(`[AppContext] Existing app user found: ${appUser.name}, Role: ${appUser.role}`);
+        }
+        setCurrentUser(appUser);
+        setUsers(initialMockUsers.filter(u => u.id !== appUser!.id));
+        setAllUsersWithCurrent([...initialMockUsers]);
+      } else {
+        setCurrentUser(null);
+        setActiveConversationState(null);
+        setCurrentViewState('chat');
+        setUsers([]);
+        setAllUsersWithCurrent([]);
+        closeUserProfilePanel();
+      }
+      setIsLoadingAuth(false);
+      console.log("[AppContext] isLoadingAuth set to false.");
+    });
+    return () => {
+      console.log("[AppContext] Unsubscribing from Firebase onAuthStateChanged.");
+      unsubscribe();
+    };
+  }, [closeUserProfilePanel]); // Added closeUserProfilePanel
+
+  // Redirection Logic
+  useEffect(() => {
+    if (isLoadingAuth) return;
+
+    console.log("[AppContext] Redirection check. currentUser:", currentUser?.id || 'null', "pathname:", pathname);
+    const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
+    const isAdminPage = pathname.startsWith('/admin/');
+
+    if (!currentUser && !isAuthPage) {
+      console.log("[AppContext] Not logged in, not on auth page. Redirecting to /auth/join");
+      router.replace('/auth/join');
+    } else if (currentUser && isAuthPage) {
+      console.log("[AppContext] User logged in and on auth page, redirecting to /");
+      router.replace('/');
+    } else if (currentUser && isAdminPage && currentUser.role !== 'admin') {
+      console.log("[AppContext] Non-admin trying to access admin page. Redirecting to /");
+      router.replace('/');
+    }
+  }, [isLoadingAuth, currentUser, pathname, router]);
+
+  // Initial Active Conversation Logic (separated)
+  useEffect(() => {
+    if (isLoadingAuth || !currentUser || pathname !== '/') return;
+
+    if (!activeConversation) {
+      if (channels.length === 0 && users.length === 0 && currentView === 'chat') {
+        console.log("[AppContext] Blank slate. Setting initial active conversation to self DM.");
+        setActiveConversation('dm', currentUser.id);
+      } else if (channels.length > 0 && currentView === 'chat') {
+        const generalChannel = channels.find(c => c.name.toLowerCase() === 'general');
+        if (generalChannel) {
+          console.log("[AppContext] Setting initial active conversation to #general channel.");
+          setActiveConversation('channel', generalChannel.id);
+        } else {
+          console.log("[AppContext] No #general, setting to self DM if no other channel preferred.");
+          setActiveConversation('dm', currentUser.id);
+        }
+      } else if (currentView === 'chat' && users.length > 0) {
+          // Fallback if no channels but other users exist
+          console.log("[AppContext] No channels, but other users exist. Setting to self DM.");
+          setActiveConversation('dm', currentUser.id);
+      }
+    }
+  }, [isLoadingAuth, currentUser, pathname, activeConversation, channels, users, currentView, setActiveConversation]);
 
 
   useEffect(() => {
@@ -733,7 +655,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setMessages(prevMessages =>
       prevMessages.filter(msg => {
         if (msg.id === messageId && msg.userId === currentUser.id) {
-          if (activeConversation && mockMessages[activeConversation.id]) { // Use mockMessages here
+          if (activeConversation && mockMessages[activeConversation.id]) { 
             mockMessages[activeConversation.id] = mockMessages[activeConversation.id].filter(m => m.id !== messageId);
           }
           return false;
@@ -769,7 +691,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ...prevUser,
             name: profileData.name || prevUser.name,
             designation: profileData.designation || prevUser.designation,
-            email: profileData.email,
+            email: profileData.email, // Assuming email can be updated, though Firebase Auth makes this tricky
             phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
             avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
             linkedinProfileUrl: profileData.linkedinProfileUrl || prevUser.linkedinProfileUrl,
@@ -777,11 +699,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             role: profileData.role || prevUser.role,
         };
         
+        // Update in our mock persistent store
         const userIndex = initialMockUsers.findIndex(u => u.id === updatedUser.id);
         if (userIndex !== -1) {
             initialMockUsers[userIndex] = updatedUser;
         } else {
-            initialMockUsers.push(updatedUser);
+            initialMockUsers.push(updatedUser); // Should not happen if currentUser exists
         }
 
         setAllUsersWithCurrent(initialMockUsers.map(u => u.id === updatedUser.id ? updatedUser : u));
@@ -835,7 +758,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const replies = useMemo(() => {
     if (!currentUser) return [];
-    const allMsgs: Message[] = Object.values(mockMessages).flat(); // Use mockMessages here
+    const allMsgs: Message[] = Object.values(mockMessages).flat();
     return allMsgs.filter(msg =>
       msg.content.toLowerCase().includes(`@${currentUser.name.toLowerCase()}`) &&
       msg.userId !== currentUser.id &&
@@ -846,7 +769,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const activities: ActivityItem[] = useMemo(() => {
     if (!currentUser) return [];
     const myMessageIds = new Set<string>();
-    const allMsgs: Message[] = Object.values(mockMessages).flat(); // Use mockMessages here
+    const allMsgs: Message[] = Object.values(mockMessages).flat();
     allMsgs.forEach(msg => {
       if (msg.userId === currentUser.id) {
         myMessageIds.add(msg.id);
@@ -865,7 +788,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 let convType: 'channel' | 'dm' = 'channel';
                 let convName = 'Unknown Conversation';
 
-                for (const [key, messagesInConv] of Object.entries(mockMessages)) { // Use mockMessages here
+                for (const [key, messagesInConv] of Object.entries(mockMessages)) { 
                     if (messagesInConv.some(m => m.id === msg.id)) {
                         convId = key;
                         const channel = channels.find(c => c.id === key);
@@ -980,7 +903,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         timestamp: Date.now(),
         isSystemMessage: true,
     };
-    if (mockMessages[generalChannelId]) { // Use mockMessages here
+    if (mockMessages[generalChannelId]) { 
         mockMessages[generalChannelId].push(systemMessage);
     } else {
         mockMessages[generalChannelId] = [systemMessage];
@@ -1037,7 +960,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         timestamp: Date.now(),
         isSystemMessage: true,
     };
-     if (mockMessages[generalChannelId]) { // Use mockMessages here
+     if (mockMessages[generalChannelId]) { 
         mockMessages[generalChannelId].push(systemMessage);
     } else {
         mockMessages[generalChannelId] = [systemMessage];
@@ -1094,7 +1017,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         timestamp: Date.now(),
         isSystemMessage: true,
     };
-    if (mockMessages[generalChannelId]) { // Use mockMessages here
+    if (mockMessages[generalChannelId]) { 
         mockMessages[generalChannelId].push(systemMessage);
     } else {
         mockMessages[generalChannelId] = [systemMessage];
@@ -1164,7 +1087,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       isSystemMessage: true,
     };
 
-    if (mockMessages[conversation.id]) { // Use mockMessages here
+    if (mockMessages[conversation.id]) { 
       mockMessages[conversation.id].push(systemMessage);
     } else {
       mockMessages[conversation.id] = [systemMessage];
@@ -1190,7 +1113,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         isSystemMessage: true,
       };
 
-      if (mockMessages[callingWith.id]) { // Use mockMessages here
+      if (mockMessages[callingWith.id]) { 
         mockMessages[callingWith.id].push(systemMessage);
       } else {
         mockMessages[callingWith.id] = [systemMessage];
@@ -1203,6 +1126,88 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setIsCallActive(false);
     setCallingWith(null);
   };
+
+  const handleAddLeaveRequest = useCallback(async (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => {
+    if (!currentUser) {
+        setTimeout(() => toast({ title: "Error", description: "You must be logged in to request leave.", variant: "destructive" }), 0);
+        return;
+    }
+    const newLeaveRequest: LeaveRequest = {
+      ...newRequestData,
+      id: `leave-${Date.now()}`,
+      userId: currentUser.id,
+      requestDate: new Date(),
+      status: 'pending',
+    };
+    setLeaveRequests(prev => [...prev, newLeaveRequest].sort((a,b) => b.requestDate.getTime() - a.requestDate.getTime()));
+
+    setTimeout(() => {
+        toast({
+            title: "Leave Request Submitted",
+            description: `Your leave request for ${currentUser.name} has been submitted for approval.`,
+        });
+    }, 0);
+
+    const configuredAdminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+    let adminEmail = configuredAdminEmail || "hassyku786@gmail.com";
+
+    if (!configuredAdminEmail) {
+      console.log("[AppContext] NEXT_PUBLIC_ADMIN_EMAIL not set in .env.local, defaulting admin notifications for leave requests to hassyku786@gmail.com");
+    }
+
+    const durationDays = differenceInDays(newLeaveRequest.endDate, newLeaveRequest.startDate) + 1;
+    const subject = `New Leave Request from ${currentUser.name}`;
+    const htmlBody = `
+      <p>Hello Admin,</p>
+      <p>A new leave request has been submitted by <strong>${currentUser.name}</strong> (ID: ${currentUser.id}).</p>
+      <p><strong>Details:</strong></p>
+      <ul>
+        <li><strong>Start Date:</strong> ${format(newLeaveRequest.startDate, 'PPP')}</li>
+        <li><strong>End Date:</strong> ${format(newLeaveRequest.endDate, 'PPP')}</li>
+        <li><strong>Duration:</strong> ${durationDays} day(s)</li>
+        <li><strong>Reason:</strong> ${newLeaveRequest.reason}</li>
+      </ul>
+      <p>Please review this request in the Opano system.</p>
+    `;
+    try {
+      console.log(`[AppContext] Attempting to send leave notification to admin: ${adminEmail}`);
+      const emailResult = await sendInvitationEmail({
+        to: adminEmail,
+        subject: subject,
+        htmlBody: htmlBody,
+        joinUrl: `${window.location.origin}/attendance` 
+      });
+      if (emailResult.success) {
+        console.log(`[AppContext] Leave notification email sent successfully to ${adminEmail}. Message ID: ${emailResult.messageId}`);
+      } else {
+        console.error(`[AppContext] Failed to send leave notification email to ${adminEmail}. Error: ${emailResult.error}`);
+        setTimeout(() => {
+          toast({
+            title: "Admin Notification Failed",
+            description: `Could not notify admin about the leave request. Error: ${emailResult.error}`,
+            variant: "destructive",
+            duration: 7000
+          });
+        }, 0);
+      }
+    } catch (error) {
+      console.error("[AppContext] Error calling sendInvitationEmail flow for admin notification:", error);
+       setTimeout(() => {
+          toast({
+            title: "Admin Notification Error",
+            description: "An unexpected error occurred while trying to notify the admin.",
+            variant: "destructive",
+            duration: 7000
+          });
+        }, 0);
+    }
+  }, [currentUser, toast]);
+
+  const openUserProfilePanel = (userToView: User) => {
+    setViewingUserProfile(userToView);
+    setIsUserProfilePanelOpen(true);
+  };
+
 
   return (
     <AppContext.Provider value={{
@@ -1272,3 +1277,4 @@ export const useAppContext = (): AppContextType => {
   return context;
 };
 
+    
