@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from "@/components/ui/button";
@@ -37,10 +37,10 @@ export default function AttendancePage() {
   const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
   const [accumulatedBreakDuration, setAccumulatedBreakDuration] = useState(0); // in seconds
   const [workedSeconds, setWorkedSeconds] = useState(0);
-  const [lastTick, setLastTick] = useState<Date | null>(null);
+  const lastTickRef = useRef<Date | null>(null); // Changed to useRef
 
   const [masterAttendanceLog, setMasterAttendanceLog] = useState<AttendanceLogEntry[]>([]);
-  const [reportDate, setReportDate] = useState<Date | undefined>(undefined); // Initialize as undefined
+  const [reportDate, setReportDate] = useState<Date | undefined>(undefined);
   const [displayedAttendanceLog, setDisplayedAttendanceLog] = useState<AttendanceLogEntry[]>([]);
 
   const [isEditLogDialogOpen, setIsEditLogDialogOpen] = useState(false);
@@ -52,40 +52,37 @@ export default function AttendancePage() {
   
   const WORK_TARGET_SECONDS = 8 * 60 * 60; // 8 hours
 
-  // Effect to set initial reportDate on client-side
   useEffect(() => {
     setReportDate(new Date());
   }, []);
 
-  // Timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (status === 'working' && clockInTime) {
-      const initialNow = new Date();
-      setLastTick(initialNow);
+      lastTickRef.current = new Date(); // Initialize ref
 
       interval = setInterval(() => {
         setWorkedSeconds(prevSeconds => {
           const now = new Date();
-          const currentLastTick = lastTick || now; 
+          const currentLastTick = lastTickRef.current || now; // Use ref's current value
           const secondsSinceLastTick = differenceInSeconds(now, currentLastTick);
-          setLastTick(now);
+          lastTickRef.current = now; // Update ref's current value
           return prevSeconds + secondsSinceLastTick;
         });
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [status, clockInTime, lastTick]);
+  }, [status, clockInTime]); // Removed lastTick from dependencies
 
 
   useEffect(() => {
-    if (reportDate) { // Only filter if reportDate is set
+    if (reportDate) { 
       const filtered = masterAttendanceLog.filter(entry => 
         isSameDay(new Date(entry.clockInTime), reportDate)
       );
       setDisplayedAttendanceLog(filtered.sort((a, b) => new Date(b.clockInTime).getTime() - new Date(a.clockInTime).getTime()));
     } else {
-      setDisplayedAttendanceLog([]); // Clear log if no date selected
+      setDisplayedAttendanceLog([]); 
     }
   }, [masterAttendanceLog, reportDate]);
 
@@ -98,14 +95,15 @@ export default function AttendancePage() {
     setWorkedSeconds(0);
     setAccumulatedBreakDuration(0);
     setBreakStartTime(null);
-    setLastTick(now); 
+    lastTickRef.current = now; 
     toast({ title: "Clocked In", description: `Session started at ${format(now, "p")}.` });
   };
 
   const handleClockOut = () => {
     if (!clockInTime) return;
     const now = new Date();
-    let finalWorkedSeconds = workedSeconds;
+    // No need to update workedSeconds here, interval would have stopped or state is final
+    
     if (status === 'on-break' && breakStartTime) { 
       const breakDuration = differenceInSeconds(now, breakStartTime);
       setAccumulatedBreakDuration(prev => prev + breakDuration);
@@ -118,7 +116,7 @@ export default function AttendancePage() {
       id: `log-${Date.now()}`,
       clockInTime: clockInTime,
       clockOutTime: now,
-      totalHoursWorked: finalWorkedSeconds,
+      totalHoursWorked: workedSeconds, // Use the final workedSeconds
       totalActivityPercent: Math.floor(Math.random() * 41) + 60, 
     };
     setMasterAttendanceLog(prevLog => [newLogEntry, ...prevLog]);
@@ -130,14 +128,14 @@ export default function AttendancePage() {
     if (status === 'working') {
       setBreakStartTime(now);
       setStatus('on-break');
-      setLastTick(null); 
+      lastTickRef.current = null; 
       toast({ title: "Break Started", description: `Break started at ${format(now, "p")}.` });
     } else if (status === 'on-break' && breakStartTime) {
       const breakDuration = differenceInSeconds(now, breakStartTime);
       setAccumulatedBreakDuration(prev => prev + breakDuration);
       setBreakStartTime(null);
       setStatus('working');
-      setLastTick(now); 
+      lastTickRef.current = now; 
       toast({ title: "Break Ended", description: `Resumed work at ${format(now, "p")}.` });
     }
   };
@@ -468,3 +466,4 @@ const InfoRow = ({ icon: Icon, label, value }: { icon: React.ElementType, label:
     <div className="font-semibold text-foreground text-sm sm:text-base">{value}</div>
   </>
 );
+
