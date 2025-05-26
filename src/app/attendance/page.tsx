@@ -1,10 +1,11 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation'; // Added useParams
+import { useRouter } from 'next/navigation'; 
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { UserAvatar } from '@/components/UserAvatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -12,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { EditAttendanceLogDialog } from '@/components/dialogs/EditAttendanceLogDialog';
 import { LeaveRequestDialog } from '@/components/dialogs/LeaveRequestDialog';
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, MoreHorizontal, ArrowLeft, Users, Clock, Pause, Play, Coffee, CalendarDays, BarChart, FileText as ReportIcon, Edit2, Trash, PlusCircle, LogOut, Activity, Clock10, Percent } from "lucide-react";
+import { Calendar as CalendarIcon, MoreHorizontal, ArrowLeft, Clock, Pause, Play, Coffee, CalendarDays, BarChart, FileText as ReportIcon, Edit2, Trash, PlusCircle, LogOut, Activity, Clock10, Percent } from "lucide-react";
 import { format, differenceInSeconds, intervalToDuration, formatDuration, add, sub, isSameDay, startOfDay, endOfDay, isValid } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
@@ -26,12 +27,16 @@ import { Badge } from '@/components/ui/badge';
 type AttendanceStatus = 'not-clocked-in' | 'working' | 'on-break' | 'clocked-out';
 
 const WorkTimerDisplay = ({ currentSeconds, status }: { currentSeconds: number; status: AttendanceStatus }) => {
-  const displayTime = formatDuration(intervalToDuration({ start: 0, end: currentSeconds * 1000 }), { format: ['hours', 'minutes', 'seconds'], zero: true, delimiter: ':' }).padStart(8, '0:00:');
+  const duration = intervalToDuration({ start: 0, end: currentSeconds * 1000 });
+  const hours = String(duration.hours || 0).padStart(2, '0');
+  const minutes = String(duration.minutes || 0).padStart(2, '0');
+  const seconds = String(duration.seconds || 0).padStart(2, '0');
+  const displayTime = `${hours} : ${minutes} : ${seconds}`;
 
   if (status === 'not-clocked-in' || status === 'clocked-out') {
     return (
       <div className="text-6xl md:text-7xl font-mono font-semibold text-muted-foreground my-8 tabular-nums">
-        00:00:00
+        00 : 00 : 00
       </div>
     );
   }
@@ -54,7 +59,12 @@ const InfoRow = ({ icon: Icon, label, value, valueClassName }: { icon: React.Ele
   </div>
 );
 
-export default function AttendancePage() {
+interface AttendancePageProps {
+  params: unknown; // Next.js requires params to be defined for page components
+  searchParams: unknown; // Next.js requires searchParams to be defined
+}
+
+export default function AttendancePage({ params, searchParams }: AttendancePageProps) {
   const router = useRouter();
   const { currentUser, isLoadingAuth } = useAppContext();
   const { toast } = useToast();
@@ -68,7 +78,7 @@ export default function AttendancePage() {
   const lastTickRef = useRef<Date | null>(null);
 
   const [masterAttendanceLog, setMasterAttendanceLog] = useState<AttendanceLogEntry[]>([]);
-  const [reportDateRange, setReportDateRange] = useState<DateRange | undefined>(undefined);
+  const [reportDate, setReportDate] = useState<Date | undefined>(undefined);
   const [displayedAttendanceLog, setDisplayedAttendanceLog] = useState<AttendanceLogEntry[]>([]);
 
   const [isEditLogDialogOpen, setIsEditLogDialogOpen] = useState(false);
@@ -81,8 +91,8 @@ export default function AttendancePage() {
   const WORK_TARGET_SECONDS = 8 * 60 * 60; // 8 hours
 
   useEffect(() => {
-    // Initialize reportDateRange to today on client mount to avoid hydration issues
-    setReportDateRange({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
+    // Initialize reportDate to today on client mount to avoid hydration issues
+    setReportDate(new Date());
   }, []);
 
   useEffect(() => {
@@ -105,19 +115,19 @@ export default function AttendancePage() {
 
 
   useEffect(() => {
-    if (reportDateRange?.from) {
-      const fromDate = startOfDay(reportDateRange.from);
-      const toDate = reportDateRange.to ? endOfDay(reportDateRange.to) : endOfDay(reportDateRange.from); // If no 'to' date, use 'from' date for single day
+    if (reportDate) {
+      const selectedDayStart = startOfDay(reportDate);
+      const selectedDayEnd = endOfDay(reportDate);
       
       const filtered = masterAttendanceLog.filter(entry => {
         const entryDate = startOfDay(new Date(entry.clockInTime));
-        return entryDate >= fromDate && entryDate <= toDate;
+        return entryDate >= selectedDayStart && entryDate <= selectedDayEnd;
       });
       setDisplayedAttendanceLog(filtered.sort((a, b) => new Date(b.clockInTime).getTime() - new Date(a.clockInTime).getTime()));
     } else {
       setDisplayedAttendanceLog([]); 
     }
-  }, [masterAttendanceLog, reportDateRange]);
+  }, [masterAttendanceLog, reportDate]);
 
 
   const handleClockIn = () => {
@@ -141,11 +151,6 @@ export default function AttendancePage() {
       currentBreakDuration = differenceInSeconds(now, breakStartTime);
     }
     const finalAccumulatedBreak = accumulatedBreakDuration + currentBreakDuration;
-    
-    // Ensure workedSeconds calculation is correct before saving
-    // If on break, the interval for workedSeconds is paused. 
-    // If working, workedSeconds is up-to-date via the interval.
-    // No additional calculation to workedSeconds needed here.
     
     setClockOutTime(now);
     setStatus('clocked-out');
@@ -193,7 +198,7 @@ export default function AttendancePage() {
   };
 
   const handleAddLeaveRequest = (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => {
-    if (!currentUser) return; // Should already be handled by page guard, but good practice
+    if (!currentUser) return; 
     
     const newRequest: LeaveRequest = {
       ...newRequestData,
@@ -207,7 +212,6 @@ export default function AttendancePage() {
         title: "Leave Request Submitted",
         description: `Your leave request has been submitted for approval.`,
     });
-    // Email to admin logic can be re-added here if desired
   };
 
   const formatTimeWithZone = (date: Date | null) => date ? format(new Date(date), "hh:mm a") + " EST" : "--:-- -- EST";
@@ -246,15 +250,6 @@ export default function AttendancePage() {
     }
   };
   
-  const getReportHeader = () => {
-    if (!reportDateRange?.from) return "Select a date range to view report";
-    const fromDate = format(reportDateRange.from, "dd-MMM-yyyy");
-    if (!reportDateRange.to || isSameDay(reportDateRange.from, reportDateRange.to)) {
-      return `Clock In / Clock Out Report of ${fromDate}`;
-    }
-    return `Clock In / Clock Out Report for ${fromDate} to ${format(reportDateRange.to, "dd-MMM-yyyy")}`;
-  };
-
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
       {/* Header Section */}
@@ -315,7 +310,7 @@ export default function AttendancePage() {
           </div>
         )}
 
-        <div className="flex items-center gap-4 mt-6">
+        <div className="flex items-center gap-4 mt-6 pb-4">
           {status === 'not-clocked-in' && (
             <Button onClick={handleClockIn} size="lg" className="w-48">
               <Clock className="mr-2 h-5 w-5" /> Clock In
@@ -353,41 +348,30 @@ export default function AttendancePage() {
       <div className="mt-10 pt-6 border-t">
         <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
           <h2 className="text-lg font-semibold text-foreground">
-            {getReportHeader()}
+           Clock In / Clock Out Report of {reportDate ? format(reportDate, "dd-MMM-yyyy") : "No date selected"}
           </h2>
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant={"outline"}
-                className={cn("w-full sm:w-[260px] justify-start text-left font-normal", !reportDateRange?.from && "text-muted-foreground")}
+                className={cn("w-full sm:w-[260px] justify-start text-left font-normal", !reportDate && "text-muted-foreground")}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {reportDateRange?.from ? (
-                    reportDateRange.to ? (
-                    <>
-                        {format(reportDateRange.from, "LLL dd, y")} - {format(reportDateRange.to, "LLL dd, y")}
-                    </>
-                    ) : (
-                    format(reportDateRange.from, "LLL dd, y")
-                    )
-                ) : (
-                    <span>Pick a date range</span>
-                )}
+                {reportDate ? format(reportDate, "LLL dd, y") : <span>Pick a date</span>}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
               <Calendar
                 initialFocus
-                mode="range"
-                defaultMonth={reportDateRange?.from}
-                selected={reportDateRange}
-                onSelect={setReportDateRange}
-                numberOfMonths={2}
+                mode="single"
+                selected={reportDate}
+                onSelect={setReportDate}
+                numberOfMonths={1}
               />
             </PopoverContent>
           </Popover>
         </div>
-        {reportDateRange?.from && displayedAttendanceLog.length > 0 ? (
+        {reportDate && displayedAttendanceLog.length > 0 ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -446,7 +430,7 @@ export default function AttendancePage() {
            <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg">
             <Clock className="mx-auto h-12 w-12 text-gray-400 mb-3" />
             <p className="font-medium text-lg">
-              {reportDateRange?.from ? `No attendance records for the selected period.` : "Please select a date range to view the report."}
+              {reportDate ? `No attendance records for ${format(reportDate, "dd-MMM-yyyy")}.` : "Please select a date to view the report."}
             </p>
           </div>
         )}
