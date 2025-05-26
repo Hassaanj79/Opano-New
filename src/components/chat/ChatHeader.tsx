@@ -1,58 +1,17 @@
 
 "use client";
 import { useAppContext } from '@/contexts/AppContext';
-import { Button } from '@/components/ui/button';
-import { Hash, Sparkles, UserCircle2, Users, UserPlus, Phone } from 'lucide-react';
-import { useState } from 'react';
-import { SummarizeDialog } from './SummarizeDialog';
-import { AddMembersToChannelDialog } from '@/components/dialogs/AddMembersToChannelDialog';
-import { ViewChannelMembersDialog } from '@/components/dialogs/ViewChannelMembersDialog'; 
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'; // Import spinner
+import { Hash, UserCircle2 } from 'lucide-react'; // Removed Sparkles, UserPlus, Phone, Users
 
 export function ChatHeader() {
-  const { 
-    activeConversation, 
-    generateSummary, 
-    currentSummary, 
-    isLoadingSummary, 
-    clearSummary,
-    startCall,
-    isCallActive,
-    callingWith,
-    currentUser 
-  } = useAppContext();
-  const [isSummarizeDialogOpen, setIsSummarizeDialogOpen] = useState(false);
-  const [isAddMembersDialogOpen, setIsAddMembersDialogOpen] = useState(false);
-  const [isViewMembersDialogOpen, setIsViewMembersDialogOpen] = useState(false);
+  const { activeConversation, currentUser } = useAppContext();
 
-  if (!activeConversation || !currentUser) return null; 
-
-  const handleSummarize = async () => {
-    if (activeConversation.type === 'channel') {
-      setIsSummarizeDialogOpen(true);
-      await generateSummary(activeConversation.id);
-    }
-  };
-  
-  const handleSummarizeDialogClose = (open: boolean) => {
-    setIsSummarizeDialogOpen(open);
-    if(!open) {
-      clearSummary();
-    }
-  }
-
-  const handleCall = () => {
-    if (activeConversation && !isCallActive) {
-      startCall(activeConversation);
-    }
-  };
+  if (!activeConversation || !currentUser) return null;
 
   const name = activeConversation.name;
-  const description = activeConversation.type === 'channel' 
-    ? `${activeConversation.channel?.memberIds.length || 0} Members` 
+  const description = activeConversation.type === 'channel'
+    ? `${activeConversation.channel?.memberIds.length || 0} Members`
     : (activeConversation.recipient?.designation || (activeConversation.recipient?.isOnline ? 'Online' : 'Offline'));
-
-  const isDifferentCallActive = isCallActive && callingWith?.id !== activeConversation.id;
 
   return (
     <>
@@ -61,7 +20,7 @@ export function ChatHeader() {
           {activeConversation.type === 'channel' ? (
             <Hash className="h-5 w-5 text-muted-foreground" />
           ) : (
-            <UserCircle2 className="h-5 w-5 text-muted-foreground" /> 
+            <UserCircle2 className="h-5 w-5 text-muted-foreground" />
           )}
           <div>
             <h2 className="text-base font-semibold text-foreground">{name}</h2>
@@ -69,79 +28,10 @@ export function ChatHeader() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCall}
-            disabled={isDifferentCallActive || !currentUser} 
-            className="text-xs"
-            aria-label="Start call"
-          >
-            <Phone className="mr-1.5 h-3.5 w-3.5" />
-            Call
-          </Button>
-          {activeConversation.type === 'channel' && (
-            <Button variant="outline" size="sm" onClick={handleSummarize} disabled={isLoadingSummary || !currentUser} className="text-xs">
-              {isLoadingSummary ? (
-                <LoadingSpinner size="sm" className="mr-1.5 h-3.5 w-3.5" />
-              ) : (
-                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              {isLoadingSummary ? 'Summarizing...' : 'AI Summary'}
-            </Button>
-          )}
-          {activeConversation.type === 'channel' && activeConversation.channel && (
-             <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setIsViewMembersDialogOpen(true)} 
-                className="text-muted-foreground hover:text-primary"
-                aria-label="View members"
-                disabled={!currentUser}
-              >
-                <Users className="h-4 w-4" />
-             </Button>
-           )}
-           {activeConversation.type === 'channel' && activeConversation.id && (
-             <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setIsAddMembersDialogOpen(true)} 
-                className="text-xs"
-                aria-label="Add members to channel"
-                disabled={!currentUser}
-              >
-                <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-                Add Members
-             </Button>
-           )}
+          {/* Call, Summary, Add/View Members buttons removed for simplicity */}
         </div>
       </div>
-      {currentUser && ( 
-        <>
-          <SummarizeDialog
-            isOpen={isSummarizeDialogOpen}
-            onOpenChange={handleSummarizeDialogClose}
-            summary={currentSummary}
-            isLoading={isLoadingSummary}
-            channelName={activeConversation.type === 'channel' ? activeConversation.name : undefined}
-          />
-          {activeConversation.type === 'channel' && activeConversation.id && (
-            <AddMembersToChannelDialog
-              isOpen={isAddMembersDialogOpen}
-              onOpenChange={setIsAddMembersDialogOpen}
-              channelId={activeConversation.id}
-            />
-          )}
-          {activeConversation.type === 'channel' && activeConversation.channel && (
-            <ViewChannelMembersDialog
-              isOpen={isViewMembersDialogOpen}
-              onOpenChange={setIsViewMembersDialogOpen}
-              channel={activeConversation.channel}
-            />
-          )}
-        </>
-      )}
+      {/* Dialogs removed */}
     </>
   );
 }

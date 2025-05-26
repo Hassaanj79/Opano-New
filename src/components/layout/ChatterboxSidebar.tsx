@@ -19,26 +19,9 @@ import { OpanoLogo } from '@/components/OpanoLogo';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import {
-    Settings,
-    UserPlus,
-    Edit,
-    UserCheck,
-    UserX,
-    MessageSquareReply,
-    Bell,
-    Send,
-    Plus,
-    LogIn,
-    LogOut,
-    Clock,
-    Folder,
-    Users as UsersIcon, 
-    MoreHorizontal
-} from 'lucide-react';
-import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
-import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
-import { EditProfileDialog } from '@/components/dialogs/EditProfileDialog';
+import { Settings, Edit, UserCheck, UserX, Plus, LogOut } from 'lucide-react';
+// Removed: InviteUserDialog, AddChannelDialog, EditProfileDialog as they are complex features
+// Removed: MessageSquareReply, Bell, Send, MoreHorizontal, Clock, Folder, UsersIcon
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,294 +30,136 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { CurrentView } from '@/types';
-import { useRouter, usePathname } from 'next/navigation';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-
-const appFeatureNavItems = [
-  { label: 'Attendance', icon: Clock, path: '/attendance' },
-  { label: 'Documents', icon: Folder, path: '/documents' },
-];
-
-const topNavItems: { label: string; icon: React.ElementType; viewOrPath: CurrentView | string; isPath?: boolean }[] = [
-    { label: 'Replies', icon: MessageSquareReply, viewOrPath: 'replies' },
-    { label: 'Activity', icon: Bell, viewOrPath: 'activity' },
-    { label: 'Drafts', icon: Send, viewOrPath: 'drafts' },
-];
-
+// import { useRouter } from 'next/navigation'; // Keep if basic nav needed
 
 export function ChatterboxSidebar() {
   const {
     currentUser,
     toggleCurrentUserStatus,
-    setActiveSpecialView,
-    currentView,
-    isLoadingAuth,
     signOutUser,
-    openUserProfilePanel,
-    closeUserProfilePanel,
-    openEditProfileDialog, // Use the function from context
+    // Removed: openEditProfileDialog, addChannel, sendInvitation
   } = useAppContext();
-  const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
-  const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
-  // EditProfileDialog state is now managed by AppContext
-  const [searchTerm, setSearchTerm] = useState('');
-  const router = useRouter();
-  const pathname = usePathname();
   const { toast } = useToast();
+  // const router = useRouter(); // Keep if needed for simple navigation
 
-  const handleEditProfile = () => {
-    if (currentUser && openEditProfileDialog) {
-      closeUserProfilePanel();
-      openEditProfileDialog(); // Call context function to open the dialog
-    }
+  const handleEditProfilePlaceholder = () => {
+    toast({ title: "Edit Profile", description: "Profile editing TBD." });
   };
 
-  const handleNavClick = (viewOrPath: CurrentView | string, isPath: boolean = false) => {
-    closeUserProfilePanel();
-    if (isPath) {
-      router.push(viewOrPath as string);
-      if (currentView !== 'chat' && (viewOrPath === '/attendance' || viewOrPath === '/documents' || viewOrPath === '/admin/users')) {
-           setActiveSpecialView('chat'); 
-      }
-    } else {
-      setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts' | 'chat');
-    }
+  const handleAddChannelPlaceholder = () => {
+    toast({ title: "Add Channel", description: "Channel creation TBD." });
   };
-
-  const handleLogin = () => {
-    router.push('/auth/join');
-  };
-
-  const handleLogout = async () => {
-    await signOutUser();
-  };
-
-  const handleViewOwnProfile = () => {
-    if (currentUser) {
-      openUserProfilePanel(currentUser);
-    }
-  };
-
-  const handleManageUsersClick = () => {
-    if (currentUser?.role === 'admin') {
-        closeUserProfilePanel();
-        router.push('/admin/users');
-    } else {
-        setTimeout(() => {
-          toast({
-              title: "Permission Denied",
-              description: "You do not have permission to manage users.",
-              variant: "destructive"
-          });
-        },0);
-    }
-  };
-
-
-  if (isLoadingAuth) {
-    return (
-      <Sidebar collapsible="icon" side="left" variant="sidebar" className="border-r border-sidebar-border">
-        <SidebarHeader className="p-3 border-b border-sidebar-border">
-          <Skeleton className="h-8 w-32 group-data-[collapsible=icon]:w-8" />
-        </SidebarHeader>
-        <SidebarContent className="p-2">
-          <Skeleton className="h-8 w-full mb-1" />
-          <Skeleton className="h-8 w-full mb-1" />
-          <Skeleton className="h-8 w-full mb-4" />
-          <Skeleton className="h-8 w-full mb-1" />
-          <Skeleton className="h-8 w-full mb-1" />
-          <Skeleton className="h-8 w-full mb-4" />
-          <Skeleton className="h-6 w-20 mb-2" />
-          <Skeleton className="h-8 w-full mb-1" />
-          <Skeleton className="h-8 w-full mb-4" />
-          <Skeleton className="h-6 w-24 mb-2" />
-          <Skeleton className="h-10 w-full mb-1" />
-          <Skeleton className="h-10 w-full mb-1" />
-        </SidebarContent>
-        <SidebarFooter className="p-2 border-t border-sidebar-border mt-auto">
-          <Skeleton className="h-10 w-full" />
-        </SidebarFooter>
-      </Sidebar>
-    );
-  }
 
   return (
-    <>
-      <Sidebar collapsible="icon" side="left" variant="sidebar" className="border-r border-sidebar-border">
-        <SidebarHeader className="p-3 border-b border-sidebar-border">
-          <div className="flex items-center justify-between w-full group-data-[collapsible=icon]:justify-center">
-             <OpanoLogo />
-          </div>
-        </SidebarHeader>
+    <Sidebar collapsible="icon" side="left" variant="sidebar" className="border-r border-sidebar-border">
+      <SidebarHeader className="p-3 border-b border-sidebar-border">
+        <div className="flex items-center justify-between w-full group-data-[collapsible=icon]:justify-center">
+            <OpanoLogo />
+        </div>
+      </SidebarHeader>
 
-        <SidebarContent className="p-0">
-          {currentUser && (
-            <>
-              <SidebarGroup className="pt-2 pb-1 group-data-[collapsible=icon]:px-0">
-                <SidebarMenu>
-                  {appFeatureNavItems.map((item) => (
-                    <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton
-                        onClick={() => handleNavClick(item.path, true)}
-                        isActive={pathname.startsWith(item.path)}
-                        tooltip={item.label}
-                        className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
-                      >
-                        <item.icon className="h-5 w-5" />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroup>
+      <SidebarContent className="p-0">
+        {currentUser && (
+          <>
+            {/* Simplified Top Nav - can be removed or kept very basic */}
+            <SidebarGroup className="pt-2 pb-1 group-data-[collapsible=icon]:px-0">
+              {/* Placeholder for any top-level items like "All Unreads" or "Threads" if desired later */}
+            </SidebarGroup>
 
-              <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
+            <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
 
-              <SidebarGroup className="pt-1 pb-1 group-data-[collapsible=icon]:px-0">
-                <SidebarMenu>
-                  {topNavItems.map((item) => (
-                    <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton
-                        onClick={() => handleNavClick(item.viewOrPath, item.isPath)}
-                        isActive={item.isPath ? pathname.startsWith(item.viewOrPath as string) : currentView === item.viewOrPath}
-                        tooltip={item.label}
-                        className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
-                      >
-                        <item.icon className="h-5 w-5" />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroup>
-
-              <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
-
-              <SidebarGroup className="pt-1 group-data-[collapsible=icon]:px-0">
-                <div className="flex items-center justify-between w-full px-3 mb-1 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:mb-0.5">
-                  <SidebarGroupLabel className="text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden p-0 normal-case">
-                      Loopz
-                  </SidebarGroupLabel>
-                  {currentUser?.role === 'admin' && (
-                    <Button
-                      variant="default"
-                      size="icon"
-                      className="h-6 w-6 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground group-data-[collapsible=icon]:hidden"
-                      onClick={() => setIsAddChannelDialogOpen(true)}
-                      aria-label="Add new channel"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-                <ChannelList searchTerm={searchTerm} />
-              </SidebarGroup>
-
-              <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
-
-              <SidebarGroup className="pt-1 group-data-[collapsible=icon]:px-0">
-                 <div className="flex items-center justify-between w-full px-3 mb-1 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:mb-0.5">
-                    <SidebarGroupLabel className="text-xs font-semibold uppercase text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden p-0">
-                        Direct Messages
-                    </SidebarGroupLabel>
-                </div>
-                <DirectMessageList searchTerm={searchTerm} />
-              </SidebarGroup>
-            </>
-          )}
-        </SidebarContent>
-
-        <SidebarFooter className="p-2 border-t border-sidebar-border mt-auto">
-          {currentUser ? (
-            <>
-              {currentUser.role === 'admin' && (
+            <SidebarGroup className="pt-1 group-data-[collapsible=icon]:px-0">
+              <div className="flex items-center justify-between w-full px-3 mb-1 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:mb-0.5">
+                <SidebarGroupLabel className="text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden p-0 normal-case">
+                    Channels
+                </SidebarGroupLabel>
                 <Button
-                  variant="ghost"
-                  className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2 mb-1 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                  onClick={() => setIsInviteUserDialogOpen(true)}
-                  aria-label="Invite new user"
+                  variant="default"
+                  size="icon"
+                  className="h-6 w-6 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground group-data-[collapsible=icon]:hidden"
+                  onClick={handleAddChannelPlaceholder}
+                  aria-label="Add new channel"
                 >
-                  <UserPlus className="h-4 w-4" />
-                  <span className="ml-2 group-data-[collapsible=icon]:hidden">Invite User</span>
+                  <Plus className="h-3.5 w-3.5" />
                 </Button>
-              )}
-              <SidebarSeparator className="my-1"/>
-              <div
-                className="flex items-center p-1 gap-2 rounded-md group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center hover:bg-sidebar-accent cursor-pointer"
-                onClick={handleViewOwnProfile}
-                role="button"
-                tabIndex={0}
-                aria-label={`View profile for ${currentUser.name}`}
-              >
-                <UserAvatar user={currentUser} className="h-8 w-8" />
-                <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
-                  <p className="font-semibold text-sm truncate text-sidebar-foreground">{currentUser.name}</p>
-                  <p className="text-xs text-sidebar-foreground/70">{currentUser.isOnline ? 'Online' : 'Away'}</p>
-                </div>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground ml-auto"
-                      onClick={(e) => e.stopPropagation()} // Prevent parent div's onClick
-                      aria-label="User settings"
-                    >
-                      <Settings className="h-4 w-4"/>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="top" align="end" className="w-56">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleEditProfile}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      <span>Edit Profile</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={toggleCurrentUserStatus}>
-                      {currentUser.isOnline ? (
-                        <UserX className="mr-2 h-4 w-4" />
-                      ) : (
-                        <UserCheck className="mr-2 h-4 w-4" />
-                      )}
-                      <span>{currentUser.isOnline ? 'Set to Away' : 'Set to Online'}</span>
-                    </DropdownMenuItem>
-                    {currentUser.role === 'admin' && (
-                        <DropdownMenuItem onClick={handleManageUsersClick}>
-                            <UsersIcon className="mr-2 h-4 w-4" />
-                            <span>Manage Users</span>
-                        </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Logout</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
-            </>
-          ) : (
-            <Button
-              variant="outline"
-              className="w-full justify-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
-              onClick={handleLogin}
+              <ChannelList searchTerm="" /> {/* Simplified: no search term passed for now */}
+            </SidebarGroup>
+
+            <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
+
+            <SidebarGroup className="pt-1 group-data-[collapsible=icon]:px-0">
+                <div className="flex items-center justify-between w-full px-3 mb-1 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:mb-0.5">
+                  <SidebarGroupLabel className="text-xs font-semibold uppercase text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden p-0">
+                      Direct Messages
+                  </SidebarGroupLabel>
+              </div>
+              <DirectMessageList searchTerm="" /> {/* Simplified */}
+            </SidebarGroup>
+          </>
+        )}
+      </SidebarContent>
+
+      <SidebarFooter className="p-2 border-t border-sidebar-border mt-auto">
+        {currentUser ? (
+          <>
+            {/* Removed Invite User button as it depends on advanced auth/admin roles */}
+            <div
+              className="flex items-center p-1 gap-2 rounded-md group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center hover:bg-sidebar-accent cursor-pointer"
+              role="button"
+              tabIndex={0}
+              aria-label={`View profile for ${currentUser.name}`}
             >
-              <LogIn className="h-4 w-4" />
-              <span className="ml-2 group-data-[collapsible=icon]:hidden">Sign In</span>
-            </Button>
-          )}
-        </SidebarFooter>
-      </Sidebar>
-      {currentUser && (
-        <>
-          <AddChannelDialog isOpen={isAddChannelDialogOpen} onOpenChange={setIsAddChannelDialogOpen} />
-          <InviteUserDialog isOpen={isInviteUserDialogOpen} onOpenChange={setIsInviteUserDialogOpen} />
-          {/* EditProfileDialog is opened via context, no local state needed here */}
-        </>
-      )}
-    </>
+              <UserAvatar user={currentUser} className="h-8 w-8" />
+              <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
+                <p className="font-semibold text-sm truncate text-sidebar-foreground">{currentUser.name}</p>
+                <p className="text-xs text-sidebar-foreground/70">{currentUser.isOnline ? 'Online' : 'Away'}</p>
+              </div>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground ml-auto"
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label="User settings"
+                  >
+                    <Settings className="h-4 w-4"/>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="end" className="w-56">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleEditProfilePlaceholder}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    <span>Edit Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={toggleCurrentUserStatus}>
+                    {currentUser.isOnline ? (
+                      <UserX className="mr-2 h-4 w-4" />
+                    ) : (
+                      <UserCheck className="mr-2 h-4 w-4" />
+                    )}
+                    <span>{currentUser.isOnline ? 'Set to Away' : 'Set to Online'}</span>
+                  </DropdownMenuItem>
+                  {/* Removed Manage Users link */}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={signOutUser}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </>
+        ) : (
+           <p className="text-center text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">Sign in to start</p>
+        )}
+      </SidebarFooter>
+    </Sidebar>
+    {/* Dialogs removed as they are tied to complex features */}
+  </>
   );
 }

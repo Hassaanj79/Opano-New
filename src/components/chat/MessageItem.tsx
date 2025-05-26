@@ -5,22 +5,20 @@ import { useAppContext } from '@/contexts/AppContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, ImageIcon, Smile, MoreHorizontal, Edit3, Trash2, ThumbsUp, Heart, Brain, PartyPopper, AlertCircle, Users, MessageSquareReply, Reply, Mic } from 'lucide-react'; // Added Mic for audio files
+import { FileText, ImageIcon, Smile, Edit3, Trash2, ThumbsUp, Heart, Mic } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Textarea } from '../ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-// Removed UserProfilePopover import as we'll use the main panel
 
 interface MessageItemProps {
   message: Message;
 }
 
 export function MessageItem({ message }: MessageItemProps) {
-  const { users, currentUser, toggleReaction, editMessage, deleteMessage, setReplyingToMessage, allUsersWithCurrent, openUserProfilePanel } = useAppContext();
-  
+  const { users, currentUser, toggleReaction } = useAppContext(); // Removed edit/delete/reply state/functions
 
   if (message.isSystemMessage) {
     return (
@@ -32,70 +30,20 @@ export function MessageItem({ message }: MessageItemProps) {
     );
   }
 
-  const sender = allUsersWithCurrent.find(u => u.id === message.userId);
-  const isCurrentUserSender = sender?.id === currentUser?.id; // Added null check for currentUser
+  const sender = users.find(u => u.id === message.userId) || (message.userId === currentUser?.id ? currentUser : null);
+  const isCurrentUserSender = sender?.id === currentUser?.id;
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(message.content);
   const { toast } = useToast();
-
   const messageTimestamp = format(new Date(message.timestamp), 'p');
 
-  const renderContent = (content: string) => {
-    const parts = content.split(/(@\w+)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith('@')) {
-        return <span key={index} className="text-primary font-medium">{part}</span>;
-      }
-      return part;
-    });
-  };
-
-  const handleEdit = () => {
-    setIsEditing(true);
-    setEditText(message.content);
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditText(message.content);
-  };
-
-  const handleSaveEdit = () => {
-    if (editText.trim() === '') {
-      toast({ title: "Cannot save empty message", variant: "destructive" });
-      return;
-    }
-    if (editText.trim() !== message.content) {
-      editMessage(message.id, editText.trim());
-    }
-    setIsEditing(false);
-  };
-  
-  const handleDelete = () => {
-    deleteMessage(message.id);
-    // Toast for delete is handled by AppContext now
-  };
-
-  const handleReply = () => {
-    setReplyingToMessage(message);
-  };
-
-  const handleAvatarClick = () => {
-    if (sender) {
-      openUserProfilePanel(sender);
+  const handleReactionClick = (emoji: string) => {
+    if (currentUser) {
+      toggleReaction(message.id, emoji);
     }
   };
-
-  const avatarElement = (
-    <button onClick={!isCurrentUserSender ? handleAvatarClick : undefined} className={cn(!isCurrentUserSender && "cursor-pointer")}>
-      <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />
-    </button>
-  );
 
   const renderFileAttachment = () => {
     if (!message.file) return null;
-
     if (message.file.type === 'audio') {
       return (
         <div className="mt-2 max-w-xs">
@@ -105,7 +53,6 @@ export function MessageItem({ message }: MessageItemProps) {
         </div>
       );
     }
-
     return (
       <Card className="mt-2 max-w-xs bg-card/80 shadow-none border-border/50">
         <CardContent className="p-2">
@@ -119,12 +66,12 @@ export function MessageItem({ message }: MessageItemProps) {
               {message.file.name}
             </a>
           </div>
-          {message.file.type === 'image' && message.file.url && ( 
-             <Image 
-                src={message.file.url} 
-                alt={message.file.name} 
-                width={150} 
-                height={100} 
+          {message.file.type === 'image' && message.file.url && (
+             <Image
+                src={message.file.url}
+                alt={message.file.name}
+                width={150}
+                height={100}
                 className="mt-1.5 rounded-md object-cover"
                 data-ai-hint="placeholder image"
              />
@@ -134,37 +81,25 @@ export function MessageItem({ message }: MessageItemProps) {
     );
   };
 
-
   return (
     <div className={cn(
       "group flex gap-2.5 py-1.5 px-4 hover:bg-muted/20 relative",
       isCurrentUserSender ? "justify-end" : "justify-start"
     )}>
-      {!isCurrentUserSender && avatarElement}
+      {!isCurrentUserSender && <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />}
       
       <div className={cn(
         "flex flex-col max-w-[70%]",
         isCurrentUserSender ? "items-end" : "items-start"
       )}>
-        {!isCurrentUserSender && !isEditing && (
+        {!isCurrentUserSender && (
           <div className="flex items-baseline gap-2 mb-0.5">
             <span className="font-semibold text-sm text-foreground/90">{sender?.name || 'Unknown User'}</span>
             <span className="text-xs text-muted-foreground">{messageTimestamp}</span>
           </div>
         )}
         
-        {message.replyToMessageId && message.originalMessageSenderName && message.originalMessageContent && !isEditing && (
-          <div className={cn(
-            "relative text-xs w-full mb-1 p-1.5 rounded-md border-l-2 border-primary bg-primary/5 text-muted-foreground shadow-sm",
-            isCurrentUserSender ? "bg-user-message-background/10" : "bg-other-message-background/30"
-          )}>
-            <div className="flex items-center gap-1">
-              <Reply className="h-3 w-3 shrink-0" />
-              <span className="font-medium text-foreground/80">{message.originalMessageSenderName}</span>
-            </div>
-            <p className="pl-4 truncate opacity-80">{message.originalMessageContent}</p>
-          </div>
-        )}
+        {/* Reply UI removed */}
 
         <div className={cn(
           "relative rounded-lg px-3 py-2 text-sm shadow-sm w-full",
@@ -172,86 +107,38 @@ export function MessageItem({ message }: MessageItemProps) {
             ? "bg-user-message-background text-user-message-foreground rounded-br-none" 
             : "bg-other-message-background text-other-message-foreground rounded-bl-none"
         )}>
-          {isEditing ? (
-            <div className="space-y-2">
-              <Textarea 
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                className="min-h-[60px] bg-card text-card-foreground border-border focus-visible:ring-primary"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSaveEdit();
-                  }
-                  if (e.key === 'Escape') {
-                    handleCancelEdit();
-                  }
-                }}
-              />
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={handleCancelEdit} className="text-xs">Cancel</Button>
-                <Button size="sm" onClick={handleSaveEdit} className="text-xs">Save</Button>
-              </div>
-            </div>
-          ) : (
             <>
-              {message.content && <p className="whitespace-pre-wrap">{renderContent(message.content)}</p>}
+              {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
               {message.isEdited && <span className="text-xs text-muted-foreground/70 italic ml-1">(edited)</span>}
               {renderFileAttachment()}
             </>
-          )}
 
-          {!isEditing && currentUser && ( // Ensure currentUser exists before rendering actions
+          {currentUser && (
             <div className={cn(
                 "absolute top-[-12px] opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 p-0.5 rounded-full border bg-background shadow-sm",
                 isCurrentUserSender ? "right-2" : "left-2" 
             )}>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '👍')} aria-label="Thumbs Up">
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('👍')} aria-label="Thumbs Up">
                     <ThumbsUp className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '❤️')} aria-label="Heart">
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('❤️')} aria-label="Heart">
                     <Heart className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '🤯')} aria-label="Mind Blown">
-                    <Brain className="h-3.5 w-3.5 text-muted-foreground" /> 
-                </Button>
-                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '😮')} aria-label="Shocked">
-                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" /> 
-                </Button>
-                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => toggleReaction(message.id, '🎉')} aria-label="Party Popper">
-                    <PartyPopper className="h-3.5 w-3.5 text-muted-foreground"/>
-                </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" aria-label="Add reaction with emoji picker">
-                    <Smile className="h-3.5 w-3.5 text-muted-foreground"/>
-                </Button>
-                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={handleReply} aria-label="Reply to message">
-                    <MessageSquareReply className="h-3.5 w-3.5 text-muted-foreground"/>
-                </Button>
-                {isCurrentUserSender && (
-                  <>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={handleEdit} aria-label="Edit message">
-                      <Edit3 className="h-3.5 w-3.5 text-muted-foreground"/>
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-destructive/20" onClick={handleDelete} aria-label="Delete message">
-                      <Trash2 className="h-3.5 w-3.5 text-destructive"/>
-                    </Button>
-                  </>
-                )}
+                {/* Simpler reactions, removed edit/delete/reply buttons from hover */}
             </div>
           )}
         </div>
 
-        {message.reactions && Object.keys(message.reactions).length > 0 && !isEditing && currentUser && ( // Ensure currentUser exists
+        {message.reactions && Object.keys(message.reactions).length > 0 && currentUser && (
             <div className={cn(
                 "flex gap-1 mt-1 flex-wrap", 
                 isCurrentUserSender ? "justify-end" : ""
             )}>
                 {Object.entries(message.reactions).map(([emoji, userIds]) => (
-                    userIds.length > 0 && ( 
+                    userIds.length > 0 && (
                         <button 
                             key={emoji} 
-                            onClick={() => toggleReaction(message.id, emoji)}
+                            onClick={() => handleReactionClick(emoji)}
                             className={cn(
                                 "flex items-center gap-1 rounded-full border bg-background hover:bg-muted/50 px-1.5 py-0.5 text-xs",
                                 userIds.includes(currentUser.id) ? "border-primary bg-primary/10" : "border-border"
@@ -266,14 +153,14 @@ export function MessageItem({ message }: MessageItemProps) {
             </div>
         )}
 
-        {isCurrentUserSender && !isEditing && (
+        {isCurrentUserSender && (
           <div className="flex items-center gap-1 mt-0.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="M20 6 9 17l-5-5"/></svg>
             <span className="text-xs text-muted-foreground">{messageTimestamp}</span>
           </div>
         )}
       </div>
-      {isCurrentUserSender && avatarElement}
+      {isCurrentUserSender && <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />}
     </div>
   );
 }

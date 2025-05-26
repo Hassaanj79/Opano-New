@@ -1,286 +1,85 @@
 
 "use client";
 import type { ReactNode } from 'react';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
-import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView, DocumentCategory, Document, LeaveRequest, UserRole } from '@/types';
-import { auth } from '@/lib/firebase';
-import type { User as FirebaseUser } from 'firebase/auth';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { User, Channel, Message, ActiveConversation, CurrentView } from '@/types';
 import {
     initialMockUsers,
     initialMockChannels,
     getMessagesForConversation as fetchMockMessages,
     updateMockMessage,
-    mockMessages,
-    mockDrafts as initialMockDrafts,
-    initialDocumentCategories
+    mockMessages as allMockMessages, // Keep alias for consistency if used below
+    initialMockCurrentUser
 } from '@/lib/mock-data';
-import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
-import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter, usePathname } from 'next/navigation';
-import { format, differenceInDays } from 'date-fns';
-import { ToastAction } from '@/components/ui/toast';
-
+import { useRouter } from 'next/navigation'; // Keep for basic nav if needed
 
 export type UserProfileUpdateData = {
   name: string;
   designation?: string;
-  email: string;
-  phoneNumber?: string;
+  email?: string; // Keep for basic profile editing
   avatarDataUrl?: string;
-  linkedinProfileUrl?: string;
-  pronouns?: string;
-  role?: UserRole;
 };
 
 interface AppContextType {
   currentUser: User | null;
-  users: User[];
-  allUsersWithCurrent: User[];
+  users: User[]; // Users excluding current user
+  allUsersWithCurrent: User[]; // All users including current
   channels: Channel[];
   activeConversation: ActiveConversation;
   setActiveConversation: (type: 'channel' | 'dm', id: string) => void;
   addMessage: (content: string, file?: File) => void;
   addChannel: (name: string, description?: string, memberIds?: string[], isPrivate?: boolean) => void;
-  currentSummary: string | null;
-  isLoadingSummary: boolean;
-  generateSummary: (channelId: string) => Promise<void>;
-  clearSummary: () => void;
-  sendInvitation: (email: string) => Promise<string | null>;
-  verifyInviteToken: (token: string) => PendingInvitation | null;
-  acceptInvitation: (token: string, userDetails: { name: string; designation: string }) => boolean;
-  pendingInvitations: PendingInvitation[];
   toggleReaction: (messageId: string, emoji: string) => void;
-  editMessage: (messageId: string, newContent: string) => void;
-  deleteMessage: (messageId: string) => void;
-  addMembersToChannel: (channelId: string, userIdsToAdd: string[]) => void;
+  // Simplified: remove summary, invitation, role management, document, leave, advanced profile panel features
+  // Keep basic user status and profile update
   toggleCurrentUserStatus: () => void;
   updateUserProfile: (profileData: UserProfileUpdateData) => void;
-  signOutUser: () => Promise<void>;
-  updateUserRole: (targetUserId: string, newRole: UserRole) => void;
-
-  currentView: CurrentView;
-  setActiveSpecialView: (view: 'replies' | 'activity' | 'drafts') => void;
-  drafts: Draft[];
-  deleteDraft: (draftId: string) => void;
-  replies: Message[];
-  activities: ActivityItem[];
+  signOutUser: () => Promise<void>; // Simplified sign out
+  currentView: CurrentView; // Kept simple
+  setActiveSpecialView: (view: 'chat') => void; // Simplified for now
   getConversationName: (conversationId: string, conversationType: 'channel' | 'dm') => string;
-
-  replyingToMessage: Message | null;
-  setReplyingToMessage: React.Dispatch<React.SetStateAction<Message | null>>;
-
-  documentCategories: DocumentCategory[];
-  addDocumentCategory: (name: string, description: string, iconName?: DocumentCategory['iconName']) => void;
-  addFileDocumentToCategory: (categoryId: string, file: File) => void;
-  addTextDocumentToCategory: (categoryId: string, docName: string, textContent: string) => void;
-  addLinkedDocumentToCategory: (categoryId: string, docName: string, docUrl: string) => void;
-  deleteDocumentFromCategory: (categoryId: string, docId: string) => void;
-  findDocumentCategoryById: (categoryId: string) => DocumentCategory | undefined;
-  searchAllDocuments: (query: string) => Array<{ doc: Document, category: DocumentCategory }>;
-
-  isCallActive: boolean;
-  callingWith: ActiveConversation | null;
-  startCall: (conversation: ActiveConversation | null) => void;
-  endCall: () => void;
-
-  isLoadingAuth: boolean;
-
-  isUserProfilePanelOpen: boolean;
-  viewingUserProfile: User | null;
-  openUserProfilePanel: (user: User) => void;
-  closeUserProfilePanel: () => void;
-  openEditProfileDialog?: () => void; // Added for UserProfilePanel to trigger the main edit dialog
-
-  leaveRequests: LeaveRequest[];
-  handleAddLeaveRequest: (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => void;
+  isLoadingAuth: boolean; // Simplified to just a flag
+  // Removed: isUserProfilePanelOpen, viewingUserProfile, openUserProfilePanel, closeUserProfilePanel, openEditProfileDialog
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [users, setUsers] = useState<User[]>(initialMockUsers); // Initialize with mock data
-  const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>(initialMockUsers); // Initialize
+  const [currentUser, setCurrentUser] = useState<User | null>(initialMockCurrentUser); // Start with mock current user
+  const [isLoadingAuth, setIsLoadingAuth] = useState(false); // Simplified, assume loaded
+  const [users, setUsers] = useState<User[]>(initialMockUsers.filter(u => u.id !== initialMockCurrentUser.id));
+  const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>(initialMockUsers);
   const [channels, setChannels] = useState<Channel[]>(initialMockChannels);
   const [activeConversation, setActiveConversationState] = useState<ActiveConversation>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [currentSummary, setCurrentSummary] = useState<string | null>(null);
-  const [isLoadingSummary, setIsLoadingSummary] = useState<boolean>(false);
-  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const { toast } = useToast();
   const router = useRouter();
-  const pathname = usePathname();
 
   const [currentView, setCurrentViewState] = useState<CurrentView>('chat');
-  const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts);
-  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
-  const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories);
-  const [isCallActive, setIsCallActive] = useState(false);
-  const [callingWith, setCallingWith] = useState<ActiveConversation | null>(null);
 
-  const [isUserProfilePanelOpen, setIsUserProfilePanelOpen] = useState(false);
-  const [viewingUserProfile, setViewingUserProfile] = useState<User | null>(null);
-  const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false); // State for EditProfileDialog
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-
-
-  const openEditProfileDialog = useCallback(() => {
-    setIsEditProfileDialogOpen(true);
-  }, []);
-
-  const closeUserProfilePanel = useCallback(() => {
-    setIsUserProfilePanelOpen(false);
-    setViewingUserProfile(null);
-  }, []);
-  
+  // Simplified setActiveConversation, remove complex checks for now
   const setActiveConversation = useCallback((type: 'channel' | 'dm', id: string) => {
-    setCurrentSummary(null);
-    closeUserProfilePanel();
     let foundConversation: ActiveConversation = null;
-    
-    // Use function form of setState to ensure latest state is used if called rapidly
-    setChannels(currentChannels => {
-      setAllUsersWithCurrent(currentAllUsers => {
-        if (type === 'channel') {
-          const channel = currentChannels.find(c => c.id === id);
-          if (channel) {
-            if (channel.isPrivate && (!currentUser || !channel.memberIds.includes(currentUser.id))) {
-              setTimeout(() => {
-                toast({
-                  title: "Access Denied",
-                  description: `You are not a member of this private channel.`,
-                  variant: "destructive",
-                });
-              },0);
-              return currentAllUsers; // No change if access denied
-            }
-            foundConversation = { type, id, name: channel.name, channel };
-          }
-        } else { 
-          const user = currentAllUsers.find(u => u.id === id);
-          if (user) {
-            foundConversation = { type, id, name: user.name, recipient: user };
-          }
-        }
-        setActiveConversationState(foundConversation);
-        setCurrentViewState('chat');
-        setReplyingToMessage(null);
-        return currentAllUsers;
-      });
-      return currentChannels;
-    });
-  }, [closeUserProfilePanel, currentUser, toast]); // Dependencies simplified, but internal logic will use fresh state
+    if (type === 'channel') {
+      const channel = channels.find(c => c.id === id);
+      if (channel) {
+        foundConversation = { type, id, name: channel.name, channel };
+      }
+    } else {
+      const user = allUsersWithCurrent.find(u => u.id === id);
+      if (user) {
+        foundConversation = { type, id, name: user.name, recipient: user };
+      }
+    }
+    setActiveConversationState(foundConversation);
+    setCurrentViewState('chat');
+  }, [channels, allUsersWithCurrent]);
 
-  const setActiveSpecialView = useCallback((view: 'replies' | 'activity' | 'drafts') => {
+  const setActiveSpecialView = useCallback((view: 'chat') => { // Only chat for now
     setCurrentViewState(view);
     setActiveConversationState(null);
-    setReplyingToMessage(null);
-    closeUserProfilePanel();
-  }, [closeUserProfilePanel]);
-
-
-  // Firebase Auth Listener
-  useEffect(() => {
-    console.log("[AppContext] Subscribing to Firebase onAuthStateChanged.");
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-      console.log("[AppContext] onAuthStateChanged triggered. Firebase user:", firebaseUser?.uid || 'null');
-      if (firebaseUser) {
-        let appUser: User | undefined = initialMockUsers.find(u => u.id === firebaseUser.uid);
-        let userRole: UserRole = 'member';
-
-        if (!appUser) { 
-          if (initialMockUsers.length === 0) { 
-            userRole = 'admin';
-            console.log(`[AppContext] First user detected (${firebaseUser.email}), assigning 'admin' role.`);
-          }
-          appUser = {
-            id: firebaseUser.uid,
-            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous User',
-            email: firebaseUser.email || 'no-email@example.com',
-            avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${(firebaseUser.displayName || firebaseUser.email || 'AU').substring(0,2).toUpperCase()}`,
-            isOnline: true,
-            designation: '',
-            phoneNumber: '',
-            linkedinProfileUrl: '',
-            pronouns: '',
-            role: userRole,
-          };
-          initialMockUsers.push(appUser); 
-          console.log(`[AppContext] New app user created: ${appUser.name}, Role: ${appUser.role}`);
-        } else { 
-           appUser = { ...appUser, isOnline: true, role: appUser.role || 'member' };
-           const userIndex = initialMockUsers.findIndex(u => u.id === appUser!.id);
-           if (userIndex !== -1) {
-               initialMockUsers[userIndex] = appUser;
-           }
-           console.log(`[AppContext] Existing app user found: ${appUser.name}, Role: ${appUser.role}`);
-        }
-        setCurrentUser(appUser);
-        setUsers(initialMockUsers.filter(u => u.id !== appUser!.id));
-        setAllUsersWithCurrent([...initialMockUsers]);
-
-      } else { 
-        setCurrentUser(null);
-        setActiveConversationState(null);
-        setCurrentViewState('chat');
-        setUsers([]); 
-        setAllUsersWithCurrent([]);
-        closeUserProfilePanel();
-      }
-      setIsLoadingAuth(false);
-      console.log("[AppContext] isLoadingAuth set to false.");
-    });
-    return () => {
-      console.log("[AppContext] Unsubscribing from Firebase onAuthStateChanged.");
-      unsubscribe();
-    };
-  }, [closeUserProfilePanel]); 
-
-  // Redirection Logic
-   useEffect(() => {
-    if (isLoadingAuth) return;
-    console.log("[AppContext] Redirection check. currentUser:", currentUser?.id || 'null', "pathname:", pathname);
-    const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
-    const isAdminPage = pathname.startsWith('/admin/');
-
-    if (!currentUser && !isAuthPage) {
-      console.log("[AppContext] Not logged in, not on auth page. Redirecting to /auth/join");
-      router.replace('/auth/join');
-    } else if (currentUser && isAuthPage) {
-      console.log("[AppContext] User logged in and on auth page, redirecting to /");
-      router.replace('/');
-    } else if (currentUser && isAdminPage && currentUser.role !== 'admin') {
-      console.log("[AppContext] Non-admin trying to access admin page. Redirecting to /");
-      router.replace('/');
-    }
-  }, [isLoadingAuth, currentUser, pathname, router]);
-
-  // Initial Active Conversation Logic
-   useEffect(() => {
-    if (isLoadingAuth || !currentUser || pathname !== '/' || activeConversation ) return;
-
-    if (channels.length === 0 && users.length === 0 && currentView === 'chat') {
-      console.log("[AppContext] Blank slate. Setting initial active conversation to self DM.");
-      setActiveConversation('dm', currentUser.id);
-    } else if (channels.length > 0 && currentView === 'chat') {
-      const generalChannel = channels.find(c => c.name.toLowerCase() === 'general');
-      if (generalChannel) {
-        console.log("[AppContext] Setting initial active conversation to #general channel.");
-        setActiveConversation('channel', generalChannel.id);
-      } else {
-         console.log("[AppContext] No #general, defaulting to first channel or self DM if no channels.");
-         setActiveConversation('channel', channels[0].id);
-      }
-    } else if (currentView === 'chat' && users.length > 0) { 
-        console.log("[AppContext] No channels, but other users exist. Setting to self DM.");
-        setActiveConversation('dm', currentUser.id);
-    }
-  }, [isLoadingAuth, currentUser, pathname, activeConversation, channels, users, currentView, setActiveConversation]);
-
+  }, []);
 
   useEffect(() => {
     if (currentView === 'chat' && activeConversation) {
@@ -292,36 +91,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [activeConversation, currentView]);
 
   const addMessage = useCallback((content: string, file?: File) => {
-    if (!activeConversation || !currentUser) {
-        setTimeout(() => toast({title: "Cannot send message", description: "You must be logged in and in a conversation.", variant: "destructive"}), 0);
-        return;
-    }
-
-    let replyData: Partial<Message> = {};
-    if (replyingToMessage) {
-      const originalSender = allUsersWithCurrent.find(u => u.id === replyingToMessage.userId);
-      replyData = {
-        replyToMessageId: replyingToMessage.id,
-        originalMessageSenderName: originalSender?.name || "Unknown User",
-        originalMessageContent: replyingToMessage.content.substring(0, 70) + (replyingToMessage.content.length > 70 ? "..." : ""),
-      };
-    }
+    if (!activeConversation || !currentUser) return;
 
     let messageFile: Message['file'] | undefined = undefined;
     if (file) {
       let fileType: Message['file']['type'] = 'other';
-      if (file.type.startsWith('image/')) {
-        fileType = 'image';
-      } else if (file.type.startsWith('audio/')) {
-        fileType = 'audio';
-      } else if (file.type === 'application/pdf' || file.type.startsWith('text/')) {
-        fileType = 'document';
-      }
-      const fileUrl = (fileType === 'audio' || fileType === 'image') ? URL.createObjectURL(file) : 'https://placehold.co/200x150.png';
-
+      if (file.type.startsWith('image/')) fileType = 'image';
+      else if (file.type.startsWith('audio/')) fileType = 'audio';
+      else if (file.type === 'application/pdf' || file.type.startsWith('text/')) fileType = 'document';
+      
       messageFile = {
         name: file.name,
-        url: fileUrl,
+        url: URL.createObjectURL(file), // Temporary URL for local files
         type: fileType,
       };
     }
@@ -333,312 +114,43 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       timestamp: Date.now(),
       file: messageFile,
       reactions: {},
-      ...replyData,
     };
     setMessages(prevMessages => [...prevMessages, newMessage]);
-    if (activeConversation && mockMessages[activeConversation.id]) {
-        mockMessages[activeConversation.id] = [...mockMessages[activeConversation.id], newMessage];
-    } else if (activeConversation) {
-        mockMessages[activeConversation.id] = [newMessage];
+    if (allMockMessages[activeConversation.id]) {
+        allMockMessages[activeConversation.id].push(newMessage);
+    } else {
+        allMockMessages[activeConversation.id] = [newMessage];
     }
-    setReplyingToMessage(null);
-  }, [activeConversation, currentUser, replyingToMessage, allUsersWithCurrent, toast]);
+  }, [activeConversation, currentUser]);
 
-  const addChannel = useCallback((name: string, description?: string, memberIds: string[] = [], isPrivate: boolean = false) => {
-    if (!currentUser) {
-        setTimeout(() => toast({title: "Action failed", description: "You must be logged in to create a channel.", variant: "destructive"}), 0);
-        return;
-    }
-    if (currentUser.role !== 'admin') {
-        setTimeout(() => toast({title: "Permission Denied", description: "Only admins can create channels.", variant: "destructive"}), 0);
-        return;
-    }
-
-    const trimmedName = name.trim();
-    if (channels.some(channel => channel.name.toLowerCase() === trimmedName.toLowerCase())) {
-      setTimeout(() => {
-        toast({
-          title: "Channel Name Exists",
-          description: `A channel named "${trimmedName}" already exists. Please choose a different name.`,
-          variant: "destructive",
-        });
-      }, 0);
-      return;
-    }
-
+  const addChannel = useCallback((name: string, description: string = '', memberIds: string[] = [], isPrivate: boolean = false) => {
+    if (!currentUser) return;
     const newChannel: Channel = {
       id: `c${Date.now()}`,
-      name: trimmedName,
-      description: description || '',
-      memberIds: Array.from(new Set([currentUser.id, ...memberIds])), 
+      name,
+      description,
+      memberIds: Array.from(new Set([currentUser.id, ...memberIds])),
       isPrivate,
     };
-    setChannels(prevChannels => {
-      const updatedChannels = [...prevChannels, newChannel];
-      const channelIndex = initialMockChannels.findIndex(ch => ch.id === newChannel.id);
-      if (channelIndex === -1) {
-        initialMockChannels.push(newChannel); 
-      } else {
-        initialMockChannels[channelIndex] = newChannel; 
-      }
-      return updatedChannels;
-    });
-
-    const creatorName = currentUser.name;
-    const creationSystemMessage: Message = {
-        id: `sys-create-${Date.now()}`,
-        userId: 'system',
-        content: `${creatorName} created the ${isPrivate ? 'private ' : ''}channel #${trimmedName}.`,
-        timestamp: Date.now(),
-        isSystemMessage: true,
-    };
-    mockMessages[newChannel.id] = [creationSystemMessage];
-
-    const addedMembersOtherThanCreator = memberIds.filter(id => id !== currentUser.id);
-    if (addedMembersOtherThanCreator.length > 0) {
-        const addedUserNames = addedMembersOtherThanCreator
-            .map(id => allUsersWithCurrent.find(user => user.id === id)?.name)
-            .filter((name): name is string => !!name); 
-
-        if (addedUserNames.length > 0) {
-            const addedMembersMessageContent = `${creatorName} added ${addedUserNames.join(', ')} to the channel.`;
-            const addedMembersSystemMessage: Message = {
-                id: `sys-add-init-${Date.now()}`,
-                userId: 'system',
-                content: addedMembersMessageContent,
-                timestamp: Date.now() + 1,
-                isSystemMessage: true,
-            };
-            mockMessages[newChannel.id].push(addedMembersSystemMessage);
-        }
-    }
+    setChannels(prevChannels => [...prevChannels, newChannel]);
+    initialMockChannels.push(newChannel); // Update mock store
     setActiveConversation('channel', newChannel.id);
-    setTimeout(() => { 
-      toast({ title: "Channel Created", description: `Channel #${trimmedName} has been created.` });
-    }, 0);
-  }, [currentUser, toast, setActiveConversation, allUsersWithCurrent, channels]);
-
-  const addMembersToChannel = useCallback((channelId: string, userIdsToAdd: string[]) => {
-     if (!currentUser) {
-        setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
-        return;
-    }
-    if (currentUser.role !== 'admin') {
-        setTimeout(() => toast({title: "Permission Denied", description: "Only admins can add members to channels.", variant: "destructive"}), 0);
-        return;
-    }
-
-    let channelName = '';
-    let isPrivateChannel = false;
-    setChannels(prevChannels => {
-      return prevChannels.map(channel => {
-        if (channel.id === channelId) {
-          channelName = channel.name;
-          isPrivateChannel = channel.isPrivate || false;
-          const newMemberIds = Array.from(new Set([...channel.memberIds, ...userIdsToAdd]));
-          const updatedChannel = { ...channel, memberIds: newMemberIds };
-          
-          const mockChannelIndex = initialMockChannels.findIndex(ch => ch.id === channelId);
-          if (mockChannelIndex !== -1) {
-            initialMockChannels[mockChannelIndex] = updatedChannel;
-          }
-
-          if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
-            setActiveConversationState(prev => prev ? {...prev, channel: updatedChannel} : null);
-          }
-          return updatedChannel;
-        }
-        return channel;
-      });
-    });
-
-    const addedUserNames = userIdsToAdd
-        .map(id => allUsersWithCurrent.find(user => user.id === id)?.name)
-        .filter((name): name is string => !!name); 
-
-    if (addedUserNames.length > 0) {
-        const systemMessageContent = `${currentUser.name} added ${addedUserNames.join(', ')} to ${isPrivateChannel ? 'the private channel ' : ''}#${channelName}.`;
-        const systemMessage: Message = {
-            id: `sys-add-${Date.now()}`,
-            userId: 'system',
-            content: systemMessageContent,
-            timestamp: Date.now(),
-            isSystemMessage: true,
-        };
-
-        if (mockMessages[channelId]) {
-            mockMessages[channelId].push(systemMessage);
-        } else {
-            mockMessages[channelId] = [systemMessage];
-        }
-
-        if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
-            setMessages(prevMessages => [...prevMessages, systemMessage]);
-        }
-        setTimeout(() => {
-          toast({ title: "Members Added", description: `${addedUserNames.length} new member(s) added to #${channelName}.` });
-        }, 0);
-    }
-
-  }, [toast, activeConversation, currentUser, allUsersWithCurrent]);
-
-  const generateSummary = useCallback(async (channelId: string) => {
-    const channel = channels.find(c => c.id === channelId);
-    if (!channel) {
-      setTimeout(() => { 
-        toast({ title: "Error", description: "Channel not found.", variant: "destructive" });
-      }, 0);
-      return;
-    }
-    const channelMessages = fetchMockMessages(channelId).filter(msg => !msg.isSystemMessage); 
-    if (channelMessages.length === 0) {
-      setTimeout(() => { 
-        toast({ title: "Summary", description: "No user messages in this channel to summarize." });
-      }, 0);
-      setCurrentSummary("This channel has no user messages yet.");
-      return;
-    }
-    setIsLoadingSummary(true);
-    setCurrentSummary(null);
-    try {
-      const result = await summarizeChannelFlow({
-        channelName: channel.name,
-        messages: channelMessages.map(m => `${allUsersWithCurrent.find(u => u.id === m.userId)?.name || 'Unknown User'}: ${m.content}`),
-      });
-      setCurrentSummary(result.summary);
-      setTimeout(() => { 
-        toast({ title: "Summary Generated", description: `Summary for #${channel.name} is ready.` });
-      }, 0);
-    } catch (error) {
-      console.error("Error generating summary:", error);
-      setTimeout(() => { 
-        toast({ title: "Summarization Error", description: "Could not generate summary.", variant: "destructive" });
-      }, 0);
-      setCurrentSummary("Failed to generate summary.");
-    } finally {
-      setIsLoadingSummary(false);
-    }
-  }, [channels, allUsersWithCurrent, toast]);
-
-  const clearSummary = () => {
-    setCurrentSummary(null);
-  };
-
-  const sendInvitation = useCallback(async (email: string): Promise<string | null> => {
-    if (!currentUser) return null;
-    if (currentUser.role !== 'admin') {
-        setTimeout(() => toast({title: "Permission Denied", description: "Only admins can send invitations.", variant: "destructive"}), 0);
-        return null;
-    }
-    if (allUsersWithCurrent.some(user => user.email === email) || pendingInvitations.some(inv => inv.email === email)) {
-      setTimeout(() => {
-        toast({ title: "Invitation Failed", description: `${email} is already a member or has a pending invitation.`, variant: "destructive" });
-      }, 0);
-      return null;
-    }
-    const token = btoa(`${email}-${Date.now()}`);
-    const newInvitation: PendingInvitation = { email, token, timestamp: Date.now() };
-    setPendingInvitations(prev => [...prev, newInvitation]);
-
-    const joinUrl = `${window.location.origin}/join/${token}`;
-    const emailSubject = `You're invited to join ${process.env.NEXT_PUBLIC_APP_NAME || "Opano"}!`;
-    const emailHtmlBody = `
-      <h1>Welcome to ${process.env.NEXT_PUBLIC_APP_NAME || "Opano"}!</h1>
-      <p>You've been invited to join the ${process.env.NEXT_PUBLIC_APP_NAME || "Opano"} workspace.</p>
-      <p>Please click the link below to complete your registration:</p>
-      <p><a href="${joinUrl}" target="_blank">${joinUrl}</a></p>
-      <p>If you did not expect this invitation, you can safely ignore this email.</p>
-    `;
-    setTimeout(() => {
-      toast({
-        title: "Sending Invitation...",
-        description: `Attempting to send an invitation email to ${email}.`,
-        duration: 5000, 
-      });
-    },0);
-
-    try {
-      const emailResult = await sendInvitationEmail({
-        to: email,
-        subject: emailSubject,
-        htmlBody: emailHtmlBody,
-        joinUrl: joinUrl,
-      });
-
-      if (emailResult.success) {
-        setTimeout(() => {
-          toast({
-            title: "Invitation Sent!",
-            description: `An invitation email has been sent to ${email}.`,
-            duration: 7000,
-          });
-        },0);
-      } else {
-        setTimeout(() => {
-          toast({
-            title: "Email Sending Failed",
-            description: `Could not send email to ${email}. ${emailResult.error || ''} For testing, use this link (also in console): ${joinUrl}`,
-            variant: "destructive",
-            duration: 15000, 
-          });
-        }, 0);
-        console.error(`[sendInvitation] Failed to send invitation email to ${email}. Error: ${emailResult.error}. Test Link: ${joinUrl}`);
-      }
-    } catch (flowError) {
-      console.error("[sendInvitation] Error calling sendInvitationEmail flow:", flowError);
-      setTimeout(() => { 
-        toast({
-            title: "Flow Error",
-            description: `An error occurred while trying to send the email. For testing, use this link (also in console): ${joinUrl}`,
-            variant: "destructive",
-            duration: 15000
-          });
-      }, 0);
-      console.error(`[sendInvitation] Flow error sending invitation email to ${email}. Test Link: ${joinUrl}`);
-    }
-    return token;
-  }, [allUsersWithCurrent, pendingInvitations, toast, currentUser]);
-
-  const verifyInviteToken = useCallback((token: string): PendingInvitation | null => {
-    return pendingInvitations.find(inv => inv.token === token) || null;
-  }, [pendingInvitations]);
-
-  const acceptInvitation = useCallback((token: string, userDetails: { name: string; designation: string }): boolean => {
-    const invitation = verifyInviteToken(token);
-    if (!invitation) {
-      setTimeout(() => { 
-        toast({ title: "Invalid Invitation", description: "This invitation link is not valid or has expired.", variant: "destructive" });
-      },0);
-      return false;
-    }
-    // This logic is now largely handled by Firebase Auth sign-up flow.
-    // We can keep this to remove the pending invitation after successful Firebase sign-up if the email matches.
-    // Or, Firebase sign-up itself is the 'acceptance'.
-    // For now, just removing the pending invite:
-    setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token)); 
-    setTimeout(() => { 
-      toast({ title: "Registration Complete", description: `User ${userDetails.name} can now sign in.` });
-    }, 0);
-    return true;
-  }, [verifyInviteToken, toast]);
+    setTimeout(() => toast({ title: "Channel Created", description: `Channel #${name} created.` }),0);
+  }, [currentUser, setActiveConversation, toast]);
 
   const toggleReaction = useCallback((messageId: string, emoji: string) => {
-    if (!currentUser) return; 
+    if (!currentUser) return;
     setMessages(prevMessages => {
       return prevMessages.map(msg => {
         if (msg.id === messageId) {
-          const reactions = { ...(msg.reactions || {}) }; 
+          const reactions = { ...(msg.reactions || {}) };
           const userList = reactions[emoji] || [];
           const userIndex = userList.indexOf(currentUser.id);
-
-          if (userIndex > -1) { 
+          if (userIndex > -1) {
             userList.splice(userIndex, 1);
-            if (userList.length === 0) {
-              delete reactions[emoji];
-            } else {
-              reactions[emoji] = userList;
-            }
-          } else { 
+            if (userList.length === 0) delete reactions[emoji];
+            else reactions[emoji] = userList;
+          } else {
             reactions[emoji] = [...userList, currentUser.id];
           }
           const updatedMsg = { ...msg, reactions };
@@ -650,644 +162,62 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [currentUser, activeConversation]);
 
-  const editMessage = useCallback((messageId: string, newContent: string) => {
-    if (!currentUser) return;
-    setMessages(prevMessages =>
-      prevMessages.map(msg => {
-        if (msg.id === messageId && msg.userId === currentUser.id) { 
-          const updatedMsg = { ...msg, content: newContent, isEdited: true, timestamp: Date.now() };
-          if (activeConversation) updateMockMessage(activeConversation.id, messageId, { content: newContent, isEdited: true, timestamp: updatedMsg.timestamp });
-          return updatedMsg;
-        }
-        return msg;
-      })
-    );
-  }, [currentUser, activeConversation]);
-
-  const deleteMessage = useCallback((messageId: string) => {
-    if (!currentUser) return;
-    setMessages(prevMessages =>
-      prevMessages.filter(msg => {
-        if (msg.id === messageId && msg.userId === currentUser.id) { 
-          if (activeConversation && mockMessages[activeConversation.id]) {
-            mockMessages[activeConversation.id] = mockMessages[activeConversation.id].filter(m => m.id !== messageId);
-          }
-          return false; 
-        }
-        return true;
-      })
-    );
-  }, [currentUser, activeConversation]);
-
   const toggleCurrentUserStatus = useCallback(() => {
-    if (!currentUser) return;
-    setCurrentUser(prevUser => {
-        if (!prevUser) return null; 
-        const newStatus = !prevUser.isOnline;
-        const updatedCurrentUser = { ...prevUser, isOnline: newStatus };
-
-        setAllUsersWithCurrent(prevAllUsers => prevAllUsers.map(u => u.id === updatedCurrentUser.id ? updatedCurrentUser : u));
-        // No need to update `users` state separately if `allUsersWithCurrent` is the source of truth for DMs
-        
-        const userIndex = initialMockUsers.findIndex(u => u.id === updatedCurrentUser.id);
-        if (userIndex !== -1) {
-            initialMockUsers[userIndex] = updatedCurrentUser;
-        }
-
-        setTimeout(() => { 
-            toast({
-              title: "Status Updated",
-              description: `You are now ${newStatus ? 'Online' : 'Away'}.`,
-            });
-        },0);
-      return updatedCurrentUser;
-    });
-  }, [toast, currentUser]);
-
-  const updateUserProfile = useCallback((profileData: UserProfileUpdateData) => {
-    if (!currentUser) return;
     setCurrentUser(prevUser => {
         if (!prevUser) return null;
-        const updatedUser: User = {
-            ...prevUser,
-            name: profileData.name || prevUser.name,
-            designation: profileData.designation === undefined ? prevUser.designation : profileData.designation,
-            email: profileData.email, // Assuming email might be editable, though typically not for Firebase Auth users
-            phoneNumber: profileData.phoneNumber === undefined ? prevUser.phoneNumber : profileData.phoneNumber,
-            avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl, 
-            linkedinProfileUrl: profileData.linkedinProfileUrl === undefined ? prevUser.linkedinProfileUrl : profileData.linkedinProfileUrl,
-            pronouns: profileData.pronouns === undefined ? prevUser.pronouns : profileData.pronouns,
-            role: profileData.role || prevUser.role,
-        };
+        const newStatus = !prevUser.isOnline;
+        const updatedUser = { ...prevUser, isOnline: newStatus };
         
+        setAllUsersWithCurrent(prevAll => prevAll.map(u => u.id === updatedUser.id ? updatedUser : u));
+        setUsers(prevU => prevU.map(u => u.id === updatedUser.id ? updatedUser : u));
+
         const userIndex = initialMockUsers.findIndex(u => u.id === updatedUser.id);
-        if (userIndex !== -1) {
-            initialMockUsers[userIndex] = updatedUser;
-        } else {
-            initialMockUsers.push(updatedUser); 
-        }
-        setAllUsersWithCurrent(initialMockUsers.map(u => u.id === updatedUser.id ? updatedUser : u));
-        // No need to update `users` state separately if `allUsersWithCurrent` is the source of truth for DMs
+        if (userIndex !== -1) initialMockUsers[userIndex] = updatedUser;
 
-        setTimeout(() => { 
-            toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
-        },0);
-      return updatedUser;
+        setTimeout(() => toast({ title: "Status Updated", description: `You are now ${newStatus ? 'Online' : 'Away'}.`}),0);
+        return updatedUser;
     });
-  }, [toast, currentUser]);
-
-  const signOutUser = useCallback(async () => {
-    try {
-      console.log("[AppContext] Attempting to sign out user.");
-      await signOut(auth);
-      setTimeout(() => { 
-        toast({ title: "Signed Out", description: "You have been successfully signed out." });
-      }, 0);
-      console.log("[AppContext] User signed out successfully.");
-    } catch (error) {
-      console.error("[AppContext] Error signing out: ", error);
-      setTimeout(() => { 
-        toast({ title: "Sign Out Error", description: "Could not sign you out. Please try again.", variant: "destructive" });
-      }, 0);
-    }
   }, [toast]);
 
-  const updateUserRole = useCallback((targetUserId: string, newRole: UserRole) => {
-    if (!currentUser || currentUser.role !== 'admin') {
-      setTimeout(() => {
-        toast({ title: "Permission Denied", description: "Only admins can change user roles.", variant: "destructive" });
-      }, 0);
-      return;
-    }
-    if (currentUser.id === targetUserId && newRole !== 'admin') { // Admins cannot demote themselves
-        setTimeout(() => {
-          toast({ title: "Action Not Allowed", description: "Admins cannot demote themselves.", variant: "destructive" });
-        }, 0);
-        return;
-    }
-
-    const userIndexInMock = initialMockUsers.findIndex(u => u.id === targetUserId);
-    if (userIndexInMock !== -1) {
-      initialMockUsers[userIndexInMock] = { ...initialMockUsers[userIndexInMock], role: newRole };
+  const updateUserProfile = useCallback((profileData: UserProfileUpdateData) => {
+    setCurrentUser(prevUser => {
+      if (!prevUser) return null;
+      const updatedUser = {
+        ...prevUser,
+        name: profileData.name || prevUser.name,
+        designation: profileData.designation === undefined ? prevUser.designation : profileData.designation,
+        email: profileData.email || prevUser.email, // Assuming email is part of basic profile
+        avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
+      };
+      setAllUsersWithCurrent(prevAll => prevAll.map(u => u.id === updatedUser.id ? updatedUser : u));
+      setUsers(prevU => prevU.map(u => u.id === updatedUser.id ? updatedUser : u));
       
-      setAllUsersWithCurrent(prevAll => prevAll.map(u => u.id === targetUserId ? { ...u, role: newRole } : u));
-      // Update users state if needed, though allUsersWithCurrent should be primary source now
-      setUsers(prevUsers => prevUsers.map(u => u.id === targetUserId ? {...u, role: newRole} : u));
+      const userIndex = initialMockUsers.findIndex(u => u.id === updatedUser.id);
+      if (userIndex !== -1) initialMockUsers[userIndex] = updatedUser;
       
-      if (currentUser.id === targetUserId) { // If the admin promoted/demoted themselves (though demotion is blocked)
-        setCurrentUser(prev => prev ? { ...prev, role: newRole } : null);
-      }
+      setTimeout(() => toast({ title: "Profile Updated", description: "Your profile has been updated."}),0);
+      return updatedUser;
+    });
+  }, [toast]);
 
-      const targetUser = initialMockUsers[userIndexInMock];
-      setTimeout(() => {
-        toast({ title: "User Role Updated", description: `${targetUser.name}'s role has been changed to ${newRole}.` });
-      }, 0);
-    } else {
-      setTimeout(() => {
-        toast({ title: "Error", description: "User not found.", variant: "destructive" });
-      },0);
-    }
-  }, [currentUser, toast]);
-
-  const deleteDraft = useCallback((draftId: string) => {
-    setDrafts(prevDrafts => prevDrafts.filter(draft => draft.id !== draftId));
-    const draftIndex = initialMockDrafts.findIndex(d => d.id === draftId);
-    if (draftIndex > -1) {
-      initialMockDrafts.splice(draftIndex, 1);
-    }
-    setTimeout(() => { 
-      toast({ title: "Draft Deleted", description: "The draft has been removed." });
-    }, 0);
+  const signOutUser = useCallback(async () => {
+    // This is now a mock sign out, as Firebase is removed
+    setCurrentUser(null);
+    setUsers([]);
+    setAllUsersWithCurrent([]);
+    setActiveConversationState(null);
+    setTimeout(() => toast({ title: "Signed Out" }),0);
+    // No actual router push here unless specifically needed for a non-Firebase auth page
   }, [toast]);
 
   const getConversationName = useCallback((conversationId: string, conversationType: 'channel' | 'dm'): string => {
     if (conversationType === 'channel') {
       return channels.find(c => c.id === conversationId)?.name || 'Unknown Channel';
-    } else { 
+    } else {
       return allUsersWithCurrent.find(u => u.id === conversationId)?.name || 'Unknown User';
     }
   }, [channels, allUsersWithCurrent]);
 
-  const replies = useMemo(() => {
-    if (!currentUser) return [];
-    const allMsgs: Message[] = Object.values(mockMessages).flat();
-    return allMsgs.filter(msg =>
-      msg.content.toLowerCase().includes(`@${currentUser.name.toLowerCase()}`) &&
-      msg.userId !== currentUser.id && 
-      !msg.isSystemMessage
-    ).sort((a, b) => b.timestamp - a.timestamp); 
-  }, [currentUser]); 
-
-  const activities: ActivityItem[] = useMemo(() => {
-    if (!currentUser) return [];
-    const myMessageIds = new Set<string>();
-    const allMsgs: Message[] = Object.values(mockMessages).flat();
-
-    allMsgs.forEach(msg => {
-      if (msg.userId === currentUser.id && !msg.isSystemMessage) {
-        myMessageIds.add(msg.id);
-      }
-    });
-
-    const activityItems: ActivityItem[] = [];
-    allMsgs.forEach(msg => {
-      if (myMessageIds.has(msg.id) && msg.reactions) { 
-        Object.entries(msg.reactions).forEach(([emoji, reactorIds]) => {
-          reactorIds.forEach(reactorId => {
-            if (reactorId !== currentUser.id) { 
-              const reactor = allUsersWithCurrent.find(u => u.id === reactorId);
-              if (reactor) {
-                let convId = '';
-                let convType: 'channel' | 'dm' = 'channel'; 
-                let convName = 'Unknown Conversation';
-
-                for (const [key, messagesInConv] of Object.entries(mockMessages)) { 
-                    if (messagesInConv.some(m => m.id === msg.id)) {
-                        convId = key;
-                        const channel = channels.find(c => c.id === key);
-                        if (channel) {
-                            convType = 'channel';
-                            convName = channel.name;
-                        } else {
-                            const user = allUsersWithCurrent.find(u => u.id === key);
-                            if (user) {
-                                convType = 'dm';
-                                convName = user.name;
-                            }
-                        }
-                        break; 
-                    }
-                }
-
-                activityItems.push({
-                  id: `${msg.id}-${reactorId}-${emoji}`, 
-                  message: msg,
-                  reactor,
-                  emoji,
-                  timestamp: msg.timestamp, 
-                  conversationId: convId,
-                  conversationType: convType,
-                  conversationName: convName,
-                });
-              }
-            }
-          });
-        });
-      }
-    });
-    return activityItems.sort((a, b) => b.timestamp - a.timestamp); 
-  }, [currentUser, allUsersWithCurrent, channels]); 
-
-  const findDocumentCategoryById = useCallback((categoryId: string) => {
-    return documentCategories.find(cat => cat.id === categoryId);
-  }, [documentCategories]);
-
-  const addDocumentCategory = useCallback((name: string, description: string, iconName: DocumentCategory['iconName'] = 'FolderKanban') => {
-    if (!currentUser) {
-        setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
-        return;
-    }
-    if (currentUser.role !== 'admin') {
-        setTimeout(() => toast({title: "Permission Denied", description: "Only admins can create document categories.", variant: "destructive"}), 0);
-        return;
-    }
-    const newCategory: DocumentCategory = {
-      id: `cat-${Date.now()}`,
-      name,
-      description,
-      iconName: iconName, 
-      documents: [],
-    };
-    setDocumentCategories(prev => {
-        const updated = [...prev, newCategory];
-        initialDocumentCategories.push(newCategory); 
-        return updated;
-    });
-    setTimeout(() => { 
-      toast({ title: "Category Added", description: `Category "${name}" has been created.` });
-    }, 0);
-  }, [toast, currentUser]);
-
-  const addFileDocumentToCategory = useCallback((categoryId: string, file: File) => {
-    if (!currentUser) {
-        setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
-        return;
-    }
-    const newDocument: Document = {
-      id: `doc-file-${Date.now()}`,
-      name: file.name,
-      type: file.type || 'unknown',
-      docType: 'file',
-      lastModified: format(new Date(), "MMM d, yyyy"),
-      fileUrl: URL.createObjectURL(file), 
-      fileObject: file, 
-    };
-    setDocumentCategories(prev => prev.map(cat => {
-        if (cat.id === categoryId) {
-            const updatedCat = { ...cat, documents: [...cat.documents, newDocument] };
-            const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
-            if (catIndex > -1) initialDocumentCategories[catIndex] = updatedCat;
-            return updatedCat;
-        }
-        return cat;
-    }));
-    
-    const category = findDocumentCategoryById(categoryId);
-    const categoryName = category ? category.name : 'Unknown Category';
-    setTimeout(() => { 
-        toast({
-            title: "Document Added",
-            description: `${currentUser.name} added "${newDocument.name}" to the "${categoryName}" category.`,
-            action: (
-                <ToastAction altText="View Category" onClick={() => router.push(`/documents/${categoryId}`)}>
-                    View Category
-                </ToastAction>
-            ),
-        });
-    }, 0);
-
-    const generalChannel = channels.find(c => c.name.toLowerCase() === 'general');
-    const generalChannelId = generalChannel ? generalChannel.id : (channels.length > 0 ? channels[0].id : null); 
-    if (generalChannelId) {
-        const systemMessageContent = `${currentUser.name} added a new document: "${newDocument.name}" to the "${categoryName}" category.`;
-        const systemMessage: Message = {
-            id: `sys-doc-add-${Date.now()}`,
-            userId: 'system',
-            content: systemMessageContent,
-            timestamp: Date.now(),
-            isSystemMessage: true,
-        };
-        if (mockMessages[generalChannelId]) { 
-            mockMessages[generalChannelId].push(systemMessage);
-        } else {
-            mockMessages[generalChannelId] = [systemMessage];
-        }
-        if (activeConversation?.type === 'channel' && activeConversation.id === generalChannelId) {
-            setMessages(prevMessages => [...prevMessages, systemMessage]);
-        }
-    }
-
-  }, [toast, findDocumentCategoryById, currentUser, router, channels, activeConversation]);
-
-  const addTextDocumentToCategory = useCallback((categoryId: string, docName: string, textContent: string) => {
-    if (!currentUser) {
-        setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
-        return;
-    }
-    const newDocument: Document = {
-      id: `doc-text-${Date.now()}`,
-      name: docName.endsWith('.txt') ? docName : `${docName}.txt`, 
-      type: 'text/plain',
-      docType: 'text',
-      lastModified: format(new Date(), "MMM d, yyyy"),
-      textContent: textContent,
-    };
-    setDocumentCategories(prev => prev.map(cat => {
-        if (cat.id === categoryId) {
-            const updatedCat = { ...cat, documents: [...cat.documents, newDocument] };
-            const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
-            if (catIndex > -1) initialDocumentCategories[catIndex] = updatedCat;
-            return updatedCat;
-        }
-        return cat;
-    }));
-
-    const category = findDocumentCategoryById(categoryId);
-    const categoryName = category ? category.name : 'Unknown Category';
-    setTimeout(() => { 
-        toast({
-            title: "Document Created",
-            description: `${currentUser.name} created "${newDocument.name}" in the "${categoryName}" category.`,
-            action: (
-                <ToastAction altText="View Category" onClick={() => router.push(`/documents/${categoryId}`)}>
-                    View Category
-                </ToastAction>
-            ),
-        });
-    },0);
-
-    const generalChannel = channels.find(c => c.name.toLowerCase() === 'general');
-    const generalChannelId = generalChannel ? generalChannel.id : (channels.length > 0 ? channels[0].id : null);
-    if (generalChannelId) {
-        const systemMessageContent = `${currentUser.name} created a new text document: "${newDocument.name}" in the "${categoryName}" category.`;
-        const systemMessage: Message = {
-            id: `sys-doc-create-${Date.now()}`,
-            userId: 'system',
-            content: systemMessageContent,
-            timestamp: Date.now(),
-            isSystemMessage: true,
-        };
-         if (mockMessages[generalChannelId]) { 
-            mockMessages[generalChannelId].push(systemMessage);
-        } else {
-            mockMessages[generalChannelId] = [systemMessage];
-        }
-        if (activeConversation?.type === 'channel' && activeConversation.id === generalChannelId) {
-            setMessages(prevMessages => [...prevMessages, systemMessage]);
-        }
-    }
-
-  }, [toast, findDocumentCategoryById, currentUser, router, channels, activeConversation]);
-
-  const addLinkedDocumentToCategory = useCallback((categoryId: string, docName: string, docUrl: string) => {
-    if (!currentUser) {
-        setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
-        return;
-    }
-    const newDocument: Document = {
-      id: `doc-url-${Date.now()}`,
-      name: docName,
-      type: 'external/link',
-      docType: 'url',
-      lastModified: format(new Date(), "MMM d, yyyy"),
-      fileUrl: docUrl,
-    };
-    setDocumentCategories(prev => prev.map(cat => {
-        if (cat.id === categoryId) {
-            const updatedCat = { ...cat, documents: [...cat.documents, newDocument] };
-            const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
-            if (catIndex > -1) initialDocumentCategories[catIndex] = updatedCat;
-            return updatedCat;
-        }
-        return cat;
-    }));
-
-    const category = findDocumentCategoryById(categoryId);
-    const categoryName = category ? category.name : 'Unknown Category';
-    setTimeout(() => { 
-        toast({
-            title: "External Document Linked",
-            description: `${currentUser.name} linked "${newDocument.name}" in the "${categoryName}" category.`,
-            action: (
-                <ToastAction altText="View Category" onClick={() => router.push(`/documents/${categoryId}`)}>
-                    View Category
-                </ToastAction>
-            ),
-        });
-    },0);
-
-    const generalChannel = channels.find(c => c.name.toLowerCase() === 'general');
-    const generalChannelId = generalChannel ? generalChannel.id : (channels.length > 0 ? channels[0].id : null);
-    if (generalChannelId) {
-        const systemMessageContent = `${currentUser.name} linked an external document: "${newDocument.name}" in the "${categoryName}" category.`;
-        const systemMessage: Message = {
-            id: `sys-doc-link-${Date.now()}`,
-            userId: 'system',
-            content: systemMessageContent,
-            timestamp: Date.now(),
-            isSystemMessage: true,
-        };
-        if (mockMessages[generalChannelId]) { 
-            mockMessages[generalChannelId].push(systemMessage);
-        } else {
-            mockMessages[generalChannelId] = [systemMessage];
-        }
-        if (activeConversation?.type === 'channel' && activeConversation.id === generalChannelId) {
-            setMessages(prevMessages => [...prevMessages, systemMessage]);
-        }
-    }
-
-  }, [toast, findDocumentCategoryById, currentUser, router, channels, activeConversation]);
-
-  const deleteDocumentFromCategory = useCallback((categoryId: string, docId: string) => {
-    if (!currentUser || currentUser.role !== 'admin') {
-        setTimeout(() => toast({title: "Permission Denied", description: "Only admins can delete documents.", variant: "destructive"}), 0);
-        return;
-    }
-    setDocumentCategories(prev => prev.map(cat => {
-        if (cat.id === categoryId) {
-            const updatedDocs = cat.documents.filter(doc => doc.id !== docId);
-            const updatedCat = { ...cat, documents: updatedDocs };
-            const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
-            if (catIndex > -1) initialDocumentCategories[catIndex] = updatedCat;
-            return updatedCat;
-        }
-        return cat;
-    }));
-    setTimeout(() => { 
-        toast({ title: "Document Deleted", description: "The document has been removed."});
-    },0);
-  }, [toast, currentUser]);
-
-  const searchAllDocuments = useCallback((query: string): Array<{ doc: Document, category: DocumentCategory }> => {
-    const trimmedQuery = query.trim().toLowerCase();
-    const results: Array<{ doc: Document, category: DocumentCategory }> = [];
-
-    if (trimmedQuery === '') {
-        // Return first 2 docs from first 5 categories if query is empty
-        documentCategories.slice(0, 5).forEach(category => {
-            category.documents.slice(0, 2).forEach(doc => {
-                results.push({ doc, category });
-            });
-        });
-    } else {
-        documentCategories.forEach(category => {
-          category.documents.forEach(doc => {
-            if (doc.name.toLowerCase().includes(trimmedQuery)) {
-              results.push({ doc, category });
-            }
-          });
-        });
-    }
-    return results.slice(0, 10); // Limit results to 10 for performance
-  }, [documentCategories]);
-
-  const startCall = (conversation: ActiveConversation | null) => {
-    if (!currentUser || !conversation) return;
-    setCallingWith(conversation);
-    setIsCallActive(true);
-    setTimeout(() => { 
-      toast({ title: "Starting Call", description: `Calling ${conversation.name}... (Simulated)` });
-    }, 0);
-
-    const callMessageContent = `${currentUser.name} started a call.`;
-    const systemMessage: Message = {
-      id: `sys-call-start-${Date.now()}`,
-      userId: 'system',
-      content: callMessageContent,
-      timestamp: Date.now(),
-      isSystemMessage: true,
-    };
-
-    if (mockMessages[conversation.id]) { 
-      mockMessages[conversation.id].push(systemMessage);
-    } else {
-      mockMessages[conversation.id] = [systemMessage];
-    }
-
-    if (activeConversation?.id === conversation.id) {
-      setMessages(prevMessages => [...prevMessages, systemMessage]);
-    }
-  };
-
-  const endCall = () => {
-    if (callingWith) {
-        setTimeout(() => { 
-            toast({ title: "Call Ended", description: `Call with ${callingWith.name} ended. (Simulated)` });
-        }, 0);
-
-      const callMessageContent = `Call with ${callingWith.name} ended.`;
-      const systemMessage: Message = {
-        id: `sys-call-end-${Date.now()}`,
-        userId: 'system',
-        content: callMessageContent,
-        timestamp: Date.now(),
-        isSystemMessage: true,
-      };
-
-      if (mockMessages[callingWith.id]) { 
-        mockMessages[callingWith.id].push(systemMessage);
-      } else {
-        mockMessages[callingWith.id] = [systemMessage];
-      }
-
-      if (activeConversation?.id === callingWith.id) {
-        setMessages(prevMessages => [...prevMessages, systemMessage]);
-      }
-    }
-    setIsCallActive(false);
-    setCallingWith(null);
-  };
-
-  const handleAddLeaveRequest = useCallback(async (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => {
-    if (!currentUser) {
-        setTimeout(() => toast({ title: "Error", description: "You must be logged in to request leave.", variant: "destructive" }), 0);
-        return;
-    }
-    const newLeaveRequest: LeaveRequest = {
-      ...newRequestData,
-      id: `leave-${Date.now()}`,
-      userId: currentUser.id,
-      requestDate: new Date(),
-      status: 'pending',
-    };
-    setLeaveRequests(prev => [...prev, newLeaveRequest].sort((a,b) => b.requestDate.getTime() - a.requestDate.getTime()));
-
-    setTimeout(() => { 
-        toast({
-            title: "Leave Request Submitted",
-            description: `Your leave request for ${currentUser.name} has been submitted for approval.`,
-        });
-    }, 0);
-
-    const configuredAdminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-    let adminEmail = configuredAdminEmail || "hassyku786@gmail.com"; 
-
-    if (!configuredAdminEmail) {
-      console.log("[AppContext] NEXT_PUBLIC_ADMIN_EMAIL not set in .env.local, defaulting admin notifications for leave requests to hassyku786@gmail.com");
-    }
-
-    const durationDays = differenceInDays(newLeaveRequest.endDate, newLeaveRequest.startDate) + 1;
-    const subject = `New Leave Request from ${currentUser.name}`;
-    const htmlBody = `
-      <p>Hello Admin,</p>
-      <p>A new leave request has been submitted by <strong>${currentUser.name}</strong> (ID: ${currentUser.id}).</p>
-      <p><strong>Details:</strong></p>
-      <ul>
-        <li><strong>Start Date:</strong> ${format(newLeaveRequest.startDate, 'PPP')}</li>
-        <li><strong>End Date:</strong> ${format(newLeaveRequest.endDate, 'PPP')}</li>
-        <li><strong>Duration:</strong> ${durationDays} day(s)</li>
-        <li><strong>Reason:</strong> ${newLeaveRequest.reason}</li>
-      </ul>
-      <p>Please review this request in the Opano system.</p>
-    `;
-    try {
-      console.log(`[AppContext] Attempting to send leave notification to admin: ${adminEmail}`);
-      const emailResult = await sendInvitationEmail({
-        to: adminEmail,
-        subject: subject,
-        htmlBody: htmlBody,
-        joinUrl: `${window.location.origin}/attendance` 
-      });
-      if (emailResult.success) {
-        console.log(`[AppContext] Leave notification email sent successfully to ${adminEmail}. Message ID: ${emailResult.messageId}`);
-      } else {
-        console.error(`[AppContext] Failed to send leave notification email to ${adminEmail}. Error: ${emailResult.error}`);
-        setTimeout(() => { 
-          toast({
-            title: "Admin Notification Failed",
-            description: `Could not notify admin about the leave request. Error: ${emailResult.error}`,
-            variant: "destructive",
-            duration: 7000
-          });
-        }, 0);
-      }
-    } catch (error) {
-      console.error("[AppContext] Error calling sendInvitationEmail flow for admin notification:", error);
-       setTimeout(() => { 
-          toast({
-            title: "Admin Notification Error",
-            description: "An unexpected error occurred while trying to notify the admin.",
-            variant: "destructive",
-            duration: 7000
-          });
-        }, 0);
-    }
-
-    const adminUser = allUsersWithCurrent.find(u => u.role === 'admin');
-    if (adminUser && adminUser.id !== currentUser.id) {
-      const adminMessageContent = `${currentUser.name} has submitted a leave request: ${durationDays} day(s) from ${format(newLeaveRequest.startDate, 'MMM d')} to ${format(newLeaveRequest.endDate, 'MMM d')}. Reason: ${newLeaveRequest.reason}`;
-      const systemMessageForAdmin: Message = {
-        id: `sys-leave-req-${Date.now()}`,
-        userId: 'system',
-        content: adminMessageContent,
-        timestamp: Date.now(),
-        isSystemMessage: true,
-      };
-      if (mockMessages[adminUser.id]) {
-        mockMessages[adminUser.id].push(systemMessageForAdmin);
-      } else {
-        mockMessages[adminUser.id] = [systemMessageForAdmin];
-      }
-      console.log(`[AppContext] In-app leave notification sent to admin DM: ${adminUser.name}`);
-    }
-
-  }, [currentUser, toast, allUsersWithCurrent, activeConversation, channels]);
-
-  const openUserProfilePanel = (userToView: User) => {
-    setViewingUserProfile(userToView);
-    setIsUserProfilePanelOpen(true);
-  };
 
   const contextValue = useMemo(() => ({
     currentUser,
@@ -1299,62 +229,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     messages,
     addMessage,
     addChannel,
-    addMembersToChannel,
-    currentSummary,
-    isLoadingSummary,
-    generateSummary,
-    clearSummary,
-    sendInvitation,
-    verifyInviteToken,
-    acceptInvitation,
-    pendingInvitations,
     toggleReaction,
-    editMessage,
-    deleteMessage,
     toggleCurrentUserStatus,
     updateUserProfile,
     signOutUser,
-    updateUserRole,
     currentView,
     setActiveSpecialView,
-    drafts,
-    deleteDraft,
-    replies,
-    activities,
     getConversationName,
-    replyingToMessage,
-    setReplyingToMessage,
-    documentCategories,
-    addDocumentCategory,
-    addFileDocumentToCategory,
-    addTextDocumentToCategory,
-    addLinkedDocumentToCategory,
-    deleteDocumentFromCategory,
-    findDocumentCategoryById,
-    searchAllDocuments,
-    isCallActive,
-    callingWith,
-    startCall,
-    endCall,
     isLoadingAuth,
-    isUserProfilePanelOpen,
-    viewingUserProfile,
-    openUserProfilePanel,
-    closeUserProfilePanel,
-    openEditProfileDialog, // Expose this
-    leaveRequests,
-    handleAddLeaveRequest,
   }), [
     currentUser, users, allUsersWithCurrent, channels, activeConversation, setActiveConversation,
-    messages, addMessage, addChannel, addMembersToChannel, currentSummary, isLoadingSummary, generateSummary,
-    sendInvitation, verifyInviteToken, acceptInvitation, pendingInvitations,
-    toggleReaction, editMessage, deleteMessage, toggleCurrentUserStatus, updateUserProfile, signOutUser, updateUserRole,
-    currentView, setActiveSpecialView, drafts, deleteDraft, replies, activities, getConversationName,
-    replyingToMessage, documentCategories, addDocumentCategory, addFileDocumentToCategory, addTextDocumentToCategory,
-    addLinkedDocumentToCategory, deleteDocumentFromCategory, findDocumentCategoryById, searchAllDocuments,
-    isCallActive, callingWith, startCall, endCall, isLoadingAuth, isUserProfilePanelOpen, viewingUserProfile,
-    openUserProfilePanel, closeUserProfilePanel, openEditProfileDialog, leaveRequests, handleAddLeaveRequest
-  ]); // All state & callbacks included
+    messages, addMessage, addChannel, toggleReaction, toggleCurrentUserStatus, updateUserProfile,
+    signOutUser, currentView, setActiveSpecialView, getConversationName, isLoadingAuth
+  ]);
 
   return (
     <AppContext.Provider value={contextValue}>
@@ -1370,4 +257,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-

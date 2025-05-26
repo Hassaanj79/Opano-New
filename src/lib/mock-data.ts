@@ -1,19 +1,24 @@
 
-import type { User, Channel, Message, Draft, DocumentCategory, UserRole } from '@/types';
+import type { User, Channel, Message } from '@/types';
 
-// Add back some initial users
+export const initialMockCurrentUser: User = {
+  id: 'u1',
+  name: 'Hassaan',
+  avatarUrl: 'https://placehold.co/40x40.png?text=ME',
+  isOnline: true,
+  designation: 'Lead Developer',
+  email: 'hassaan@example.com',
+};
+
 export const initialMockUsers: User[] = [
+  initialMockCurrentUser,
   {
-    id: 'u2', // Keep existing ID structure if it was there
+    id: 'u2',
     name: 'Hanzlah',
     email: 'hanzlah@example.com',
     avatarUrl: 'https://placehold.co/40x40.png?text=HA',
     isOnline: false,
     designation: 'Frontend Developer',
-    role: 'member',
-    phoneNumber: '123-456-7891',
-    linkedinProfileUrl: 'https://linkedin.com/in/hanzlah',
-    pronouns: 'He/Him',
   },
   {
     id: 'u3',
@@ -22,10 +27,6 @@ export const initialMockUsers: User[] = [
     avatarUrl: 'https://placehold.co/40x40.png?text=HU',
     isOnline: true,
     designation: 'Backend Developer',
-    role: 'member',
-    phoneNumber: '123-456-7892',
-    linkedinProfileUrl: 'https://linkedin.com/in/huzaifa',
-    pronouns: 'He/Him',
   },
   {
     id: 'u4',
@@ -34,10 +35,6 @@ export const initialMockUsers: User[] = [
     avatarUrl: 'https://placehold.co/40x40.png?text=FA',
     isOnline: false,
     designation: 'QA Engineer',
-    role: 'member',
-    phoneNumber: '123-456-7893',
-    linkedinProfileUrl: 'https://linkedin.com/in/fahad',
-    pronouns: 'He/Him',
   },
   {
     id: 'u5',
@@ -46,37 +43,48 @@ export const initialMockUsers: User[] = [
     avatarUrl: 'https://placehold.co/40x40.png?text=AR',
     isOnline: true,
     designation: 'UI/UX Designer',
-    role: 'member',
-    phoneNumber: '123-456-7894',
-    linkedinProfileUrl: 'https://linkedin.com/in/areeb',
-    pronouns: 'He/Him',
   },
-  // Note: The actual currentUser will be determined by Firebase Auth.
-  // If an admin is needed and no Firebase user has become admin yet,
-  // you might need to adjust the first user's role to 'admin' here
-  // OR ensure the Firebase auth flow correctly assigns admin to the first signed-up user.
 ];
 
+export let initialMockChannels: Channel[] = [
+  {
+    id: 'c1',
+    name: 'general',
+    memberIds: ['u1', 'u2', 'u3', 'u4', 'u5'],
+    description: 'General chat for everyone',
+    isPrivate: false,
+  },
+  {
+    id: 'c2',
+    name: 'project-alpha',
+    memberIds: ['u1', 'u2', 'u3'],
+    description: 'Discussions for Project Alpha',
+    isPrivate: true,
+  },
+];
 
-export let initialMockChannels: Channel[] = [];
+export let mockMessages: Record<string, Message[]> = {
+  c1: [
+    { id: 'm1', userId: 'u2', content: 'Hello everyone!', timestamp: Date.now() - 100000, reactions: {'👍': ['u1']} },
+    { id: 'm2', userId: 'u1', content: 'Hi Hanzlah!', timestamp: Date.now() - 90000 },
+  ],
+  c2: [
+    { id: 'm3', userId: 'u1', content: 'Project Alpha meeting at 3 PM.', timestamp: Date.now() - 50000 },
+  ],
+  u2: [ // DM with Hanzlah
+    { id: 'dm1', userId: 'u1', content: 'Hey Hanzlah, how are you?', timestamp: Date.now() - 200000 },
+    { id: 'dm2', userId: 'u2', content: 'Doing good, Hassaan! You?', timestamp: Date.now() - 190000 },
+  ],
+  u1: [ // Notes to self
+    { id: 'self1', userId: 'u1', content: 'Remember to deploy on Friday.', timestamp: Date.now() - 300000 },
+  ]
+};
 
-// Messages will be added dynamically.
-export let mockMessages: Record<string, Message[]> = {};
-
-// Drafts will be added by user interaction.
-export let mockDrafts: Draft[] = [];
-
-// Document categories will be created by admins.
-export let initialDocumentCategories: DocumentCategory[] = [];
-
-// Helper function to get messages; will return empty if no messages for the ID.
 export const getMessagesForConversation = (conversationId: string): Message[] => {
   const msgs = mockMessages[conversationId] || [];
-  // Ensure reactions is always an object, even if undefined in mock data
   return msgs.map(msg => ({ ...msg, reactions: msg.reactions ? { ...msg.reactions } : {} }));
 };
 
-// Helper function to update messages (e.g., for reactions, edits).
 export const updateMockMessage = (conversationId: string, messageId: string, updatedMessageData: Partial<Message>) => {
   if (mockMessages[conversationId]) {
     const messageIndex = mockMessages[conversationId].findIndex(msg => msg.id === messageId);
