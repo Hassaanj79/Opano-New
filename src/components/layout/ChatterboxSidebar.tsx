@@ -33,7 +33,7 @@ import {
     LogOut,
     Clock,
     Folder,
-    Users as UsersIcon,
+    Users as UsersIcon, // Renamed to avoid conflict
     MoreHorizontal
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
@@ -61,7 +61,6 @@ const topNavItems: { label: string; icon: React.ElementType; viewOrPath: Current
     { label: 'Replies', icon: MessageSquareReply, viewOrPath: 'replies' },
     { label: 'Activity', icon: Bell, viewOrPath: 'activity' },
     { label: 'Drafts', icon: Send, viewOrPath: 'drafts' },
-    { label: 'More', icon: MoreHorizontal, viewOrPath: '/more', isPath: true },
 ];
 
 
@@ -95,8 +94,12 @@ export function ChatterboxSidebar() {
     closeUserProfilePanel();
     if (isPath) {
       router.push(viewOrPath as string);
-      if (viewOrPath === '/attendance' || viewOrPath === '/documents' || viewOrPath === '/admin/users' || viewOrPath === '/more') {
-        setActiveSpecialView('chat'); 
+      if (viewOrPath === '/attendance' || viewOrPath === '/documents' || viewOrPath === '/admin/users') {
+        // Keep chat view if navigating to these distinct app sections, 
+        // but don't clear activeConversation if already in a non-chat view
+        if (currentView !== 'replies' && currentView !== 'activity' && currentView !== 'drafts') {
+             setActiveSpecialView('chat'); 
+        }
       }
     } else {
       setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts');
