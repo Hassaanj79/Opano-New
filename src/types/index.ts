@@ -1,4 +1,6 @@
 
+export type UserRole = 'admin' | 'member';
+
 export type User = {
   id: string;
   name: string;
@@ -8,7 +10,8 @@ export type User = {
   email: string;
   phoneNumber?: string;
   linkedinProfileUrl?: string;
-  pronouns?: string; // Added pronouns
+  pronouns?: string;
+  role: UserRole; // Added role
 };
 
 export type Channel = {

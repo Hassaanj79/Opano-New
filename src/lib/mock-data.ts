@@ -1,16 +1,16 @@
 
-import type { User, Channel, Message, Draft, DocumentCategory, Document } from '@/types';
+import type { User, Channel, Message, Draft, DocumentCategory, Document, UserRole } from '@/types';
 import { format } from 'date-fns';
 
 export const mockUsers: User[] = [
-  { id: 'u1', name: 'Hassaan', avatarUrl: 'https://placehold.co/40x40.png?text=HA', isOnline: true, designation: 'Lead Designer', email: 'hassaan@example.com', phoneNumber: '123-456-7890', linkedinProfileUrl: 'https://linkedin.com/in/hassaanmock', pronouns: 'He/Him' },
-  { id: 'u2', name: 'Hanzlah', avatarUrl: 'https://placehold.co/40x40.png?text=HA', isOnline: false, designation: 'Engineer', email: 'hanzlah@example.com', linkedinProfileUrl: 'https://linkedin.com/in/hanzlahmock', pronouns: 'He/Him' },
-  { id: 'u3', name: 'Huzaifa', avatarUrl: 'https://placehold.co/40x40.png?text=HU', isOnline: true, designation: 'Product Manager', email: 'huzaifa@example.com', pronouns: 'He/Him' },
-  { id: 'u4', name: 'Fahad', avatarUrl: 'https://placehold.co/40x40.png?text=FA', isOnline: true, designation: 'UX Researcher', email: 'fahad@example.com', pronouns: 'They/Them' },
-  { id: 'u5', name: 'Areeb', avatarUrl: 'https://placehold.co/40x40.png?text=AR', isOnline: false, designation: 'Frontend Dev', email: 'areeb@example.com', pronouns: 'She/Her' },
+  { id: 'u1', name: 'Hassaan', avatarUrl: 'https://placehold.co/40x40.png?text=HA', isOnline: true, designation: 'Lead Designer', email: 'hassaan@example.com', phoneNumber: '123-456-7890', linkedinProfileUrl: 'https://linkedin.com/in/hassaanmock', pronouns: 'He/Him', role: 'admin' },
+  { id: 'u2', name: 'Hanzlah', avatarUrl: 'https://placehold.co/40x40.png?text=HA', isOnline: false, designation: 'Engineer', email: 'hanzlah@example.com', linkedinProfileUrl: 'https://linkedin.com/in/hanzlahmock', pronouns: 'He/Him', role: 'member' },
+  { id: 'u3', name: 'Huzaifa', avatarUrl: 'https://placehold.co/40x40.png?text=HU', isOnline: true, designation: 'Product Manager', email: 'huzaifa@example.com', pronouns: 'He/Him', role: 'member' },
+  { id: 'u4', name: 'Fahad', avatarUrl: 'https://placehold.co/40x40.png?text=FA', isOnline: true, designation: 'UX Researcher', email: 'fahad@example.com', pronouns: 'They/Them', role: 'member' },
+  { id: 'u5', name: 'Areeb', avatarUrl: 'https://placehold.co/40x40.png?text=AR', isOnline: false, designation: 'Frontend Dev', email: 'areeb@example.com', pronouns: 'She/Her', role: 'member' },
 ];
 
-export const mockCurrentUser: User = { ...mockUsers[0], email: mockUsers[0].email || 'currentuser@example.com' };
+export const mockCurrentUser: User = { ...mockUsers[0], email: mockUsers[0].email || 'currentuser@example.com', role: 'admin' }; // Ensure current user is admin
 
 export const mockChannels: Channel[] = [
   { id: 'c1', name: 'general', memberIds: ['u1', 'u2', 'u3', 'u4', 'u5'], description: 'General team discussions', isPrivate: false },
@@ -61,9 +61,9 @@ export const mockMessages: Record<string, Message[]> = {
     { id: 'dm4', userId: 'u3', content: 'Hey Hassaan, how are you? Need to discuss the latest drone shots I sent.', timestamp: Date.now() - 1000 * 60 * 18, reactions: { '👍': ['u1']}},
     { id: 'dm5', userId: 'u1', content: 'Sure, let\'s sync up!', timestamp: Date.now() - 1000 * 60 * 15 }
   ],
-  u1: [
-    { id: 'self-dm1', userId: 'u1', content: 'Note to self: Remember to buy milk.', timestamp: Date.now() - 1000 * 60 * 60 * 3 },
-    { id: 'self-dm2', userId: 'u1', content: 'Draft: Project Phoenix update email...', timestamp: Date.now() - 1000 * 60 * 30 },
+  u1: [ // Assuming u1 is Hassaan, the admin and current user
+    { id: 'self-dm1', userId: 'u1', content: 'Note to self: Review RBAC implementation.', timestamp: Date.now() - 1000 * 60 * 60 * 3 },
+    { id: 'self-dm2', userId: 'u1', content: 'Draft: Announcement about new features.', timestamp: Date.now() - 1000 * 60 * 30 },
   ],
   u4: [],
   u5: [],

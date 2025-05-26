@@ -33,6 +33,7 @@ import {
     LogOut,
     Clock,
     Folder,
+    MoreHorizontal
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
@@ -49,7 +50,6 @@ import type { CurrentView } from '@/types';
 import { useRouter, usePathname } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Define navigation items
 const appFeatureNavItems = [
   { label: 'Attendance', icon: Clock, path: '/attendance' },
   { label: 'Documents', icon: Folder, path: '/documents' },
@@ -86,21 +86,19 @@ export function ChatterboxSidebar() {
   };
 
   const handleNavClick = (viewOrPath: CurrentView | string, isPath: boolean = false) => {
+    closeUserProfilePanel(); // Close profile panel on any main nav click
     if (isPath) {
       router.push(viewOrPath as string);
-      // If navigating to a main feature page, ensure the 'currentView' in context is reset or appropriately set.
-      // For example, if these main features are considered outside the 'chat', 'replies' etc. views.
-      // For now, we can assume these pages have their own full content.
-      // If clicking these should also clear the 'activeConversation' or set a specific 'currentView',
-      // that logic can be added here or within setActiveSpecialView/setActiveConversation.
+      // For app features, ensure chat view related states are reset
       if (viewOrPath === '/attendance' || viewOrPath === '/documents') {
-        // Optionally, set a default view or clear active conversation if needed
-        // setActiveSpecialView('chat'); // or a new view type like 'app-feature'
+        setActiveSpecialView('chat'); // Or set to a neutral view if preferred
       }
     } else {
       setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts');
     }
   };
+  
+  const { closeUserProfilePanel } = useAppContext(); // Assuming closeUserProfilePanel is available
 
   const handleLogin = () => {
     router.push('/auth/join');
@@ -155,7 +153,6 @@ export function ChatterboxSidebar() {
         <SidebarContent className="p-0">
           {currentUser && (
             <>
-              {/* Moved App Feature Nav Items to the top */}
               <SidebarGroup className="pt-2 pb-1 group-data-[collapsible=icon]:px-0">
                 <SidebarMenu>
                   {appFeatureNavItems.map((item) => (
@@ -201,15 +198,17 @@ export function ChatterboxSidebar() {
                   <SidebarGroupLabel className="text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden p-0 normal-case">
                       Loopz
                   </SidebarGroupLabel>
-                  <Button
-                    variant="default"
-                    size="icon"
-                    className="h-6 w-6 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground group-data-[collapsible=icon]:hidden"
-                    onClick={() => setIsAddChannelDialogOpen(true)}
-                    aria-label="Add new channel"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
+                  {currentUser?.role === 'admin' && (
+                    <Button
+                      variant="default"
+                      size="icon"
+                      className="h-6 w-6 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground group-data-[collapsible=icon]:hidden"
+                      onClick={() => setIsAddChannelDialogOpen(true)}
+                      aria-label="Add new channel"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
                 <ChannelList searchTerm={searchTerm} />
               </SidebarGroup>
@@ -231,15 +230,17 @@ export function ChatterboxSidebar() {
         <SidebarFooter className="p-2 border-t border-sidebar-border mt-auto">
           {currentUser ? (
             <>
-              <Button
-                variant="ghost"
-                className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2 mb-1 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                onClick={() => setIsInviteUserDialogOpen(true)}
-                aria-label="Invite new user"
-              >
-                <UserPlus className="h-4 w-4" />
-                <span className="ml-2 group-data-[collapsible=icon]:hidden">Invite User</span>
-              </Button>
+              {currentUser.role === 'admin' && (
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2 mb-1 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  onClick={() => setIsInviteUserDialogOpen(true)}
+                  aria-label="Invite new user"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span className="ml-2 group-data-[collapsible=icon]:hidden">Invite User</span>
+                </Button>
+              )}
               <SidebarSeparator className="my-1"/>
               <div
                 className="flex items-center p-1 gap-2 rounded-md group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center hover:bg-sidebar-accent cursor-pointer"

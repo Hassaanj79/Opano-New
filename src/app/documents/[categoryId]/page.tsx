@@ -24,12 +24,13 @@ export default function CategoryDetailPage() {
     addFileDocumentToCategory,
     addTextDocumentToCategory,
     addLinkedDocumentToCategory,
-    deleteDocumentFromCategory 
+    deleteDocumentFromCategory,
+    currentUser // Added currentUser for role check
   } = useAppContext();
   const { toast } = useToast();
 
   const categoryId = typeof params.categoryId === 'string' ? params.categoryId : '';
-  const [category, setCategory] = useState<DocumentCategory | null | undefined>(undefined); // Start as undefined
+  const [category, setCategory] = useState<DocumentCategory | null | undefined>(undefined); 
 
   const [isAddFileDialogOpen, setIsAddFileDialogOpen] = useState(false);
   const [isCreateTextDialogOpen, setIsCreateTextDialogOpen] = useState(false);
@@ -44,7 +45,7 @@ export default function CategoryDetailPage() {
       const foundCategory = findDocumentCategoryById(categoryId);
       setCategory(foundCategory);
     } else {
-      setCategory(null); // If no categoryId, set to null explicitly for error state
+      setCategory(null); 
     }
   }, [categoryId, findDocumentCategoryById]);
 
@@ -78,12 +79,15 @@ export default function CategoryDetailPage() {
 
   const handleConfirmDeleteDocument = () => {
     if (!deletingDocInfo) return;
+    if (currentUser?.role !== 'admin') {
+      toast({ title: "Permission Denied", description: "Only admins can delete documents.", variant: "destructive" });
+      setDeletingDocInfo(null);
+      return;
+    }
     deleteDocumentFromCategory(deletingDocInfo.categoryId, deletingDocInfo.docId);
     setDeletingDocInfo(null);
-    // Toast is handled by AppContext
   };
 
-  // Loading state
   if (category === undefined) { 
     return (
         <div className="flex flex-col items-center justify-center flex-grow bg-muted/30 p-6 text-muted-foreground">
@@ -93,7 +97,6 @@ export default function CategoryDetailPage() {
     );
   }
 
-  // Category not found state
   if (category === null) { 
     return (
         <div className="flex flex-col items-center justify-center flex-grow bg-muted/30 p-6">
@@ -109,10 +112,9 @@ export default function CategoryDetailPage() {
 
   const Icon = Icons[category.iconName as keyof typeof Icons] || Icons.Folder;
 
-  // Main content when category is found
   return (
     <div className="flex flex-col w-full p-4 md:p-6 bg-muted/30 flex-grow">
-        <div className="mb-6"> {/* Section for Back button and Category Header */}
+        <div className="mb-6"> 
             <Button variant="outline" onClick={() => router.push('/documents')} className="mb-4">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Categories
             </Button>
@@ -153,30 +155,32 @@ export default function CategoryDetailPage() {
                   <p className="text-muted-foreground">Type: <span className="font-medium text-foreground/80">{doc.docType.toUpperCase()}</span></p>
                   <p className="text-muted-foreground">Modified: <span className="font-medium text-foreground/80">{doc.lastModified}</span></p>
                 </CardContent>
-                <div className="p-3 border-t flex justify-end gap-1 bg-muted/30">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => toast({title: "Edit (Coming Soon)", description: "Editing document details will be available soon."})}>
-                      <Edit3 className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeletingDocInfo({categoryId: category.id, docId: doc.id})}>
-                          <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete the document "{doc.name}".
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setDeletingDocInfo(null)}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDeleteDocument}>Delete</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+                {currentUser?.role === 'admin' && ( // Only admins see edit/delete
+                  <div className="p-3 border-t flex justify-end gap-1 bg-muted/30">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => toast({title: "Edit (Coming Soon)", description: "Editing document details will be available soon."})}>
+                        <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeletingDocInfo({categoryId: category.id, docId: doc.id})}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the document "{doc.name}".
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setDeletingDocInfo(null)}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleConfirmDeleteDocument}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
               </Card>
             ))}
           </div>
@@ -188,8 +192,6 @@ export default function CategoryDetailPage() {
           </div>
         )}
 
-      {/* Dialogs rendered at the end, their position in DOM doesn't affect their visual placement */}
-      {/* Checking 'category' before rendering dialogs that depend on it */}
       {category && (
         <>
             <AddDocumentDialog

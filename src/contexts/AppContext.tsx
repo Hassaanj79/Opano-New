@@ -2,7 +2,7 @@
 "use client";
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView, DocumentCategory, Document, LeaveRequest } from '@/types';
+import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView, DocumentCategory, Document, LeaveRequest, UserRole } from '@/types';
 import { auth } from '@/lib/firebase';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -32,6 +32,7 @@ export type UserProfileUpdateData = {
   avatarDataUrl?: string;
   linkedinProfileUrl?: string;
   pronouns?: string; 
+  role?: UserRole; // Role might not be editable by user directly
 };
 
 interface AppContextType {
@@ -92,7 +93,6 @@ interface AppContextType {
   openUserProfilePanel: (user: User) => void;
   closeUserProfilePanel: () => void;
 
-  // Leave Management
   leaveRequests: LeaveRequest[];
   handleAddLeaveRequest: (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => void;
 }
@@ -147,7 +147,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
     }, 0);
 
-    // Send email to admin
     const configuredAdminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
     const adminEmail = configuredAdminEmail || "hassyku786@gmail.com";
     
@@ -155,7 +154,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.log("[AppContext] NEXT_PUBLIC_ADMIN_EMAIL not set in .env.local, defaulting admin notifications for leave requests to hassyku786@gmail.com");
     }
 
-    // The adminEmail will always be truthy here due to the default.
     const durationDays = differenceInDays(newLeaveRequest.endDate, newLeaveRequest.startDate) + 1;
     const subject = `New Leave Request from ${currentUser.name}`;
     const htmlBody = `
@@ -176,7 +174,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         to: adminEmail,
         subject: subject,
         htmlBody: htmlBody,
-        joinUrl: `${window.location.origin}/attendance` // A generic link to the attendance page
+        joinUrl: `${window.location.origin}/attendance` 
       });
       if (emailResult.success) {
         console.log(`[AppContext] Leave notification email sent successfully to ${adminEmail}. Message ID: ${emailResult.messageId}`);
@@ -209,7 +207,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setViewingUserProfile(userToView);
     setIsUserProfilePanelOpen(true);
     if (currentView !== 'chat') {
-      // setCurrentViewState('chat'); // Optionally switch to chat view
+      // setCurrentViewState('chat'); 
     }
   };
 
@@ -234,6 +232,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           phoneNumber: existingMockUser?.phoneNumber || '',
           linkedinProfileUrl: existingMockUser?.linkedinProfileUrl || '',
           pronouns: existingMockUser?.pronouns || '',
+          role: existingMockUser?.role || 'member', // Assign role from mock or default to member
         };
         setCurrentUser(appUser);
         setAllUsersWithCurrent(prevAllUsers => {
@@ -275,9 +274,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (currentUser) {
-      setUsers(initialMockUsers.filter(u => u.id !== currentUser.id && u.email !== currentUser.email));
+      // setUsers(initialMockUsers.filter(u => u.id !== currentUser.id && u.email !== currentUser.email));
       const otherMockUsers = initialMockUsers.filter(u => u.id !== currentUser.id && u.email !== currentUser.email);
       setAllUsersWithCurrent([currentUser, ...otherMockUsers]);
+       setUsers(otherMockUsers); // Users should not include current user
     } else {
       setUsers(initialMockUsers);
       setAllUsersWithCurrent(initialMockUsers);
@@ -389,6 +389,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setTimeout(() => toast({title: "Action failed", description: "You must be logged in to create a channel.", variant: "destructive"}), 0);
         return;
     }
+    if (currentUser.role !== 'admin') {
+        setTimeout(() => toast({title: "Permission Denied", description: "Only admins can create channels.", variant: "destructive"}), 0);
+        return;
+    }
     const trimmedName = name.trim();
     if (channels.some(channel => channel.name.toLowerCase() === trimmedName.toLowerCase())) {
       setTimeout(() => {
@@ -459,6 +463,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
         return;
     }
+    if (currentUser.role !== 'admin') {
+        setTimeout(() => toast({title: "Permission Denied", description: "Only admins can add members to channels.", variant: "destructive"}), 0);
+        return;
+    }
+
     let channelName = '';
     let isPrivateChannel = false;
     setChannels(prevChannels => {
@@ -557,6 +566,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const sendInvitation = useCallback(async (email: string): Promise<string | null> => {
     if (!currentUser) return null;
+    if (currentUser.role !== 'admin') {
+        setTimeout(() => toast({title: "Permission Denied", description: "Only admins can send invitations.", variant: "destructive"}), 0);
+        return null;
+    }
     if (allUsersWithCurrent.some(user => user.email === email) || pendingInvitations.some(inv => inv.email === email)) {
       setTimeout(() => {
         toast({ title: "Invitation Failed", description: `${email} is already a member or has a pending invitation.`, variant: "destructive" });
@@ -638,8 +651,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       },0);
       return false;
     }
+    // This part would ideally trigger Firebase user creation.
+    // For mock:
+    const newUser: User = {
+      id: `u${Date.now()}`,
+      name: userDetails.name,
+      email: invitation.email,
+      designation: userDetails.designation,
+      isOnline: true,
+      avatarUrl: `https://placehold.co/40x40.png?text=${userDetails.name.substring(0,2).toUpperCase()}`,
+      role: 'member' // New users default to 'member'
+    };
+    setUsers(prev => [...prev, newUser]);
+    setAllUsersWithCurrent(prev => [...prev, newUser]);
+    initialMockUsers.push(newUser); 
+    setCurrentUser(newUser); // Automatically log in the new user (simulation)
+
     setTimeout(() => {
-      toast({ title: "Invitation Verified!", description: `Account for ${invitation.email} can now be created via Firebase Auth.` });
+      toast({ title: "Welcome to Opano!", description: `Account for ${invitation.email} created.` });
     }, 0);
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token));
     return true;
@@ -724,15 +753,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!currentUser) return;
     setCurrentUser(prevUser => {
         if (!prevUser) return null;
-        const updatedUser = {
+        const updatedUser: User = { // Ensure type User is used
             ...prevUser,
             name: profileData.name || prevUser.name,
             designation: profileData.designation || prevUser.designation,
             email: profileData.email, 
             phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
-            avatarDataUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
+            avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
             linkedinProfileUrl: profileData.linkedinProfileUrl || prevUser.linkedinProfileUrl,
             pronouns: profileData.pronouns || prevUser.pronouns,
+            role: profileData.role || prevUser.role, // Persist role, typically not user-editable
         };
         
         setAllUsersWithCurrent(prevAll => prevAll.map(u => u.id === updatedUser.id ? updatedUser : u));
@@ -882,6 +912,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const addDocumentCategory = useCallback((name: string, description: string, iconName: DocumentCategory['iconName'] = 'FolderKanban') => {
     if (!currentUser) {
         setTimeout(() => toast({title: "Action failed", description: "You must be logged in.", variant: "destructive"}), 0);
+        return;
+    }
+    if (currentUser.role !== 'admin') {
+        setTimeout(() => toast({title: "Permission Denied", description: "Only admins can create document categories.", variant: "destructive"}), 0);
         return;
     }
     const newCategory: DocumentCategory = {
@@ -1059,6 +1093,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [toast, findDocumentCategoryById, currentUser, router, activeConversation]);
 
   const deleteDocumentFromCategory = useCallback((categoryId: string, docId: string) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+        setTimeout(() => toast({title: "Permission Denied", description: "Only admins can delete documents.", variant: "destructive"}), 0);
+        return;
+    }
     setDocumentCategories(prev => prev.map(cat =>
         cat.id === categoryId
             ? { ...cat, documents: cat.documents.filter(doc => doc.id !== docId) }
@@ -1071,16 +1109,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setTimeout(() => {
         toast({ title: "Document Deleted", description: "The document has been removed."});
     },0);
-  }, [toast]);
+  }, [toast, currentUser]);
 
   const searchAllDocuments = useCallback((query: string): Array<{ doc: Document, category: DocumentCategory }> => {
     const trimmedQuery = query.trim().toLowerCase();
     const results: Array<{ doc: Document, category: DocumentCategory }> = [];
 
     if (trimmedQuery === '') {
-        // Return up to 5 documents from each category if query is empty
-        documentCategories.slice(0,5).forEach(category => { // Limit to first 5 categories
-            category.documents.slice(0, 2).forEach(doc => { // Limit to 2 per category for initial display
+        documentCategories.slice(0,5).forEach(category => { 
+            category.documents.slice(0, 2).forEach(doc => { 
                 results.push({ doc, category });
             });
         });
@@ -1093,7 +1130,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           });
         });
     }
-    return results.slice(0, 10); // Global limit for results shown in popover
+    return results.slice(0, 10); 
   }, [documentCategories]);
 
   const startCall = (conversation: ActiveConversation | null) => {
@@ -1220,4 +1257,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-

@@ -7,16 +7,14 @@ import { Button } from "@/components/ui/button";
 import * as Icons from "lucide-react";
 import Link from "next/link";
 import { AddDocumentCategoryDialog } from '@/components/dialogs/AddDocumentCategoryDialog';
-import { useAppContext } from '@/contexts/AppContext'; // Import AppContext
-import type { DocumentCategory } from '@/types'; // Import types from global types
+import { useAppContext } from '@/contexts/AppContext'; 
+import type { DocumentCategory } from '@/types'; 
 
 export default function DocumentsPage() {
-  // Use documentCategories and addDocumentCategory from AppContext
-  const { documentCategories, addDocumentCategory } = useAppContext();
+  const { documentCategories, addDocumentCategory, currentUser } = useAppContext(); // Added currentUser
   const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
 
   const handleAddCategory = (name: string, description: string) => {
-    // Default icon for new categories, can be customized later
     addDocumentCategory(name, description, 'FolderKanban'); 
   };
 
@@ -35,10 +33,12 @@ export default function DocumentsPage() {
               Organize, share, and manage all your important documents across different categories.
             </p>
           </header>
-          <Button variant="outline" onClick={() => setIsAddCategoryDialogOpen(true)}>
-            <Icons.PlusCircle className="mr-2 h-4 w-4" />
-            New Category
-          </Button>
+          {currentUser?.role === 'admin' && ( // Conditionally render button
+            <Button variant="outline" onClick={() => setIsAddCategoryDialogOpen(true)}>
+              <Icons.PlusCircle className="mr-2 h-4 w-4" />
+              New Category
+            </Button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -68,11 +68,13 @@ export default function DocumentsPage() {
           ))}
         </div>
       </div>
-      <AddDocumentCategoryDialog
-        isOpen={isAddCategoryDialogOpen}
-        onOpenChange={setIsAddCategoryDialogOpen}
-        onAddCategory={handleAddCategory}
-      />
+      {currentUser?.role === 'admin' && ( // Conditionally render dialog
+        <AddDocumentCategoryDialog
+          isOpen={isAddCategoryDialogOpen}
+          onOpenChange={setIsAddCategoryDialogOpen}
+          onAddCategory={handleAddCategory}
+        />
+      )}
     </>
   );
 }
