@@ -3,7 +3,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, Coffee, LogOut, Play, TimerIcon, Edit2, Trash, PlusCircle, UserCircle, Users } from "lucide-react"; // Added UserCircle, Users
+import { Calendar as CalendarIcon, Coffee, LogOut, Play, TimerIcon, Edit2, Trash, PlusCircle, MoreHorizontal, BarChart2, FileText, CalendarOff } from "lucide-react";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from "@/contexts/AppContext";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -20,6 +20,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Calendar } from "@/components/ui/calendar";
 import {
   AlertDialog,
@@ -30,14 +36,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format, isSameDay, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import type { AttendanceLogEntry } from '@/types';
 import { EditAttendanceLogDialog } from "@/components/dialogs/EditAttendanceLogDialog";
 import { cn } from "@/lib/utils";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner"; // Import spinner
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 
 const MAX_WORK_SECONDS = 8 * 60 * 60; // 8 hours in seconds for progress calculation
 
@@ -68,11 +73,11 @@ const formatDateRangeForReportHeader = (range: DateRange | undefined): string =>
   }
   if (range.to) {
     if (isSameDay(range.from, range.to)) {
-        return format(range.from, 'dd-MMM-yyyy');
+        return format(range.from, 'PPP');
     }
-    return `${format(range.from, 'dd-MMM-yyyy')} to ${format(range.to, 'dd-MMM-yyyy')}`;
+    return `${format(range.from, 'PPP')} to ${format(range.to, 'PPP')}`;
   }
-  return format(range.from, 'dd-MMM-yyyy');
+  return format(range.from, 'PPP');
 };
 
 
@@ -132,7 +137,10 @@ export default function AttendancePage() {
   
   const [masterAttendanceLog, setMasterAttendanceLog] = useState<AttendanceLogEntry[]>([]);
   const [displayedAttendanceLog, setDisplayedAttendanceLog] = useState<AttendanceLogEntry[]>([]);
-  const [reportDateRange, setReportDateRange] = useState<DateRange | undefined>(undefined);
+  const [reportDateRange, setReportDateRange] = useState<DateRange | undefined>({
+    from: new Date(),
+    to: new Date(),
+  });
 
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -191,12 +199,12 @@ export default function AttendancePage() {
     setAccumulatedBreakDuration(0);
     setWorkedSeconds(0);
     setStatus('working');
-    if (!reportDateRange || !reportDateRange.from ||
-        (reportDateRange.to && !isWithinInterval(now, {start: startOfDay(reportDateRange.from), end: endOfDay(reportDateRange.to)})) ||
-        (!reportDateRange.to && !isSameDay(now, reportDateRange.from))
-    ) {
-       setReportDateRange({ from: now, to: now });
-    }
+    // if (!reportDateRange || !reportDateRange.from ||
+    //     (reportDateRange.to && !isWithinInterval(now, {start: startOfDay(reportDateRange.from), end: endOfDay(reportDateRange.to)})) ||
+    //     (!reportDateRange.to && !isSameDay(now, reportDateRange.from))
+    // ) {
+    //    setReportDateRange({ from: now, to: now });
+    // }
   };
 
   const handleClockOut = () => {
@@ -296,12 +304,37 @@ export default function AttendancePage() {
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
-      <div className="w-full flex justify-start items-center p-4 mb-6 border-b border-border">
-        <UserAvatar user={currentUser} className="h-10 w-10" />
-        <div className="ml-3">
-          <h1 className="text-lg font-semibold text-foreground">{currentUser.name}</h1>
-          <p className="text-xs text-muted-foreground">{currentUser.designation || "No Designation"}</p>
+    <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto relative">
+      <div className="w-full flex justify-center items-center py-4 mb-6 relative">
+        <div className="flex items-center">
+          <UserAvatar user={currentUser} className="h-10 w-10" />
+          <div className="ml-3">
+            <h1 className="text-lg font-semibold text-foreground">{currentUser.name}</h1>
+            <p className="text-xs text-muted-foreground">{currentUser.designation || "No Designation"}</p>
+          </div>
+        </div>
+        <div className="absolute top-4 right-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                  <MoreHorizontal className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => console.log('Analytics clicked')}>
+                  <BarChart2 className="mr-2 h-4 w-4" />
+                  Analytics
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => console.log('Reports clicked')}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Reports
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => console.log('Leave request clicked')}>
+                  <CalendarOff className="mr-2 h-4 w-4" />
+                  Leave request
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
         </div>
       </div>
 
@@ -383,7 +416,7 @@ export default function AttendancePage() {
                 <Button
                 variant={"outline"}
                 className={cn(
-                    "w-[280px] justify-start text-left font-normal", 
+                    "w-full sm:w-[280px] justify-start text-left font-normal", 
                     !reportDateRange && "text-muted-foreground"
                 )}
                 >
