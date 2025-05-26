@@ -148,56 +148,59 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 0);
 
     // Send email to admin
-    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-    if (adminEmail) {
-      const durationDays = differenceInDays(newLeaveRequest.endDate, newLeaveRequest.startDate) + 1;
-      const subject = `New Leave Request from ${currentUser.name}`;
-      const htmlBody = `
-        <p>Hello Admin,</p>
-        <p>A new leave request has been submitted by <strong>${currentUser.name}</strong> (ID: ${currentUser.id}).</p>
-        <p><strong>Details:</strong></p>
-        <ul>
-          <li><strong>Start Date:</strong> ${format(newLeaveRequest.startDate, 'PPP')}</li>
-          <li><strong>End Date:</strong> ${format(newLeaveRequest.endDate, 'PPP')}</li>
-          <li><strong>Duration:</strong> ${durationDays} day(s)</li>
-          <li><strong>Reason:</strong> ${newLeaveRequest.reason}</li>
-        </ul>
-        <p>Please review this request in the Opano system.</p>
-      `;
-      try {
-        console.log(`[AppContext] Attempting to send leave notification to admin: ${adminEmail}`);
-        const emailResult = await sendInvitationEmail({
-          to: adminEmail,
-          subject: subject,
-          htmlBody: htmlBody,
-          joinUrl: `${window.location.origin}/attendance` // A generic link to the attendance page
-        });
-        if (emailResult.success) {
-          console.log(`[AppContext] Leave notification email sent successfully to ${adminEmail}. Message ID: ${emailResult.messageId}`);
-        } else {
-          console.error(`[AppContext] Failed to send leave notification email to ${adminEmail}. Error: ${emailResult.error}`);
-          setTimeout(() => {
-            toast({
-              title: "Admin Notification Failed",
-              description: `Could not notify admin about the leave request. Error: ${emailResult.error}`,
-              variant: "destructive",
-              duration: 7000
-            });
-          }, 0);
-        }
-      } catch (error) {
-        console.error("[AppContext] Error calling sendInvitationEmail flow for admin notification:", error);
-         setTimeout(() => {
-            toast({
-              title: "Admin Notification Error",
-              description: "An unexpected error occurred while trying to notify the admin.",
-              variant: "destructive",
-              duration: 7000
-            });
-          }, 0);
+    const configuredAdminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+    const adminEmail = configuredAdminEmail || "hassyku786@gmail.com";
+    
+    if (!configuredAdminEmail) {
+      console.log("[AppContext] NEXT_PUBLIC_ADMIN_EMAIL not set in .env.local, defaulting admin notifications for leave requests to hassyku786@gmail.com");
+    }
+
+    // The adminEmail will always be truthy here due to the default.
+    const durationDays = differenceInDays(newLeaveRequest.endDate, newLeaveRequest.startDate) + 1;
+    const subject = `New Leave Request from ${currentUser.name}`;
+    const htmlBody = `
+      <p>Hello Admin,</p>
+      <p>A new leave request has been submitted by <strong>${currentUser.name}</strong> (ID: ${currentUser.id}).</p>
+      <p><strong>Details:</strong></p>
+      <ul>
+        <li><strong>Start Date:</strong> ${format(newLeaveRequest.startDate, 'PPP')}</li>
+        <li><strong>End Date:</strong> ${format(newLeaveRequest.endDate, 'PPP')}</li>
+        <li><strong>Duration:</strong> ${durationDays} day(s)</li>
+        <li><strong>Reason:</strong> ${newLeaveRequest.reason}</li>
+      </ul>
+      <p>Please review this request in the Opano system.</p>
+    `;
+    try {
+      console.log(`[AppContext] Attempting to send leave notification to admin: ${adminEmail}`);
+      const emailResult = await sendInvitationEmail({
+        to: adminEmail,
+        subject: subject,
+        htmlBody: htmlBody,
+        joinUrl: `${window.location.origin}/attendance` // A generic link to the attendance page
+      });
+      if (emailResult.success) {
+        console.log(`[AppContext] Leave notification email sent successfully to ${adminEmail}. Message ID: ${emailResult.messageId}`);
+      } else {
+        console.error(`[AppContext] Failed to send leave notification email to ${adminEmail}. Error: ${emailResult.error}`);
+        setTimeout(() => {
+          toast({
+            title: "Admin Notification Failed",
+            description: `Could not notify admin about the leave request. Error: ${emailResult.error}`,
+            variant: "destructive",
+            duration: 7000
+          });
+        }, 0);
       }
-    } else {
-      console.warn("[AppContext] ADMIN_EMAIL not configured. Cannot send leave notification email to admin.");
+    } catch (error) {
+      console.error("[AppContext] Error calling sendInvitationEmail flow for admin notification:", error);
+       setTimeout(() => {
+          toast({
+            title: "Admin Notification Error",
+            description: "An unexpected error occurred while trying to notify the admin.",
+            variant: "destructive",
+            duration: 7000
+          });
+        }, 0);
     }
 
   }, [currentUser, toast]);
@@ -1076,8 +1079,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     if (trimmedQuery === '') {
         // Return up to 5 documents from each category if query is empty
-        documentCategories.forEach(category => {
-            category.documents.slice(0, 5).forEach(doc => { // Limit to 5 per category for initial display
+        documentCategories.slice(0,5).forEach(category => { // Limit to first 5 categories
+            category.documents.slice(0, 2).forEach(doc => { // Limit to 2 per category for initial display
                 results.push({ doc, category });
             });
         });
