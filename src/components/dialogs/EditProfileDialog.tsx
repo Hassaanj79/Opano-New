@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/form";
 import { UserAvatar } from '@/components/UserAvatar';
 import { useToast } from '@/hooks/use-toast';
-import { ScrollArea } from '@/components/ui/scroll-area'; // Import ScrollArea
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface EditProfileDialogProps {
   isOpen: boolean;
@@ -133,12 +133,12 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
                 Update your personal information and profile picture.
               </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-[65vh] py-4 pr-3"> {/* Added ScrollArea and max-height */}
-              <div className="grid gap-4"> {/* Removed py-4 from here, added to ScrollArea */}
+            <ScrollArea className="max-h-[65vh] py-4 pr-3">
+              <div className="grid gap-4">
                 <FormItem>
                   <FormLabel>Profile Picture</FormLabel>
                   <div className="flex items-center gap-4">
-                    <UserAvatar user={{...(currentUser || { name: '', email: '', isOnline: false }), name: form.getValues('name') || 'User', email: form.getValues('email') || '', isOnline: currentUser?.isOnline || false, avatarUrl: avatarPreview}} className="h-16 w-16" />
+                    <UserAvatar user={{...(currentUser || { name: '', email: '', isOnline: false, role: 'member' }), name: form.getValues('name') || 'User', email: form.getValues('email') || '', isOnline: currentUser?.isOnline || false, avatarUrl: avatarPreview, role: currentUser?.role || 'member'}} className="h-16 w-16" />
                     <Input
                       id="avatarUpload"
                       type="file"
@@ -230,7 +230,7 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
                 />
               </div>
             </ScrollArea>
-            <DialogFooter className="pt-4"> {/* Added some top padding to footer for separation */}
+            <DialogFooter className="pt-4">
               <DialogClose asChild>
                 <Button type="button" variant="outline" onClick={handleDialogClose}>
                   Cancel
@@ -244,4 +244,3 @@ export function EditProfileDialog({ isOpen, onOpenChange }: EditProfileDialogPro
     </Dialog>
   );
 }
-
