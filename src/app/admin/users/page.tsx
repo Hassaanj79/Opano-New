@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
@@ -9,20 +9,41 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserAvatar } from '@/components/UserAvatar';
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ShieldAlert, UserPlus, MailOpen } from "lucide-react"; // Added UserPlus, MailOpen
+import { ArrowLeft, ShieldAlert, UserPlus, MailOpen, MoreHorizontal, ChevronDown, ShieldCheck, UserCog } from "lucide-react";
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { cn } from '@/lib/utils';
-import type { User, PendingInvitation } from '@/types'; // Import PendingInvitation
+import type { User, PendingInvitation, UserRole } from '@/types';
 import { format } from 'date-fns';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from '@/hooks/use-toast';
 
-// Define a union type for table items
 type TableUserItem = 
   | { type: 'active'; data: User }
   | { type: 'invited'; data: PendingInvitation };
 
 export default function ManageUsersPage() {
-  const { allUsersWithCurrent, currentUser, isLoadingAuth, pendingInvitations } = useAppContext();
+  const { allUsersWithCurrent, currentUser, isLoadingAuth, pendingInvitations, updateUserRole } = useAppContext();
   const router = useRouter();
+  const { toast } = useToast();
+
+  const handleRoleChange = (userId: string, currentRole: UserRole) => {
+    const newRole: UserRole = currentRole === 'admin' ? 'member' : 'admin';
+    if (currentUser?.id === userId && newRole === 'member') {
+      toast({
+        title: "Action Denied",
+        description: "You cannot demote yourself.",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateUserRole(userId, newRole);
+  };
+
 
   if (isLoadingAuth) {
     return (
@@ -57,7 +78,7 @@ export default function ManageUsersPage() {
         <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Manage Users</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-            View and manage all active and invited users in the Opano workspace.
+            View, manage roles, and see invited users in the Opano workspace.
             </p>
         </div>
         <Button variant="outline" onClick={() => router.back()}>
@@ -83,7 +104,7 @@ export default function ManageUsersPage() {
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Invited/Joined</TableHead>
-                  {/* <TableHead className="text-right">Actions</TableHead> */}
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -105,7 +126,7 @@ export default function ManageUsersPage() {
                         <TableCell>
                           <Badge 
                             variant={user.role === 'admin' ? 'default' : 'secondary'}
-                            className={cn(user.role === 'admin' && "bg-primary/80 hover:bg-primary/70")}
+                            className={cn(user.role === 'admin' && "bg-primary/80 hover:bg-primary/70 text-primary-foreground")}
                           >
                             {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                           </Badge>
@@ -121,16 +142,36 @@ export default function ManageUsersPage() {
                         <TableCell className="text-xs text-muted-foreground">
                           Joined
                         </TableCell>
-                        {/* Placeholder for actions
                         <TableCell className="text-right">
-                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button> 
+                          {currentUser?.role === 'admin' && user.id !== currentUser?.id ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {user.role === 'member' ? (
+                                  <DropdownMenuItem onClick={() => handleRoleChange(user.id, user.role)}>
+                                    <ShieldCheck className="mr-2 h-4 w-4" />
+                                    Promote to Admin
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem onClick={() => handleRoleChange(user.id, user.role)}>
+                                    <UserCog className="mr-2 h-4 w-4" />
+                                    Demote to Member
+                                  </DropdownMenuItem>
+                                )}
+                                {/* Add more actions like "Deactivate User" here later */}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : user.id === currentUser?.id ? (
+                            <span className="text-xs text-muted-foreground italic">Your Account</span>
+                          ) : null}
                         </TableCell>
-                        */}
                       </TableRow>
                     );
-                  } else { // item.type === 'invited'
+                  } else { 
                     const invitation = item.data;
                     return (
                       <TableRow key={invitation.token} className="bg-muted/30 hover:bg-muted/40">
@@ -159,9 +200,7 @@ export default function ManageUsersPage() {
                         <TableCell className="text-xs text-muted-foreground">
                             {format(new Date(invitation.timestamp), "MMM d, yyyy")}
                         </TableCell>
-                        {/* No actions for invited users for now 
                         <TableCell className="text-right"></TableCell>
-                        */}
                       </TableRow>
                     );
                   }
@@ -181,7 +220,6 @@ export default function ManageUsersPage() {
   );
 }
 
-// Helper icon - might need to be defined or imported if not available globally in lucide-react
 const UsersIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("lucide lucide-users", className)}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
 );
