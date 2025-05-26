@@ -43,7 +43,7 @@ import type { AttendanceLogEntry } from '@/types';
 import { EditAttendanceLogDialog } from "@/components/dialogs/EditAttendanceLogDialog";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { useRouter } from "next/navigation"; // Import useRouter
+import { useRouter } from "next/navigation";
 
 const MAX_WORK_SECONDS = 8 * 60 * 60; // 8 hours in seconds for progress calculation
 
@@ -128,7 +128,7 @@ type AttendanceStatus = 'not-clocked-in' | 'working' | 'on-break' | 'clocked-out
 
 export default function AttendancePage() {
   const { currentUser, isLoadingAuth } = useAppContext();
-  const router = useRouter(); // Initialize useRouter
+  const router = useRouter();
   const [status, setStatus] = useState<AttendanceStatus>('not-clocked-in');
   const [clockInTime, setClockInTime] = useState<Date | null>(null);
   const [clockOutTime, setClockOutTime] = useState<Date | null>(null);
@@ -301,26 +301,31 @@ export default function AttendancePage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto relative">
-      {/* Header section for Back button, User Info, and Actions Dropdown */}
       <div className="flex items-center justify-between w-full py-2 mb-6">
-        {/* Back Button */}
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-muted-foreground hover:text-primary">
-          <ArrowLeft className="h-5 w-5" />
-          <span className="sr-only">Back</span>
+        <Button
+          onClick={() => router.back()}
+          className="flex items-center gap-1 px-4 py-1.5 rounded-full border border-primary bg-transparent text-primary hover:bg-primary/10 focus-visible:ring-primary text-sm font-medium h-auto"
+          aria-label="Back"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back</span>
         </Button>
 
-        {/* Centered User Info */}
         <div className="flex flex-col items-center">
           <UserAvatar user={currentUser} className="h-10 w-10" />
           <h1 className="text-lg font-semibold text-foreground mt-2">{currentUser.name}</h1>
           <p className="text-xs text-muted-foreground">{currentUser.designation || "No Designation"}</p>
         </div>
 
-        {/* Actions Dropdown */}
-        <div> {/* This div helps maintain balance for justify-between if back button takes space */}
+        <div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full border border-primary text-primary hover:bg-primary/10 h-9 w-9 p-0"
+                  aria-label="Actions"
+                >
                   <MoreHorizontal className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
