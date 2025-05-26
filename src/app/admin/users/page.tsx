@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserAvatar } from '@/components/UserAvatar';
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ShieldAlert, UserPlus, MailOpen, MoreHorizontal, ChevronDown, ShieldCheck, UserCog } from "lucide-react";
+import { ArrowLeft, ShieldAlert, MailOpen, MoreHorizontal, ShieldCheck, UserCog } from "lucide-react";
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { cn } from '@/lib/utils';
 import type { User, PendingInvitation, UserRole } from '@/types';
@@ -74,27 +74,27 @@ export default function ManageUsersPage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full">
-      <div className="mb-6 flex items-start justify-between"> {/* Changed to items-start for better alignment with multi-line description */}
+      <div className="mb-6 flex items-start justify-between">
         <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Manage Users</h1>
             <p className="mt-1 text-sm text-muted-foreground">
             View, manage roles, and see invited users in the Opano workspace.
             </p>
         </div>
-        <Button variant="outline" onClick={() => router.back()} className="ml-4 flex-shrink-0"> {/* Added ml-4 for spacing */}
+        <Button variant="outline" onClick={() => router.back()} className="ml-4 flex-shrink-0">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
       </div>
 
-      <Card className="flex-grow">
+      <Card className="flex-grow flex flex-col"> {/* Added flex flex-col to Card */}
         <CardHeader>
           <CardTitle>User List</CardTitle>
           <CardDescription>
             A complete list of all {allUsersWithCurrent.length} active user(s) and {pendingInvitations.length} pending invitation(s).
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-grow"> {/* Added flex-grow to CardContent */}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -115,20 +115,20 @@ export default function ManageUsersPage() {
                       <TableRow key={user.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <UserAvatar user={user} className="h-9 w-9" />
-                            <div>
-                              <div className="font-medium text-foreground">{user.name} {user.id === currentUser?.id && "(You)"}</div>
-                              <div className="text-xs text-muted-foreground">{user.designation || 'No designation'}</div>
+                            <UserAvatar user={user} className="h-9 w-9 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <div className="font-medium text-foreground truncate">{user.name} {user.id === currentUser?.id && "(You)"}</div>
+                              <div className="text-xs text-muted-foreground truncate">{user.designation || 'No designation'}</div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground truncate">{user.email}</TableCell>
                         <TableCell>
                           <Badge
                             variant={user.role === 'admin' ? 'default' : 'secondary'}
-                            className={cn(user.role === 'admin' && "bg-primary/80 hover:bg-primary/70 text-primary-foreground")}
+                            className={cn("capitalize", user.role === 'admin' && "bg-primary/80 hover:bg-primary/70 text-primary-foreground")}
                           >
-                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                            {user.role}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -162,7 +162,6 @@ export default function ManageUsersPage() {
                                     Demote to Member
                                   </DropdownMenuItem>
                                 )}
-                                {/* Add more actions like "Deactivate User" here later */}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           ) : user.id === currentUser?.id ? (
@@ -177,16 +176,16 @@ export default function ManageUsersPage() {
                       <TableRow key={invitation.token} className="bg-muted/30 hover:bg-muted/40">
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-secondary-foreground flex-shrink-0">
                                 <MailOpen className="h-5 w-5" />
                             </div>
-                            <div>
-                              <div className="font-medium text-foreground italic">Invited User</div>
-                              <div className="text-xs text-muted-foreground">Awaiting registration</div>
+                            <div className="min-w-0">
+                              <div className="font-medium text-foreground italic truncate">Invited User</div>
+                              <div className="text-xs text-muted-foreground truncate">Awaiting registration</div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{invitation.email}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground truncate">{invitation.email}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="border-blue-400 text-blue-600">
                             Invited
@@ -220,7 +219,7 @@ export default function ManageUsersPage() {
   );
 }
 
+// Using an inline SVG for UsersIcon as it might have been removed if not directly used elsewhere
 const UsersIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("lucide lucide-users", className)}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
 );
-
