@@ -33,7 +33,7 @@ import {
     LogOut,
     Clock,
     Folder,
-    Users as UsersIcon // Renamed to avoid conflict
+    Users as UsersIcon
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
@@ -49,6 +49,7 @@ import {
 import type { CurrentView } from '@/types';
 import { useRouter, usePathname } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast'; // Import useToast
 
 const appFeatureNavItems = [
   { label: 'Attendance', icon: Clock, path: '/attendance' },
@@ -70,7 +71,8 @@ export function ChatterboxSidebar() {
     currentView,
     isLoadingAuth,
     signOutUser,
-    openUserProfilePanel
+    openUserProfilePanel,
+    closeUserProfilePanel, // Added closeUserProfilePanel
   } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
@@ -78,6 +80,7 @@ export function ChatterboxSidebar() {
   const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast(); // Initialize useToast
 
   const handleEditProfile = () => {
     if (currentUser) {
@@ -86,18 +89,18 @@ export function ChatterboxSidebar() {
   };
 
   const handleNavClick = (viewOrPath: CurrentView | string, isPath: boolean = false) => {
-    closeUserProfilePanel(); 
+    closeUserProfilePanel();
     if (isPath) {
       router.push(viewOrPath as string);
+      // If navigating to a major app section, reset currentView to 'chat'
+      // to ensure the chat UI is the default if user navigates back to '/'
       if (viewOrPath === '/attendance' || viewOrPath === '/documents' || viewOrPath === '/admin/users') {
-        setActiveSpecialView('chat'); 
+        setActiveSpecialView('chat'); // Or a new function like `resetToChatView()` if more complex logic needed
       }
     } else {
       setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts');
     }
   };
-  
-  const { closeUserProfilePanel } = useAppContext(); 
 
   const handleLogin = () => {
     router.push('/auth/join');
@@ -112,6 +115,16 @@ export function ChatterboxSidebar() {
       openUserProfilePanel(currentUser);
     }
   };
+
+  const handleManageUsersClick = () => {
+    console.log("Manage Users clicked, navigation disabled.");
+    toast({
+      title: "Navigation Disabled",
+      description: "Access to 'Manage Users' is currently disabled from this link.",
+    });
+    // router.push('/admin/users'); // Original navigation
+  };
+
 
   if (isLoadingAuth) {
     return (
@@ -282,7 +295,7 @@ export function ChatterboxSidebar() {
                       <span>{currentUser.isOnline ? 'Set to Away' : 'Set to Online'}</span>
                     </DropdownMenuItem>
                     {currentUser.role === 'admin' && (
-                        <DropdownMenuItem onClick={() => router.push('/admin/users')}>
+                        <DropdownMenuItem onClick={handleManageUsersClick}>
                             <UsersIcon className="mr-2 h-4 w-4" />
                             <span>Manage Users</span>
                         </DropdownMenuItem>
