@@ -1,16 +1,16 @@
 
 "use client";
 
-import { Home, Clock, Folder, MoreHorizontal } from 'lucide-react';
+import { Home, Clock, Folder } from 'lucide-react'; // Removed MoreHorizontal
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/documents', icon: Folder, label: 'Documents' }, // Changed link
+  { href: '/documents', icon: Folder, label: 'Documents' },
 ];
-const moreNavItem = { href: '/more', icon: MoreHorizontal, label: 'More Options' };
+// Removed moreNavItem
 
 export function ThinIconBar() {
   const pathname = usePathname();
@@ -36,19 +36,7 @@ export function ThinIconBar() {
           </Link>
         ))}
       </nav>
-      <div className="mt-auto w-full">
-        <Link href={moreNavItem.href} passHref legacyBehavior>
-          <a
-            className={cn(
-              "flex flex-col items-center justify-center p-3 rounded-lg hover:bg-neutral-700 hover:text-white cursor-pointer w-full aspect-square transition-colors duration-150 group",
-              pathname === moreNavItem.href ? "bg-primary/20 text-primary hover:bg-primary/30 hover:text-primary" : ""
-            )}
-            title={moreNavItem.label}
-          >
-            <moreNavItem.icon className={cn("w-6 h-6", pathname === moreNavItem.href ? "text-primary" : "group-hover:text-white")} />
-          </a>
-        </Link>
-      </div>
+      {/* Removed the "More" icon section at the bottom */}
     </div>
   );
 }

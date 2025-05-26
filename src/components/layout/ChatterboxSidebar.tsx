@@ -28,12 +28,12 @@ import {
     MessageSquareReply,
     Bell,
     Send,
-    MoreHorizontal,
+    // MoreHorizontal, // Removed MoreHorizontal
     Plus,
-    LogIn, 
+    LogIn,
     LogOut,
-    Clock, // Added Clock
-    Folder, // Added Folder
+    Clock,
+    Folder,
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
@@ -48,13 +48,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { CurrentView } from '@/types';
 import { useRouter, usePathname } from 'next/navigation';
-import { Skeleton } from '@/components/ui/skeleton'; 
+import { Skeleton } from '@/components/ui/skeleton';
 
-const topNavItems: { label: string; icon: React.ElementType; view: CurrentView | 'more' }[] = [
+const topNavItems: { label: string; icon: React.ElementType; view: CurrentView }[] = [ // Removed 'more' view
     { label: 'Replies', icon: MessageSquareReply, view: 'replies' },
     { label: 'Activity', icon: Bell, view: 'activity' },
     { label: 'Drafts', icon: Send, view: 'drafts' },
-    { label: 'More', icon: MoreHorizontal, view: 'more' },
+    // { label: 'More', icon: MoreHorizontal, view: 'more' }, // Removed "More"
 ];
 
 const appFeatureNavItems = [
@@ -63,19 +63,19 @@ const appFeatureNavItems = [
 ];
 
 export function ChatterboxSidebar() {
-  const { 
-    currentUser, 
-    toggleCurrentUserStatus, 
-    setActiveSpecialView, 
-    currentView, 
-    isLoadingAuth, 
+  const {
+    currentUser,
+    toggleCurrentUserStatus,
+    setActiveSpecialView,
+    currentView,
+    isLoadingAuth,
     signOutUser,
-    openUserProfilePanel 
+    openUserProfilePanel
   } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
   const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(''); 
+  const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
   const pathname = usePathname();
 
@@ -85,15 +85,12 @@ export function ChatterboxSidebar() {
     }
   };
 
-  const handleTopNavClick = (viewOrPath: CurrentView | 'more' | string, isPath: boolean = false) => {
+  const handleTopNavClick = (viewOrPath: CurrentView | string, isPath: boolean = false) => {
     if (isPath) {
       router.push(viewOrPath as string);
-      // When navigating to a distinct page, ensure chat context is cleared
       if (viewOrPath === '/attendance' || viewOrPath === '/documents') {
-        setActiveSpecialView('chat'); // or a new context function to clear activeConversation
+        setActiveSpecialView('chat');
       }
-    } else if (viewOrPath === 'more') {
-      router.push('/more');
     } else {
       setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts');
     }
@@ -148,7 +145,7 @@ export function ChatterboxSidebar() {
         </SidebarHeader>
 
         <SidebarContent className="p-0">
-          {currentUser && ( 
+          {currentUser && (
             <>
               <SidebarGroup className="pt-2 pb-1 group-data-[collapsible=icon]:px-0">
                 <SidebarMenu>
@@ -156,7 +153,7 @@ export function ChatterboxSidebar() {
                     <SidebarMenuItem key={item.label}>
                       <SidebarMenuButton
                         onClick={() => handleTopNavClick(item.view)}
-                        isActive={item.view === 'more' ? pathname === '/more' : currentView === item.view}
+                        isActive={currentView === item.view}
                         tooltip={item.label}
                         className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
                       >
@@ -170,7 +167,6 @@ export function ChatterboxSidebar() {
 
               <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
 
-              {/* New App Features Section */}
               <SidebarGroup className="pt-1 pb-1 group-data-[collapsible=icon]:px-0">
                 <SidebarMenu>
                   {appFeatureNavItems.map((item) => (
@@ -236,9 +232,9 @@ export function ChatterboxSidebar() {
                 <span className="ml-2 group-data-[collapsible=icon]:hidden">Invite User</span>
               </Button>
               <SidebarSeparator className="my-1"/>
-              <div 
+              <div
                 className="flex items-center p-1 gap-2 rounded-md group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center hover:bg-sidebar-accent cursor-pointer"
-                onClick={handleViewOwnProfile} 
+                onClick={handleViewOwnProfile}
                 role="button"
                 tabIndex={0}
                 aria-label={`View profile for ${currentUser.name}`}
@@ -251,11 +247,11 @@ export function ChatterboxSidebar() {
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground ml-auto" 
-                      onClick={(e) => e.stopPropagation()} 
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground ml-auto"
+                      onClick={(e) => e.stopPropagation()}
                       aria-label="User settings"
                     >
                       <Settings className="h-4 w-4"/>
@@ -310,5 +306,3 @@ export function ChatterboxSidebar() {
     </>
   );
 }
-
-    
