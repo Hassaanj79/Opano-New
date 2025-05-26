@@ -28,7 +28,6 @@ import {
     MessageSquareReply,
     Bell,
     Send,
-    // MoreHorizontal, // Removed MoreHorizontal
     Plus,
     LogIn,
     LogOut,
@@ -50,17 +49,18 @@ import type { CurrentView } from '@/types';
 import { useRouter, usePathname } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const topNavItems: { label: string; icon: React.ElementType; view: CurrentView }[] = [ // Removed 'more' view
-    { label: 'Replies', icon: MessageSquareReply, view: 'replies' },
-    { label: 'Activity', icon: Bell, view: 'activity' },
-    { label: 'Drafts', icon: Send, view: 'drafts' },
-    // { label: 'More', icon: MoreHorizontal, view: 'more' }, // Removed "More"
-];
-
+// Define navigation items
 const appFeatureNavItems = [
   { label: 'Attendance', icon: Clock, path: '/attendance' },
   { label: 'Documents', icon: Folder, path: '/documents' },
 ];
+
+const topNavItems: { label: string; icon: React.ElementType; view: CurrentView }[] = [
+    { label: 'Replies', icon: MessageSquareReply, view: 'replies' },
+    { label: 'Activity', icon: Bell, view: 'activity' },
+    { label: 'Drafts', icon: Send, view: 'drafts' },
+];
+
 
 export function ChatterboxSidebar() {
   const {
@@ -85,11 +85,17 @@ export function ChatterboxSidebar() {
     }
   };
 
-  const handleTopNavClick = (viewOrPath: CurrentView | string, isPath: boolean = false) => {
+  const handleNavClick = (viewOrPath: CurrentView | string, isPath: boolean = false) => {
     if (isPath) {
       router.push(viewOrPath as string);
+      // If navigating to a main feature page, ensure the 'currentView' in context is reset or appropriately set.
+      // For example, if these main features are considered outside the 'chat', 'replies' etc. views.
+      // For now, we can assume these pages have their own full content.
+      // If clicking these should also clear the 'activeConversation' or set a specific 'currentView',
+      // that logic can be added here or within setActiveSpecialView/setActiveConversation.
       if (viewOrPath === '/attendance' || viewOrPath === '/documents') {
-        setActiveSpecialView('chat');
+        // Optionally, set a default view or clear active conversation if needed
+        // setActiveSpecialView('chat'); // or a new view type like 'app-feature'
       }
     } else {
       setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts');
@@ -119,6 +125,8 @@ export function ChatterboxSidebar() {
         <SidebarContent className="p-2">
           <Skeleton className="h-8 w-full mb-1" />
           <Skeleton className="h-8 w-full mb-1" />
+          <Skeleton className="h-8 w-full mb-4" />
+          <Skeleton className="h-8 w-full mb-1" />
           <Skeleton className="h-8 w-full mb-1" />
           <Skeleton className="h-8 w-full mb-4" />
           <Skeleton className="h-6 w-20 mb-2" />
@@ -147,13 +155,14 @@ export function ChatterboxSidebar() {
         <SidebarContent className="p-0">
           {currentUser && (
             <>
+              {/* Moved App Feature Nav Items to the top */}
               <SidebarGroup className="pt-2 pb-1 group-data-[collapsible=icon]:px-0">
                 <SidebarMenu>
-                  {topNavItems.map((item) => (
+                  {appFeatureNavItems.map((item) => (
                     <SidebarMenuItem key={item.label}>
                       <SidebarMenuButton
-                        onClick={() => handleTopNavClick(item.view)}
-                        isActive={currentView === item.view}
+                        onClick={() => handleNavClick(item.path, true)}
+                        isActive={pathname.startsWith(item.path)}
                         tooltip={item.label}
                         className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
                       >
@@ -169,11 +178,11 @@ export function ChatterboxSidebar() {
 
               <SidebarGroup className="pt-1 pb-1 group-data-[collapsible=icon]:px-0">
                 <SidebarMenu>
-                  {appFeatureNavItems.map((item) => (
+                  {topNavItems.map((item) => (
                     <SidebarMenuItem key={item.label}>
                       <SidebarMenuButton
-                        onClick={() => handleTopNavClick(item.path, true)}
-                        isActive={pathname.startsWith(item.path)}
+                        onClick={() => handleNavClick(item.view)}
+                        isActive={currentView === item.view}
                         tooltip={item.label}
                         className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
                       >
