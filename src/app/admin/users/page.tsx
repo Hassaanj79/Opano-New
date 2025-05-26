@@ -9,12 +9,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserAvatar } from '@/components/UserAvatar';
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ShieldAlert, UserPlus, MailOpen } from "lucide-react"; // Added UserPlus, MailOpen
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { cn } from '@/lib/utils';
+import type { User, PendingInvitation } from '@/types'; // Import PendingInvitation
+import { format } from 'date-fns';
+
+// Define a union type for table items
+type TableUserItem = 
+  | { type: 'active'; data: User }
+  | { type: 'invited'; data: PendingInvitation };
 
 export default function ManageUsersPage() {
-  const { allUsersWithCurrent, currentUser, isLoadingAuth } = useAppContext();
+  const { allUsersWithCurrent, currentUser, isLoadingAuth, pendingInvitations } = useAppContext();
   const router = useRouter();
 
   if (isLoadingAuth) {
@@ -39,13 +46,18 @@ export default function ManageUsersPage() {
     );
   }
 
+  const combinedUserList: TableUserItem[] = [
+    ...allUsersWithCurrent.map(user => ({ type: 'active' as const, data: user })),
+    ...pendingInvitations.map(invitation => ({ type: 'invited' as const, data: invitation }))
+  ];
+
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full">
       <div className="mb-6 flex items-center justify-between">
         <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Manage Users</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-            View and manage all users in the Opano workspace.
+            View and manage all active and invited users in the Opano workspace.
             </p>
         </div>
         <Button variant="outline" onClick={() => router.back()}>
@@ -58,7 +70,7 @@ export default function ManageUsersPage() {
         <CardHeader>
           <CardTitle>User List</CardTitle>
           <CardDescription>
-            A complete list of all {allUsersWithCurrent.length} user(s) currently in the Opano workspace.
+            A complete list of all {allUsersWithCurrent.length} active user(s) and {pendingInvitations.length} pending invitation(s).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -70,53 +82,97 @@ export default function ManageUsersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Invited/Joined</TableHead>
                   {/* <TableHead className="text-right">Actions</TableHead> */}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {allUsersWithCurrent.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <UserAvatar user={user} className="h-9 w-9" />
-                        <div>
-                          <div className="font-medium text-foreground">{user.name} {user.id === currentUser?.id && "(You)"}</div>
-                          <div className="text-xs text-muted-foreground">{user.designation || 'No designation'}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={user.role === 'admin' ? 'default' : 'secondary'}
-                        className={cn(user.role === 'admin' && "bg-primary/80 hover:bg-primary/70")}
-                      >
-                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.isOnline ? "default" : "outline"} className={cn(
-                        "text-xs",
-                        user.isOnline ? "bg-green-500 hover:bg-green-600 text-primary-foreground" : "border-gray-400 text-gray-500"
-                      )}>
-                        {user.isOnline ? "Online" : "Offline"}
-                      </Badge>
-                    </TableCell>
-                    {/* Placeholder for actions like edit role, disable user etc.
-                    <TableCell className="text-right">
-                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button> 
-                    </TableCell>
-                    */}
-                  </TableRow>
-                ))}
+                {combinedUserList.map((item) => {
+                  if (item.type === 'active') {
+                    const user = item.data;
+                    return (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <UserAvatar user={user} className="h-9 w-9" />
+                            <div>
+                              <div className="font-medium text-foreground">{user.name} {user.id === currentUser?.id && "(You)"}</div>
+                              <div className="text-xs text-muted-foreground">{user.designation || 'No designation'}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={user.role === 'admin' ? 'default' : 'secondary'}
+                            className={cn(user.role === 'admin' && "bg-primary/80 hover:bg-primary/70")}
+                          >
+                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={user.isOnline ? "default" : "outline"} className={cn(
+                            "text-xs",
+                            user.isOnline ? "bg-green-500 hover:bg-green-600 text-primary-foreground" : "border-gray-400 text-gray-500"
+                          )}>
+                            {user.isOnline ? "Online" : "Offline"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          Joined
+                        </TableCell>
+                        {/* Placeholder for actions
+                        <TableCell className="text-right">
+                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button> 
+                        </TableCell>
+                        */}
+                      </TableRow>
+                    );
+                  } else { // item.type === 'invited'
+                    const invitation = item.data;
+                    return (
+                      <TableRow key={invitation.token} className="bg-muted/30 hover:bg-muted/40">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+                                <MailOpen className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-foreground italic">Invited User</div>
+                              <div className="text-xs text-muted-foreground">Awaiting registration</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{invitation.email}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="border-blue-400 text-blue-600">
+                            Invited
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="default" className="bg-amber-500 hover:bg-amber-600 text-primary-foreground text-xs">
+                            Pending Invitation
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                            {format(new Date(invitation.timestamp), "MMM d, yyyy")}
+                        </TableCell>
+                        {/* No actions for invited users for now 
+                        <TableCell className="text-right"></TableCell>
+                        */}
+                      </TableRow>
+                    );
+                  }
+                })}
               </TableBody>
             </Table>
           </div>
-          {allUsersWithCurrent.length === 0 && (
+          {combinedUserList.length === 0 && (
             <div className="text-center py-10 text-muted-foreground">
-              <p>No users found in the workspace yet.</p>
+              <UsersIcon className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+              <p>No active users or pending invitations found.</p>
             </div>
           )}
         </CardContent>
@@ -124,3 +180,8 @@ export default function ManageUsersPage() {
     </div>
   );
 }
+
+// Helper icon - might need to be defined or imported if not available globally in lucide-react
+const UsersIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("lucide lucide-users", className)}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+);

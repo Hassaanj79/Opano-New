@@ -12,7 +12,7 @@ import {
     initialMockChannels, 
     getMessagesForConversation as fetchMockMessages,
     updateMockMessage,
-    mockMessages as allMockMessages, 
+    mockMessages, // Changed from allMockMessages
     mockDrafts as initialMockDrafts, 
     initialDocumentCategories 
 } from '@/lib/mock-data';
@@ -101,9 +101,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [users, setUsers] = useState<User[]>(initialMockUsers); 
-  const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>(initialMockUsers); 
-  const [channels, setChannels] = useState<Channel[]>(initialMockChannels); 
+  const [users, setUsers] = useState<User[]>([]); 
+  const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>([]); 
+  const [channels, setChannels] = useState<Channel[]>([]); 
   const [activeConversation, setActiveConversationState] = useState<ActiveConversation>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentSummary, setCurrentSummary] = useState<string | null>(null);
@@ -123,6 +123,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [isUserProfilePanelOpen, setIsUserProfilePanelOpen] = useState(false);
   const [viewingUserProfile, setViewingUserProfile] = useState<User | null>(null);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+
+  useEffect(() => {
+    setUsers(initialMockUsers.filter(u => u.id !== currentUser?.id));
+    setAllUsersWithCurrent(currentUser ? initialMockUsers.map(u => u.id === currentUser.id ? currentUser : u) : initialMockUsers);
+    setChannels(initialMockChannels);
+    setDocumentCategories(initialDocumentCategories);
+    setDrafts(initialMockDrafts);
+  }, [currentUser]);
 
 
   const handleAddLeaveRequest = useCallback(async (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => {
@@ -147,7 +155,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 0);
 
     const configuredAdminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-    const adminEmail = configuredAdminEmail || "hassyku786@gmail.com";
+    let adminEmail = configuredAdminEmail || "hassyku786@gmail.com";
 
     if (!configuredAdminEmail) {
       console.log("[AppContext] NEXT_PUBLIC_ADMIN_EMAIL not set in .env.local, defaulting admin notifications for leave requests to hassyku786@gmail.com");
@@ -212,20 +220,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setViewingUserProfile(null);
   };
 
- useEffect(() => {
+  useEffect(() => {
     console.log("[AppContext] Subscribing to Firebase onAuthStateChanged.");
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       console.log("[AppContext] onAuthStateChanged triggered. Firebase user:", firebaseUser?.uid || 'null');
       if (firebaseUser) {
         let appUser: User | undefined = initialMockUsers.find(u => u.id === firebaseUser.uid);
-        let role: UserRole = 'member';
+        let userRole: UserRole = 'member'; // Default role
 
-        if (!appUser) { // New user to our system, or first user ever
+        if (!appUser) { // New user to our system, or first ever user
           if (initialMockUsers.length === 0) {
-            role = 'admin'; // First user is admin
+            userRole = 'admin'; // First user is admin
             console.log(`[AppContext] First user detected (${firebaseUser.email}), assigning 'admin' role.`);
-          } else {
-            role = 'member'; // Subsequent new users are members
           }
           appUser = {
             id: firebaseUser.uid,
@@ -237,33 +243,29 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             phoneNumber: '', 
             linkedinProfileUrl: '',
             pronouns: '',
-            role: role, 
+            role: userRole, 
           };
-          initialMockUsers.push(appUser); // Add to "persistent" mock store
+          initialMockUsers.push(appUser); // Simulate saving the new user with their role
           console.log(`[AppContext] New app user created: ${appUser.name}, Role: ${appUser.role}`);
         } else {
-          // User exists in initialMockUsers, ensure their online status is updated if needed.
-          // This ensures if a user was marked offline, they are marked online on sign-in.
-          appUser = { ...appUser, isOnline: true };
+          // Existing user in our system, just update online status and ensure role is set
+          appUser = { ...appUser, isOnline: true, role: appUser.role || 'member' };
           const userIndex = initialMockUsers.findIndex(u => u.id === appUser!.id);
           if (userIndex !== -1) {
-            initialMockUsers[userIndex] = appUser;
+            initialMockUsers[userIndex] = appUser; // Update in mock "DB"
           }
-           console.log(`[AppContext] Existing app user found: ${appUser.name}, Role: ${appUser.role}`);
+          console.log(`[AppContext] Existing app user found: ${appUser.name}, Role: ${appUser.role}`);
         }
         
         setCurrentUser(appUser);
-        // Update users and allUsersWithCurrent based on the potentially updated initialMockUsers
-        const updatedAllUsersWithCurrent = initialMockUsers.map(u => u.id === appUser!.id ? appUser! : u);
-        setAllUsersWithCurrent(updatedAllUsersWithCurrent);
-        setUsers(updatedAllUsersWithCurrent.filter(u => u.id !== appUser!.id));
-
+        setUsers(initialMockUsers.filter(u => u.id !== appUser!.id)); // Update 'users' for DM list
+        setAllUsersWithCurrent([...initialMockUsers]); // Update 'allUsersWithCurrent'
       } else {
         setCurrentUser(null);
         setActiveConversationState(null);
         setCurrentViewState('chat');
-        setAllUsersWithCurrent([]); 
-        setUsers([]); 
+        setUsers([]); // Clear other users if no one is logged in
+        setAllUsersWithCurrent([]);
         closeUserProfilePanel();
       }
       setIsLoadingAuth(false);
@@ -273,22 +275,41 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.log("[AppContext] Unsubscribing from Firebase onAuthStateChanged.");
       unsubscribe();
     };
-  }, []); // Empty dependency array to run once on mount
+  }, []); 
 
 
   useEffect(() => {
-    if (!isLoadingAuth) {
-      console.log("[AppContext] Redirection check. isLoadingAuth: false, currentUser:", currentUser?.id || 'null', "pathname:", pathname);
-      const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/') || pathname.startsWith('/admin/');
-      if (!currentUser && !isAuthPage) {
-        console.log("[AppContext] Redirecting to /auth/join");
-        router.replace('/auth/join');
-      } else if (currentUser && (pathname.startsWith('/auth/') || pathname.startsWith('/join/'))) {
-         console.log("[AppContext] User logged in and on auth page, redirecting to /");
-        router.replace('/');
+    if (isLoadingAuth) return; // Don't run redirection logic while auth is loading
+
+    console.log("[AppContext] Redirection check. currentUser:", currentUser?.id || 'null', "pathname:", pathname);
+    const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
+    const isAdminPage = pathname.startsWith('/admin/');
+    
+    if (!currentUser && !isAuthPage) {
+      console.log("[AppContext] Not logged in, not on auth page. Redirecting to /auth/join");
+      router.replace('/auth/join');
+    } else if (currentUser && isAuthPage) {
+       console.log("[AppContext] User logged in and on auth page, redirecting to /");
+      router.replace('/');
+    } else if (currentUser && isAdminPage && currentUser.role !== 'admin') {
+      console.log("[AppContext] Non-admin trying to access admin page. Redirecting to /");
+      router.replace('/');
+    } else if (currentUser && pathname === '/' && !activeConversation && channels.length === 0 && users.length === 0 && currentView === 'chat') {
+      console.log("[AppContext] Blank slate. Setting initial active conversation to self DM.");
+      setActiveConversation('dm', currentUser.id);
+    } else if (currentUser && pathname === '/' && !activeConversation && channels.length > 0 && currentView === 'chat') {
+      const generalChannel = channels.find(c => c.name.toLowerCase() === 'general');
+      if (generalChannel) {
+        console.log("[AppContext] Setting initial active conversation to #general channel.");
+        setActiveConversation('channel', generalChannel.id);
+      } else {
+        console.log("[AppContext] No #general, setting to self DM.");
+        setActiveConversation('dm', currentUser.id);
       }
     }
-  }, [isLoadingAuth, currentUser, pathname, router]);
+
+
+  }, [isLoadingAuth, currentUser, pathname, router, activeConversation, channels, users, currentView, setActiveConversation]);
 
   const setActiveConversation = useCallback((type: 'channel' | 'dm', id: string) => {
     setCurrentSummary(null);
@@ -381,10 +402,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       ...replyData,
     };
     setMessages(prevMessages => [...prevMessages, newMessage]);
-    if (activeConversation && allMockMessages[activeConversation.id]) {
-        allMockMessages[activeConversation.id] = [...allMockMessages[activeConversation.id], newMessage];
+    if (activeConversation && mockMessages[activeConversation.id]) {
+        mockMessages[activeConversation.id] = [...mockMessages[activeConversation.id], newMessage];
     } else if (activeConversation) {
-        allMockMessages[activeConversation.id] = [newMessage];
+        mockMessages[activeConversation.id] = [newMessage];
     }
     setReplyingToMessage(null);
   }, [activeConversation, currentUser, replyingToMessage, allUsersWithCurrent, toast]);
@@ -437,7 +458,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         timestamp: Date.now(),
         isSystemMessage: true,
     };
-    allMockMessages[newChannel.id] = [creationSystemMessage];
+    mockMessages[newChannel.id] = [creationSystemMessage];
 
     const addedMembersOtherThanCreator = memberIds.filter(id => id !== currentUser.id);
     if (addedMembersOtherThanCreator.length > 0) {
@@ -454,7 +475,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 timestamp: Date.now() + 1,
                 isSystemMessage: true,
             };
-            allMockMessages[newChannel.id].push(addedMembersSystemMessage);
+            mockMessages[newChannel.id].push(addedMembersSystemMessage);
         }
     }
 
@@ -512,10 +533,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             isSystemMessage: true,
         };
 
-        if (allMockMessages[channelId]) {
-            allMockMessages[channelId].push(systemMessage);
+        if (mockMessages[channelId]) {
+            mockMessages[channelId].push(systemMessage);
         } else {
-            allMockMessages[channelId] = [systemMessage];
+            mockMessages[channelId] = [systemMessage];
         }
 
         if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
@@ -712,8 +733,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setMessages(prevMessages =>
       prevMessages.filter(msg => {
         if (msg.id === messageId && msg.userId === currentUser.id) {
-          if (activeConversation && allMockMessages[activeConversation.id]) {
-            allMockMessages[activeConversation.id] = allMockMessages[activeConversation.id].filter(m => m.id !== messageId);
+          if (activeConversation && mockMessages[activeConversation.id]) { // Use mockMessages here
+            mockMessages[activeConversation.id] = mockMessages[activeConversation.id].filter(m => m.id !== messageId);
           }
           return false;
         }
@@ -756,16 +777,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             role: profileData.role || prevUser.role,
         };
         
-        // Update in initialMockUsers (our "persistent" store)
         const userIndex = initialMockUsers.findIndex(u => u.id === updatedUser.id);
         if (userIndex !== -1) {
             initialMockUsers[userIndex] = updatedUser;
         } else {
-            // This case shouldn't happen if currentUser is always derived from initialMockUsers
             initialMockUsers.push(updatedUser);
         }
 
-        // Update derived states
         setAllUsersWithCurrent(initialMockUsers.map(u => u.id === updatedUser.id ? updatedUser : u));
         setUsers(initialMockUsers.filter(u => u.id !== updatedUser.id));
 
@@ -806,26 +824,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 0);
   }, [toast]);
 
-  useEffect(() => {
-    if (!isLoadingAuth && currentUser && !pathname.startsWith('/auth/') && !pathname.startsWith('/join/')) {
-      if (channels.length === 0 && users.length === 0 && !activeConversation && currentView === 'chat') {
-        // If truly a blank slate (no channels, no other users), self DM is the only option.
-        console.log("[AppContext] Setting initial active conversation to self DM (blank slate).");
-        setActiveConversation('dm', currentUser.id);
-      } else if (channels.length > 0 && !activeConversation && currentView === 'chat') {
-         // If there are channels, default to the first one or self-DM if general doesn't exist
-        const generalChannel = channels.find(c => c.name.toLowerCase() === 'general');
-        if (generalChannel) {
-          console.log("[AppContext] Setting initial active conversation to #general channel.");
-          setActiveConversation('channel', generalChannel.id);
-        } else {
-          console.log("[AppContext] Setting initial active conversation to self DM (no #general).");
-          setActiveConversation('dm', currentUser.id);
-        }
-      }
-    }
-  }, [isLoadingAuth, currentUser, channels, users, activeConversation, setActiveConversation, currentView, pathname]);
-
 
   const getConversationName = useCallback((conversationId: string, conversationType: 'channel' | 'dm'): string => {
     if (conversationType === 'channel') {
@@ -837,7 +835,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const replies = useMemo(() => {
     if (!currentUser) return [];
-    const allMsgs: Message[] = Object.values(allMockMessages).flat();
+    const allMsgs: Message[] = Object.values(mockMessages).flat(); // Use mockMessages here
     return allMsgs.filter(msg =>
       msg.content.toLowerCase().includes(`@${currentUser.name.toLowerCase()}`) &&
       msg.userId !== currentUser.id &&
@@ -848,7 +846,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const activities: ActivityItem[] = useMemo(() => {
     if (!currentUser) return [];
     const myMessageIds = new Set<string>();
-    const allMsgs: Message[] = Object.values(allMockMessages).flat();
+    const allMsgs: Message[] = Object.values(mockMessages).flat(); // Use mockMessages here
     allMsgs.forEach(msg => {
       if (msg.userId === currentUser.id) {
         myMessageIds.add(msg.id);
@@ -867,7 +865,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 let convType: 'channel' | 'dm' = 'channel';
                 let convName = 'Unknown Conversation';
 
-                for (const [key, messagesInConv] of Object.entries(allMockMessages)) {
+                for (const [key, messagesInConv] of Object.entries(mockMessages)) { // Use mockMessages here
                     if (messagesInConv.some(m => m.id === msg.id)) {
                         convId = key;
                         const channel = channels.find(c => c.id === key);
@@ -927,7 +925,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     setDocumentCategories(prev => {
         const updated = [...prev, newCategory];
-        initialDocumentCategories.push(newCategory); // Simulate persistence
+        initialDocumentCategories.push(newCategory); 
         return updated;
     });
     setTimeout(() => {
@@ -952,7 +950,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setDocumentCategories(prev => prev.map(cat => {
         if (cat.id === categoryId) {
             const updatedCat = { ...cat, documents: [...cat.documents, newDocument] };
-            // Simulate persistence
             const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
             if (catIndex > -1) initialDocumentCategories[catIndex] = updatedCat;
             return updatedCat;
@@ -983,10 +980,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         timestamp: Date.now(),
         isSystemMessage: true,
     };
-    if (allMockMessages[generalChannelId]) {
-        allMockMessages[generalChannelId].push(systemMessage);
+    if (mockMessages[generalChannelId]) { // Use mockMessages here
+        mockMessages[generalChannelId].push(systemMessage);
     } else {
-        allMockMessages[generalChannelId] = [systemMessage];
+        mockMessages[generalChannelId] = [systemMessage];
     }
     if (activeConversation?.type === 'channel' && activeConversation.id === generalChannelId) {
         setMessages(prevMessages => [...prevMessages, systemMessage]);
@@ -1040,10 +1037,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         timestamp: Date.now(),
         isSystemMessage: true,
     };
-     if (allMockMessages[generalChannelId]) {
-        allMockMessages[generalChannelId].push(systemMessage);
+     if (mockMessages[generalChannelId]) { // Use mockMessages here
+        mockMessages[generalChannelId].push(systemMessage);
     } else {
-        allMockMessages[generalChannelId] = [systemMessage];
+        mockMessages[generalChannelId] = [systemMessage];
     }
     if (activeConversation?.type === 'channel' && activeConversation.id === generalChannelId) {
         setMessages(prevMessages => [...prevMessages, systemMessage]);
@@ -1097,10 +1094,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         timestamp: Date.now(),
         isSystemMessage: true,
     };
-    if (allMockMessages[generalChannelId]) {
-        allMockMessages[generalChannelId].push(systemMessage);
+    if (mockMessages[generalChannelId]) { // Use mockMessages here
+        mockMessages[generalChannelId].push(systemMessage);
     } else {
-        allMockMessages[generalChannelId] = [systemMessage];
+        mockMessages[generalChannelId] = [systemMessage];
     }
     if (activeConversation?.type === 'channel' && activeConversation.id === generalChannelId) {
         setMessages(prevMessages => [...prevMessages, systemMessage]);
@@ -1133,7 +1130,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const results: Array<{ doc: Document, category: DocumentCategory }> = [];
 
     if (trimmedQuery === '') {
-        // Show first 2 docs from first 5 categories if query is empty
         documentCategories.slice(0,5).forEach(category => {
             category.documents.slice(0, 2).forEach(doc => {
                 results.push({ doc, category });
@@ -1148,7 +1144,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           });
         });
     }
-    return results.slice(0, 10); // Limit to 10 results
+    return results.slice(0, 10); 
   }, [documentCategories]);
 
   const startCall = (conversation: ActiveConversation | null) => {
@@ -1168,10 +1164,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       isSystemMessage: true,
     };
 
-    if (allMockMessages[conversation.id]) {
-      allMockMessages[conversation.id].push(systemMessage);
+    if (mockMessages[conversation.id]) { // Use mockMessages here
+      mockMessages[conversation.id].push(systemMessage);
     } else {
-      allMockMessages[conversation.id] = [systemMessage];
+      mockMessages[conversation.id] = [systemMessage];
     }
 
     if (activeConversation?.id === conversation.id) {
@@ -1194,10 +1190,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         isSystemMessage: true,
       };
 
-      if (allMockMessages[callingWith.id]) {
-        allMockMessages[callingWith.id].push(systemMessage);
+      if (mockMessages[callingWith.id]) { // Use mockMessages here
+        mockMessages[callingWith.id].push(systemMessage);
       } else {
-        allMockMessages[callingWith.id] = [systemMessage];
+        mockMessages[callingWith.id] = [systemMessage];
       }
 
       if (activeConversation?.id === callingWith.id) {
@@ -1275,3 +1271,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
