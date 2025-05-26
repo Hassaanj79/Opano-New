@@ -33,7 +33,8 @@ import {
     LogOut,
     Clock,
     Folder,
-    Users as UsersIcon
+    Users as UsersIcon,
+    MoreHorizontal
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
@@ -49,17 +50,18 @@ import {
 import type { CurrentView } from '@/types';
 import { useRouter, usePathname } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast'; // Import useToast
+import { useToast } from '@/hooks/use-toast';
 
 const appFeatureNavItems = [
   { label: 'Attendance', icon: Clock, path: '/attendance' },
   { label: 'Documents', icon: Folder, path: '/documents' },
 ];
 
-const topNavItems: { label: string; icon: React.ElementType; view: CurrentView }[] = [
-    { label: 'Replies', icon: MessageSquareReply, view: 'replies' },
-    { label: 'Activity', icon: Bell, view: 'activity' },
-    { label: 'Drafts', icon: Send, view: 'drafts' },
+const topNavItems: { label: string; icon: React.ElementType; viewOrPath: CurrentView | string; isPath?: boolean }[] = [
+    { label: 'Replies', icon: MessageSquareReply, viewOrPath: 'replies' },
+    { label: 'Activity', icon: Bell, viewOrPath: 'activity' },
+    { label: 'Drafts', icon: Send, viewOrPath: 'drafts' },
+    { label: 'More', icon: MoreHorizontal, viewOrPath: '/more', isPath: true },
 ];
 
 
@@ -72,7 +74,7 @@ export function ChatterboxSidebar() {
     isLoadingAuth,
     signOutUser,
     openUserProfilePanel,
-    closeUserProfilePanel, // Added closeUserProfilePanel
+    closeUserProfilePanel,
   } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
@@ -80,10 +82,11 @@ export function ChatterboxSidebar() {
   const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
   const pathname = usePathname();
-  const { toast } = useToast(); // Initialize useToast
+  const { toast } = useToast();
 
   const handleEditProfile = () => {
     if (currentUser) {
+      closeUserProfilePanel();
       setIsEditProfileDialogOpen(true);
     }
   };
@@ -92,10 +95,8 @@ export function ChatterboxSidebar() {
     closeUserProfilePanel();
     if (isPath) {
       router.push(viewOrPath as string);
-      // If navigating to a major app section, reset currentView to 'chat'
-      // to ensure the chat UI is the default if user navigates back to '/'
-      if (viewOrPath === '/attendance' || viewOrPath === '/documents' || viewOrPath === '/admin/users') {
-        setActiveSpecialView('chat'); // Or a new function like `resetToChatView()` if more complex logic needed
+      if (viewOrPath === '/attendance' || viewOrPath === '/documents' || viewOrPath === '/admin/users' || viewOrPath === '/more') {
+        setActiveSpecialView('chat'); 
       }
     } else {
       setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts');
@@ -117,12 +118,8 @@ export function ChatterboxSidebar() {
   };
 
   const handleManageUsersClick = () => {
-    console.log("Manage Users clicked, navigation disabled.");
-    toast({
-      title: "Navigation Disabled",
-      description: "Access to 'Manage Users' is currently disabled from this link.",
-    });
-    // router.push('/admin/users'); // Original navigation
+    closeUserProfilePanel();
+    router.push('/admin/users');
   };
 
 
@@ -190,8 +187,8 @@ export function ChatterboxSidebar() {
                   {topNavItems.map((item) => (
                     <SidebarMenuItem key={item.label}>
                       <SidebarMenuButton
-                        onClick={() => handleNavClick(item.view)}
-                        isActive={currentView === item.view}
+                        onClick={() => handleNavClick(item.viewOrPath, item.isPath)}
+                        isActive={item.isPath ? pathname.startsWith(item.viewOrPath as string) : currentView === item.viewOrPath}
                         tooltip={item.label}
                         className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
                       >
