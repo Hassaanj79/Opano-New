@@ -8,13 +8,13 @@ import type { Document, DocumentCategory } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { FileText, Edit3, Trash2, UploadCloud, Type, Link as LinkIcon, ArrowLeft, FolderOpen } from "lucide-react";
+import { FileText, Edit3, Trash2, UploadCloud, Type, Link as LinkIcon, ArrowLeft, FolderOpen } from "lucide-react"; // Added ArrowLeft
 import * as Icons from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddDocumentDialog } from '@/components/dialogs/AddDocumentDialog';
 import { CreateTextDocumentDialog } from '@/components/dialogs/CreateTextDocumentDialog';
 import { LinkExternalDocumentDialog } from '@/components/dialogs/LinkExternalDocumentDialog';
-import { ViewDocumentDialog } from '@/components/dialogs/ViewDocumentDialog'; // New Dialog
+import { ViewDocumentDialog } from '@/components/dialogs/ViewDocumentDialog';
 
 export default function CategoryDetailPage() {
   const params = useParams();
@@ -107,7 +107,7 @@ export default function CategoryDetailPage() {
 
   return (
     <>
-      <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
+      <div className="flex flex-col min-h-full bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
         <div className="mb-6">
             <Button variant="outline" onClick={() => router.push('/documents')} className="mb-4">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Categories
@@ -119,7 +119,7 @@ export default function CategoryDetailPage() {
             <p className="text-sm text-muted-foreground">{category.description}</p>
         </div>
 
-        <div className="mb-6 flex gap-2">
+        <div className="mb-6 flex flex-wrap gap-2"> {/* Added flex-wrap for smaller screens */}
             <Button variant="outline" onClick={() => setIsAddFileDialogOpen(true)}>
                 <UploadCloud className="mr-2 h-4 w-4" /> Upload File
             </Button>
