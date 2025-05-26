@@ -38,7 +38,7 @@ const timeStringToDate = (datePart: Date, timeString: string): Date | null => {
   if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
     return null; // Invalid time format
   }
-  let newDate = setHours(datePart, hours);
+  let newDate = setHours(new Date(datePart), hours); // Ensure we work with a copy of datePart
   newDate = setMinutes(newDate, minutes);
   newDate = setSeconds(newDate, 0); // reset seconds
   return newDate;
@@ -55,7 +55,7 @@ const editLogSchema = z.object({
     return clockInDateTime && clockOutDateTime && clockOutDateTime >= clockInDateTime;
 }, {
   message: "Clock-out time must be after clock-in time.",
-  path: ["clockOutTime"], // You can also use a general path or "clockOutDate"
+  path: ["clockOutTime"],
 });
 
 
@@ -100,13 +100,14 @@ export function EditAttendanceLogDialog({ isOpen, onOpenChange, logEntry, onSave
         return;
     }
 
-    const totalHoursWorked = Math.max(0, Math.floor((newClockOutTime.getTime() - newClockInTime.getTime()) / 1000));
+    const totalHoursWorked = Math.max(0, differenceInSeconds(newClockOutTime, newClockInTime));
+
 
     onSave({
       ...logEntry,
       clockInTime: newClockInTime,
       clockOutTime: newClockOutTime,
-      totalHoursWorked: totalHoursWorked, // Recalculate based on new times
+      totalHoursWorked: totalHoursWorked, 
       // totalActivityPercent remains unchanged unless you want to allow editing it too
     });
     onOpenChange(false);
@@ -225,7 +226,6 @@ export function EditAttendanceLogDialog({ isOpen, onOpenChange, logEntry, onSave
                 </div>
             </div>
              {form.formState.errors.root && <p className="text-xs text-destructive pt-2">{form.formState.errors.root.message}</p>}
-
           </div>
           <DialogFooter>
             <DialogClose asChild>

@@ -17,11 +17,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { LeaveRequest } from '@/types'; // Use global types
+import type { LeaveRequest } from '@/types';
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { CalendarIcon, Send } from "lucide-react";
-import { format, isToday, isAfter, startOfDay } from "date-fns"; // Added startOfDay
+import { format, isToday, isAfter, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from '@/hooks/use-toast';
 
@@ -38,7 +38,11 @@ const leaveRequestSchema = z.object({
   }),
   endDate: z.date({ required_error: "End date is required." }),
   reason: z.string().min(10, { message: "Reason must be at least 10 characters long." }).max(200, {message: "Reason must be 200 characters or less."}),
-}).refine(data => data.endDate >= data.startDate, {
+}).refine(data => {
+    const startDateDay = startOfDay(data.startDate);
+    const endDateDay = startOfDay(data.endDate);
+    return endDateDay >= startDateDay;
+}, {
   message: "End date cannot be before start date.",
   path: ["endDate"],
 });
@@ -50,8 +54,8 @@ export function LeaveRequestDialog({ isOpen, onOpenChange, onAddLeaveRequest, cu
   const form = useForm<LeaveRequestFormValues>({
     resolver: zodResolver(leaveRequestSchema),
     defaultValues: {
-      startDate: new Date(),
-      endDate: new Date(),
+      startDate: startOfDay(new Date()), // Default to today, no time component
+      endDate: startOfDay(new Date()),   // Default to today, no time component
       reason: "",
     },
   });
@@ -66,13 +70,13 @@ export function LeaveRequestDialog({ isOpen, onOpenChange, onAddLeaveRequest, cu
         title: "Leave Request Submitted",
         description: `Your leave request for ${currentUserName} has been submitted for approval.`,
     });
-    form.reset();
+    form.reset({ startDate: startOfDay(new Date()), endDate: startOfDay(new Date()), reason: "" });
     onOpenChange(false);
   };
   
   const handleDialogClose = (open: boolean) => {
     if (!open) {
-      form.reset();
+      form.reset({ startDate: startOfDay(new Date()), endDate: startOfDay(new Date()), reason: "" });
     }
     onOpenChange(open);
   }
@@ -113,7 +117,9 @@ export function LeaveRequestDialog({ isOpen, onOpenChange, onAddLeaveRequest, cu
                             <Calendar
                                 mode="single"
                                 selected={field.value}
-                                onSelect={field.onChange}
+                                onSelect={(date) => {
+                                  if (date) field.onChange(startOfDay(date));
+                                }}
                                 disabled={(date) => date < startOfDay(new Date()) && !isToday(date)}
                                 initialFocus
                             />
@@ -147,11 +153,13 @@ export function LeaveRequestDialog({ isOpen, onOpenChange, onAddLeaveRequest, cu
                             <Calendar
                                 mode="single"
                                 selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) => 
-                                    (form.getValues("startDate") && date < form.getValues("startDate")) ||
-                                    (date < startOfDay(new Date()) && !isToday(date))
-                                }
+                                onSelect={(date) => {
+                                  if (date) field.onChange(startOfDay(date));
+                                }}
+                                disabled={(date) => {
+                                    const startDate = form.getValues("startDate");
+                                    return (startDate && date < startOfDay(startDate)) || (date < startOfDay(new Date()) && !isToday(date));
+                                }}
                                 initialFocus
                             />
                             </PopoverContent>
@@ -188,4 +196,3 @@ export function LeaveRequestDialog({ isOpen, onOpenChange, onAddLeaveRequest, cu
     </Dialog>
   );
 }
-
