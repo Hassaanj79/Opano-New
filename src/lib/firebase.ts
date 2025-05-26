@@ -1,10 +1,19 @@
+
 // src/lib/firebase.ts
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
+const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+
+// Log the API key to help debug (REMOVE THIS IN PRODUCTION)
+console.log("[Firebase Setup] NEXT_PUBLIC_FIREBASE_API_KEY being used:", firebaseApiKey);
+if (!firebaseApiKey || firebaseApiKey === "YOUR_API_KEY") {
+  console.error("[Firebase Setup] ERROR: Firebase API Key is missing or still a placeholder in .env.local. Please check your .env.local file and restart the server.");
+}
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: firebaseApiKey,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
