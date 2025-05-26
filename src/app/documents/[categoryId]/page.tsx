@@ -5,10 +5,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Document, DocumentCategory } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { FileText, Edit3, Trash2, UploadCloud, Type, Link as LinkIcon, ArrowLeft, FolderOpen } from "lucide-react"; // Added ArrowLeft
+import { FileText, Edit3, Trash2, UploadCloud, Type, Link as LinkIcon, ArrowLeft, FolderOpen } from "lucide-react";
 import * as Icons from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddDocumentDialog } from '@/components/dialogs/AddDocumentDialog';
@@ -29,7 +29,7 @@ export default function CategoryDetailPage() {
   const { toast } = useToast();
 
   const categoryId = typeof params.categoryId === 'string' ? params.categoryId : '';
-  const [category, setCategory] = useState<DocumentCategory | null | undefined>(null);
+  const [category, setCategory] = useState<DocumentCategory | null | undefined>(undefined); // Start as undefined
 
   const [isAddFileDialogOpen, setIsAddFileDialogOpen] = useState(false);
   const [isCreateTextDialogOpen, setIsCreateTextDialogOpen] = useState(false);
@@ -43,6 +43,8 @@ export default function CategoryDetailPage() {
     if (categoryId) {
       const foundCategory = findDocumentCategoryById(categoryId);
       setCategory(foundCategory);
+    } else {
+      setCategory(null); // If no categoryId, set to null explicitly for error state
     }
   }, [categoryId, findDocumentCategoryById]);
 
@@ -81,18 +83,20 @@ export default function CategoryDetailPage() {
     // Toast is handled by AppContext
   };
 
+  // Loading state
   if (category === undefined) { 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-6">
-            <FolderOpen className="h-16 w-16 mb-4 text-muted-foreground" />
+        <div className="flex flex-col items-center justify-center flex-grow bg-muted/30 p-6 text-muted-foreground">
+            <FolderOpen className="h-16 w-16 mb-4" />
             <p className="text-lg font-medium">Loading category details...</p>
         </div>
     );
   }
 
+  // Category not found state
   if (category === null) { 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-6">
+        <div className="flex flex-col items-center justify-center flex-grow bg-muted/30 p-6">
             <FolderOpen className="h-16 w-16 mb-4 text-destructive" />
             <h1 className="text-2xl font-semibold mb-2">Category Not Found</h1>
             <p className="text-muted-foreground mb-4">The document category you're looking for doesn't exist or has been moved.</p>
@@ -105,10 +109,10 @@ export default function CategoryDetailPage() {
 
   const Icon = Icons[category.iconName as keyof typeof Icons] || Icons.Folder;
 
+  // Main content when category is found
   return (
-    <>
-      <div className="flex flex-col min-h-full bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
-        <div className="mb-6">
+    <div className="flex flex-col w-full p-4 md:p-6 bg-muted/30 flex-grow">
+        <div className="mb-6"> {/* Section for Back button and Category Header */}
             <Button variant="outline" onClick={() => router.push('/documents')} className="mb-4">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Categories
             </Button>
@@ -119,7 +123,7 @@ export default function CategoryDetailPage() {
             <p className="text-sm text-muted-foreground">{category.description}</p>
         </div>
 
-        <div className="mb-6 flex flex-wrap gap-2"> {/* Added flex-wrap for smaller screens */}
+        <div className="mb-6 flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setIsAddFileDialogOpen(true)}>
                 <UploadCloud className="mr-2 h-4 w-4" /> Upload File
             </Button>
@@ -183,8 +187,9 @@ export default function CategoryDetailPage() {
             <p className="text-sm">Use the buttons above to add your first document.</p>
           </div>
         )}
-      </div>
 
+      {/* Dialogs rendered at the end, their position in DOM doesn't affect their visual placement */}
+      {/* Checking 'category' before rendering dialogs that depend on it */}
       {category && (
         <>
             <AddDocumentDialog
@@ -212,6 +217,6 @@ export default function CategoryDetailPage() {
             />
         </>
       )}
-    </>
+    </div>
   );
 }
