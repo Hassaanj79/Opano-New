@@ -38,8 +38,8 @@ export function RepliesView() {
             // This is inefficient for a real app but okay for mock data
             for (const [convId, messagesInConv] of Object.entries(mockMessages)) {
               if (messagesInConv.some(m => m.id === message.id)) {
-                conversationContext = getConversationName(convId, mockChannels.some(c => c.id === convId) ? 'channel' : 'dm');
-                conversationType = mockChannels.some(c => c.id === convId) ? 'channel' : 'dm';
+                conversationContext = getConversationName(convId, initialMockChannels.some(c => c.id === convId) ? 'channel' : 'dm');
+                conversationType = initialMockChannels.some(c => c.id === convId) ? 'channel' : 'dm';
                 break;
               }
             }
@@ -80,5 +80,6 @@ export function RepliesView() {
 }
 
 // Helper data from mock, should ideally not be imported directly if context provides enough, but needed for finding conv type.
-import { mockMessages, mockChannels } from '@/lib/mock-data'; // Changed 'channels' to 'mockChannels'
+import { mockMessages, initialMockChannels } from '@/lib/mock-data'; // Changed 'channels' to 'initialMockChannels'
+
 
