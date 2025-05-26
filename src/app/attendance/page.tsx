@@ -3,7 +3,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, Coffee, LogOut, Play, TimerIcon, Edit2, Trash, PlusCircle, MoreHorizontal, BarChart2, FileText, CalendarOff } from "lucide-react";
+import { Calendar as CalendarIcon, Coffee, LogOut, Play, TimerIcon, Edit2, Trash, PlusCircle, MoreHorizontal, BarChart2, FileText, CalendarOff, ArrowLeft } from "lucide-react";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from "@/contexts/AppContext";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -43,6 +43,7 @@ import type { AttendanceLogEntry } from '@/types';
 import { EditAttendanceLogDialog } from "@/components/dialogs/EditAttendanceLogDialog";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { useRouter } from "next/navigation"; // Import useRouter
 
 const MAX_WORK_SECONDS = 8 * 60 * 60; // 8 hours in seconds for progress calculation
 
@@ -127,6 +128,7 @@ type AttendanceStatus = 'not-clocked-in' | 'working' | 'on-break' | 'clocked-out
 
 export default function AttendancePage() {
   const { currentUser, isLoadingAuth } = useAppContext();
+  const router = useRouter(); // Initialize useRouter
   const [status, setStatus] = useState<AttendanceStatus>('not-clocked-in');
   const [clockInTime, setClockInTime] = useState<Date | null>(null);
   const [clockOutTime, setClockOutTime] = useState<Date | null>(null);
@@ -199,12 +201,6 @@ export default function AttendancePage() {
     setAccumulatedBreakDuration(0);
     setWorkedSeconds(0);
     setStatus('working');
-    // if (!reportDateRange || !reportDateRange.from ||
-    //     (reportDateRange.to && !isWithinInterval(now, {start: startOfDay(reportDateRange.from), end: endOfDay(reportDateRange.to)})) ||
-    //     (!reportDateRange.to && !isSameDay(now, reportDateRange.from))
-    // ) {
-    //    setReportDateRange({ from: now, to: now });
-    // }
   };
 
   const handleClockOut = () => {
@@ -305,15 +301,23 @@ export default function AttendancePage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto relative">
-      <div className="w-full flex justify-center items-center py-4 mb-6 relative">
-        <div className="flex items-center">
+      {/* Header section for Back button, User Info, and Actions Dropdown */}
+      <div className="flex items-center justify-between w-full py-2 mb-6">
+        {/* Back Button */}
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-muted-foreground hover:text-primary">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="sr-only">Back</span>
+        </Button>
+
+        {/* Centered User Info */}
+        <div className="flex flex-col items-center">
           <UserAvatar user={currentUser} className="h-10 w-10" />
-          <div className="ml-3">
-            <h1 className="text-lg font-semibold text-foreground">{currentUser.name}</h1>
-            <p className="text-xs text-muted-foreground">{currentUser.designation || "No Designation"}</p>
-          </div>
+          <h1 className="text-lg font-semibold text-foreground mt-2">{currentUser.name}</h1>
+          <p className="text-xs text-muted-foreground">{currentUser.designation || "No Designation"}</p>
         </div>
-        <div className="absolute top-4 right-4">
+
+        {/* Actions Dropdown */}
+        <div> {/* This div helps maintain balance for justify-between if back button takes space */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
