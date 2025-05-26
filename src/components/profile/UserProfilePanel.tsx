@@ -21,7 +21,7 @@ export function UserProfilePanel() {
     currentUser,
     setActiveConversation,
     startCall,
-    openEditProfileDialog, // Assuming this function exists in context to open the edit dialog
+    openEditProfileDialog, 
   } = useAppContext();
   const router = useRouter();
   const { toast } = useToast();
@@ -33,10 +33,9 @@ export function UserProfilePanel() {
   const isCurrentUserProfile = currentUser?.id === viewingUserProfile.id;
   const isAdmin = currentUser?.role === 'admin';
 
-  // Mock data - some will be replaced by actual data
   const mockStatus = viewingUserProfile.isOnline ? "Online" : "Away, notifications snoozed";
-  const mockLocalTime = "6:20 AM local time";
-  const mockStartDate = "Dec 6, 2022 (7 months ago)";
+  const mockLocalTime = "6:20 AM local time"; // Placeholder
+  const mockStartDate = "Dec 6, 2022 (7 months ago)"; // Placeholder
 
   const handleMessageUser = () => {
     if (viewingUserProfile.id !== currentUser?.id) {
@@ -59,17 +58,13 @@ export function UserProfilePanel() {
 
   const handleEditProfile = () => {
     if (currentUser) {
-      // Assuming AppContext has a function to open the dialog
-      // For example: appContext.openEditProfileDialog(currentUser);
-      // For now, direct action based on sidebar or if a global dialog open function exists
-      closeUserProfilePanel(); // Close this panel first
-      // A more integrated solution would call a function from AppContext
-      // to open the EditProfileDialog. The sidebar has this logic.
-      // If a global openEditProfileDialog exists in context, use it:
+      closeUserProfilePanel(); 
       if (openEditProfileDialog) {
         openEditProfileDialog();
       } else {
-        toast({title: "Edit Profile", description: "Please use the settings in the main sidebar to edit your profile."});
+        // Fallback, though openEditProfileDialog should always be available from context
+        console.error("openEditProfileDialog is not available in context");
+        toast({title: "Error", description: "Could not open edit profile dialog."});
       }
     }
   }
@@ -123,7 +118,7 @@ export function UserProfilePanel() {
                 </div>
             </div>
              <div className="space-y-2 w-full pt-2">
-              {isCurrentUserProfile ? (
+              {isCurrentUserProfile && (
                 <>
                   <Button variant="outline" size="sm" onClick={handleEditProfile} className="w-full">
                     <Edit3 className="mr-2 h-4 w-4" />
@@ -147,7 +142,8 @@ export function UserProfilePanel() {
                       </DropdownMenu>
                   )}
                 </>
-                ) : (
+                )}
+                {!isCurrentUserProfile && (
                   <>
                     <Button variant="outline" className="w-full justify-start gap-2" onClick={handleMessageUser}>
                         <MessageSquare className="h-4 w-4" /> Message
@@ -186,6 +182,9 @@ export function UserProfilePanel() {
                         </a>
                     </div>
                 )}
+                 {!viewingUserProfile.linkedinProfileUrl && (
+                    <p className="text-xs text-muted-foreground italic">No LinkedIn profile provided.</p>
+                 )}
               </div>
             </div>
 
@@ -206,8 +205,8 @@ export function UserProfilePanel() {
                     <span className="text-foreground">{viewingUserProfile.phoneNumber}</span>
                   </div>
                 )}
-                 {!viewingUserProfile.email && !viewingUserProfile.phoneNumber && !viewingUserProfile.linkedinProfileUrl && (
-                    <p className="text-xs text-muted-foreground">No contact information provided.</p>
+                 {!viewingUserProfile.email && !viewingUserProfile.phoneNumber && (
+                    <p className="text-xs text-muted-foreground italic">No contact information provided.</p>
                  )}
               </div>
             </div>
@@ -217,3 +216,4 @@ export function UserProfilePanel() {
     </div>
   );
 }
+
