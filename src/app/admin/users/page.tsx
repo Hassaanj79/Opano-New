@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from '@/hooks/use-toast';
 
-type TableUserItem = 
+type TableUserItem =
   | { type: 'active'; data: User }
   | { type: 'invited'; data: PendingInvitation };
 
@@ -74,14 +74,14 @@ export default function ManageUsersPage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-start justify-between"> {/* Changed to items-start for better alignment with multi-line description */}
         <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Manage Users</h1>
             <p className="mt-1 text-sm text-muted-foreground">
             View, manage roles, and see invited users in the Opano workspace.
             </p>
         </div>
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={() => router.back()} className="ml-4 flex-shrink-0"> {/* Added ml-4 for spacing */}
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
@@ -124,7 +124,7 @@ export default function ManageUsersPage() {
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
                         <TableCell>
-                          <Badge 
+                          <Badge
                             variant={user.role === 'admin' ? 'default' : 'secondary'}
                             className={cn(user.role === 'admin' && "bg-primary/80 hover:bg-primary/70 text-primary-foreground")}
                           >
@@ -171,7 +171,7 @@ export default function ManageUsersPage() {
                         </TableCell>
                       </TableRow>
                     );
-                  } else { 
+                  } else {
                     const invitation = item.data;
                     return (
                       <TableRow key={invitation.token} className="bg-muted/30 hover:bg-muted/40">
@@ -223,3 +223,4 @@ export default function ManageUsersPage() {
 const UsersIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("lucide lucide-users", className)}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
 );
+
