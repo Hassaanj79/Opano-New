@@ -57,7 +57,9 @@ export default function ManageUsersPage() {
       <Card className="flex-grow">
         <CardHeader>
           <CardTitle>User List</CardTitle>
-          <CardDescription>A total of {allUsersWithCurrent.length} user(s) in the workspace.</CardDescription>
+          <CardDescription>
+            A complete list of all {allUsersWithCurrent.length} user(s) currently in the Opano workspace.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
