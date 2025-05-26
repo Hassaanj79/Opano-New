@@ -80,8 +80,18 @@ export type AttendanceLogEntry = {
   id: string;
   clockInTime: Date;
   clockOutTime: Date;
-  totalHoursWorked: number;
+  totalHoursWorked: number; // in seconds
   totalActivityPercent: number;
+};
+
+export type LeaveRequest = {
+  id: string;
+  userId: string;
+  startDate: Date;
+  endDate: Date;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected'; // Basic statuses
+  requestDate: Date;
 };
 
 export interface Document {

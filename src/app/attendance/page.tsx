@@ -3,7 +3,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, Coffee, LogOut, Play, TimerIcon, Edit2, Trash, PlusCircle, MoreHorizontal, BarChart2, FileText, CalendarOff, ArrowLeft } from "lucide-react";
+import { Calendar as CalendarIcon, Coffee, LogOut, Play, TimerIcon, Edit2, Trash, PlusCircle, MoreHorizontal, BarChart2, FileText, CalendarOff, ArrowLeft, Users, Briefcase } from "lucide-react";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from "@/contexts/AppContext";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -37,10 +37,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { format, isSameDay, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { format, isSameDay, startOfDay, endOfDay, isWithinInterval, differenceInDays } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
-import type { AttendanceLogEntry } from '@/types';
+import type { AttendanceLogEntry, LeaveRequest } from '@/types';
 import { EditAttendanceLogDialog } from "@/components/dialogs/EditAttendanceLogDialog";
+import { LeaveRequestDialog } from "@/components/dialogs/LeaveRequestDialog"; // New Import
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useRouter } from "next/navigation";
@@ -149,6 +150,9 @@ export default function AttendancePage() {
   const [editingEntry, setEditingEntry] = useState<AttendanceLogEntry | null>(null);
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
 
+  // Leave Management State
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [isLeaveRequestDialogOpen, setIsLeaveRequestDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!reportDateRange || !reportDateRange.from) {
@@ -263,6 +267,19 @@ export default function AttendancePage() {
     setDeletingEntryId(null);
   };
 
+  const handleAddLeaveRequest = (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => {
+    if (!currentUser) return;
+    const newLeaveRequest: LeaveRequest = {
+      ...newRequestData,
+      id: `leave-${Date.now()}`,
+      userId: currentUser.id,
+      requestDate: new Date(),
+      status: 'pending', // Default status
+    };
+    setLeaveRequests(prev => [newLeaveRequest, ...prev].sort((a,b) => b.requestDate.getTime() - a.requestDate.getTime()));
+    // TODO: Add toast notification for success
+  };
+
   if (isLoadingAuth) {
     return (
       <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full items-center justify-center">
@@ -338,7 +355,7 @@ export default function AttendancePage() {
                   <FileText className="mr-2 h-4 w-4" />
                   Reports
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => console.log('Leave request clicked')}>
+                <DropdownMenuItem onClick={() => setIsLeaveRequestDialogOpen(true)}>
                   <CalendarOff className="mr-2 h-4 w-4" />
                   Leave request
                 </DropdownMenuItem>
@@ -537,12 +554,76 @@ export default function AttendancePage() {
           </div>
         )}
       </div>
+
+      {/* Leave Requests Section */}
+      <div className="mt-10 w-full max-w-4xl mx-auto bg-card p-4 sm:p-6 rounded-lg shadow-lg">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-foreground">My Leave Requests</h2>
+          <Button variant="outline" onClick={() => setIsLeaveRequestDialogOpen(true)}>
+            <PlusCircle className="mr-2 h-4 w-4" /> New Leave Request
+          </Button>
+        </div>
+        {leaveRequests.length > 0 ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Request Date</TableHead>
+                  <TableHead>Start Date</TableHead>
+                  <TableHead>End Date</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaveRequests.map((req) => {
+                  const durationDays = differenceInDays(req.endDate, req.startDate) + 1;
+                  return (
+                  <TableRow key={req.id}>
+                    <TableCell>{format(req.requestDate, "MMM d, yyyy")}</TableCell>
+                    <TableCell>{format(req.startDate, "MMM d, yyyy")}</TableCell>
+                    <TableCell>{format(req.endDate, "MMM d, yyyy")}</TableCell>
+                    <TableCell>{durationDays} day{durationDays !== 1 ? 's' : ''}</TableCell>
+                    <TableCell className="max-w-xs truncate" title={req.reason}>{req.reason}</TableCell>
+                    <TableCell>
+                      <Badge variant={req.status === 'approved' ? 'default' : req.status === 'rejected' ? 'destructive' : 'secondary'}
+                       className={cn(
+                        req.status === 'approved' && 'bg-green-500 hover:bg-green-600',
+                        req.status === 'pending' && 'bg-yellow-400 text-yellow-800 hover:bg-yellow-500',
+                       )}
+                      >
+                        {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                )})}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            <Briefcase className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+            <p className="font-medium">No leave requests found.</p>
+            <p className="text-sm">Click "New Leave Request" to apply for time off.</p>
+          </div>
+        )}
+      </div>
+
       {editingEntry && (
         <EditAttendanceLogDialog
             isOpen={isEditDialogOpen}
             onOpenChange={setIsEditDialogOpen}
             logEntry={editingEntry}
             onSave={handleSaveEdit}
+        />
+      )}
+      {currentUser && (
+        <LeaveRequestDialog
+            isOpen={isLeaveRequestDialogOpen}
+            onOpenChange={setIsLeaveRequestDialogOpen}
+            onAddLeaveRequest={handleAddLeaveRequest}
+            currentUserName={currentUser.name}
         />
       )}
     </div>
