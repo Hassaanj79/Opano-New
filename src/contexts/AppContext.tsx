@@ -8,13 +8,13 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 import {
-    initialMockUsers, // Will be empty
-    initialMockChannels, // Will be empty
+    initialMockUsers, 
+    initialMockChannels, 
     getMessagesForConversation as fetchMockMessages,
     updateMockMessage,
-    mockMessages as allMockMessages, // Will be empty initially
-    mockDrafts as initialMockDrafts, // Will be empty
-    initialDocumentCategories // Will be empty
+    mockMessages as allMockMessages, 
+    mockDrafts as initialMockDrafts, 
+    initialDocumentCategories 
 } from '@/lib/mock-data';
 import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-channel';
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
@@ -42,7 +42,6 @@ interface AppContextType {
   channels: Channel[];
   activeConversation: ActiveConversation;
   setActiveConversation: (type: 'channel' | 'dm', id: string) => void;
-  messages: Message[];
   addMessage: (content: string, file?: File) => void;
   addChannel: (name: string, description?: string, memberIds?: string[], isPrivate?: boolean) => void;
   currentSummary: string | null;
@@ -102,9 +101,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [users, setUsers] = useState<User[]>([]); // Start with empty users
-  const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>([]); // Start with empty users
-  const [channels, setChannels] = useState<Channel[]>(initialMockChannels); // Will be empty from mock-data
+  const [users, setUsers] = useState<User[]>(initialMockUsers); 
+  const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>(initialMockUsers); 
+  const [channels, setChannels] = useState<Channel[]>(initialMockChannels); 
   const [activeConversation, setActiveConversationState] = useState<ActiveConversation>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentSummary, setCurrentSummary] = useState<string | null>(null);
@@ -115,9 +114,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   const [currentView, setCurrentViewState] = useState<CurrentView>('chat');
-  const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts); // Will be empty from mock-data
+  const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts); 
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
-  const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories); // Will be empty from mock-data
+  const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories); 
   const [isCallActive, setIsCallActive] = useState(false);
   const [callingWith, setCallingWith] = useState<ActiveConversation | null>(null);
 
@@ -213,38 +212,58 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setViewingUserProfile(null);
   };
 
-  useEffect(() => {
+ useEffect(() => {
     console.log("[AppContext] Subscribing to Firebase onAuthStateChanged.");
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       console.log("[AppContext] onAuthStateChanged triggered. Firebase user:", firebaseUser?.uid || 'null');
       if (firebaseUser) {
-        // Check if this user is already in our mock data for roles/designation (for demo purposes)
-        const existingMockUser = initialMockUsers.find(u => u.email === firebaseUser.email);
-        const appUser: User = {
-          id: firebaseUser.uid,
-          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous User',
-          email: firebaseUser.email || 'no-email@example.com',
-          avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${(firebaseUser.displayName || firebaseUser.email || 'AU').substring(0,2).toUpperCase()}`,
-          isOnline: true,
-          designation: existingMockUser?.designation || '', // Use mock designation if available
-          phoneNumber: existingMockUser?.phoneNumber || '', // Use mock phone if available
-          linkedinProfileUrl: existingMockUser?.linkedinProfileUrl || '',
-          pronouns: existingMockUser?.pronouns || '',
-          role: existingMockUser?.role || 'member', // Use mock role or default to member
-        };
+        let appUser: User | undefined = initialMockUsers.find(u => u.id === firebaseUser.uid);
+        let role: UserRole = 'member';
+
+        if (!appUser) { // New user to our system, or first user ever
+          if (initialMockUsers.length === 0) {
+            role = 'admin'; // First user is admin
+            console.log(`[AppContext] First user detected (${firebaseUser.email}), assigning 'admin' role.`);
+          } else {
+            role = 'member'; // Subsequent new users are members
+          }
+          appUser = {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous User',
+            email: firebaseUser.email || 'no-email@example.com',
+            avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${(firebaseUser.displayName || firebaseUser.email || 'AU').substring(0,2).toUpperCase()}`,
+            isOnline: true,
+            designation: '', 
+            phoneNumber: '', 
+            linkedinProfileUrl: '',
+            pronouns: '',
+            role: role, 
+          };
+          initialMockUsers.push(appUser); // Add to "persistent" mock store
+          console.log(`[AppContext] New app user created: ${appUser.name}, Role: ${appUser.role}`);
+        } else {
+          // User exists in initialMockUsers, ensure their online status is updated if needed.
+          // This ensures if a user was marked offline, they are marked online on sign-in.
+          appUser = { ...appUser, isOnline: true };
+          const userIndex = initialMockUsers.findIndex(u => u.id === appUser!.id);
+          if (userIndex !== -1) {
+            initialMockUsers[userIndex] = appUser;
+          }
+           console.log(`[AppContext] Existing app user found: ${appUser.name}, Role: ${appUser.role}`);
+        }
+        
         setCurrentUser(appUser);
-        setAllUsersWithCurrent(prevAllUsers => {
-            const otherUsersInState = prevAllUsers.filter(u => u.id !== appUser.id);
-            return [appUser, ...otherUsersInState];
-        });
-        setUsers(prevUsers => prevUsers.filter(u => u.id !== appUser.id)); // Ensure `users` doesn't contain current user
+        // Update users and allUsersWithCurrent based on the potentially updated initialMockUsers
+        const updatedAllUsersWithCurrent = initialMockUsers.map(u => u.id === appUser!.id ? appUser! : u);
+        setAllUsersWithCurrent(updatedAllUsersWithCurrent);
+        setUsers(updatedAllUsersWithCurrent.filter(u => u.id !== appUser!.id));
 
       } else {
         setCurrentUser(null);
         setActiveConversationState(null);
         setCurrentViewState('chat');
-        setAllUsersWithCurrent([]); // Clear when no user
-        setUsers([]); // Clear when no user
+        setAllUsersWithCurrent([]); 
+        setUsers([]); 
         closeUserProfilePanel();
       }
       setIsLoadingAuth(false);
@@ -254,17 +273,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.log("[AppContext] Unsubscribing from Firebase onAuthStateChanged.");
       unsubscribe();
     };
-  }, []);
+  }, []); // Empty dependency array to run once on mount
+
 
   useEffect(() => {
     if (!isLoadingAuth) {
       console.log("[AppContext] Redirection check. isLoadingAuth: false, currentUser:", currentUser?.id || 'null', "pathname:", pathname);
-      const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
+      const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/') || pathname.startsWith('/admin/');
       if (!currentUser && !isAuthPage) {
         console.log("[AppContext] Redirecting to /auth/join");
         router.replace('/auth/join');
-      } else if (currentUser && isAuthPage) {
-        console.log("[AppContext] Redirecting to /");
+      } else if (currentUser && (pathname.startsWith('/auth/') || pathname.startsWith('/join/'))) {
+         console.log("[AppContext] User logged in and on auth page, redirecting to /");
         router.replace('/');
       }
     }
@@ -399,10 +419,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     setChannels(prevChannels => {
       const updatedChannels = [...prevChannels, newChannel];
-      // This part needs adjustment if initialMockChannels is truly empty
+      
       const channelIndex = initialMockChannels.findIndex(ch => ch.id === newChannel.id);
       if (channelIndex === -1) {
-        initialMockChannels.push(newChannel); // Might not be desired if strictly no mock data
+        initialMockChannels.push(newChannel); 
       } else {
         initialMockChannels[channelIndex] = newChannel;
       }
@@ -463,12 +483,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           isPrivateChannel = channel.isPrivate || false;
           const newMemberIds = Array.from(new Set([...channel.memberIds, ...userIdsToAdd]));
           const updatedChannel = { ...channel, memberIds: newMemberIds };
-
-          // Update mockChannels if using it as a source of truth for some operations
-          // const mockChannelIndex = initialMockChannels.findIndex(ch => ch.id === channelId);
-          // if (mockChannelIndex !== -1) {
-          //   initialMockChannels[mockChannelIndex] = updatedChannel;
-          // }
+          
+          const mockChannelIndex = initialMockChannels.findIndex(ch => ch.id === channelId);
+          if (mockChannelIndex !== -1) {
+            initialMockChannels[mockChannelIndex] = updatedChannel;
+          }
 
           if (activeConversation?.type === 'channel' && activeConversation.id === channelId) {
             setActiveConversationState(prev => prev ? {...prev, channel: updatedChannel} : null);
@@ -638,10 +657,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       },0);
       return false;
     }
-
-    // New users from invitation will be handled by Firebase Auth flow.
-    // This mock user creation should be deprecated or adapted if we keep local mock logic.
-    // For now, just a toast and remove pending invitation. Firebase auth flow should take over.
+    
     setTimeout(() => {
       toast({ title: "Invitation Accepted", description: `User with email ${invitation.email} can now sign up.` });
     }, 0);
@@ -716,7 +732,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setTimeout(() => {
             toast({
               title: "Status Updated",
-              description: `You are now ${newStatus ? 'Online' : 'Away'}. (Local simulation)`,
+              description: `You are now ${newStatus ? 'Online' : 'Away'}.`,
             });
         },0);
 
@@ -739,19 +755,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             pronouns: profileData.pronouns || prevUser.pronouns,
             role: profileData.role || prevUser.role,
         };
-
-        setAllUsersWithCurrent(prevAll => prevAll.map(u => u.id === updatedUser.id ? updatedUser : u));
-        setUsers(prevUsers => prevUsers.map(u => u.id === updatedUser.id ? updatedUser : u));
-
-        // Also update in the initialMockUsers if it exists there (for persistence in mock context)
-        // This might be redundant if we fully shift to Firebase for user data.
-        const mockUserIndex = initialMockUsers.findIndex(u => u.id === updatedUser.id || u.email === updatedUser.email);
-        if (mockUserIndex !== -1) {
-            initialMockUsers[mockUserIndex] = {
-                ...initialMockUsers[mockUserIndex],
-                ...updatedUser
-            };
+        
+        // Update in initialMockUsers (our "persistent" store)
+        const userIndex = initialMockUsers.findIndex(u => u.id === updatedUser.id);
+        if (userIndex !== -1) {
+            initialMockUsers[userIndex] = updatedUser;
+        } else {
+            // This case shouldn't happen if currentUser is always derived from initialMockUsers
+            initialMockUsers.push(updatedUser);
         }
+
+        // Update derived states
+        setAllUsersWithCurrent(initialMockUsers.map(u => u.id === updatedUser.id ? updatedUser : u));
+        setUsers(initialMockUsers.filter(u => u.id !== updatedUser.id));
+
 
         setTimeout(() => {
             toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
@@ -779,11 +796,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteDraft = useCallback((draftId: string) => {
     setDrafts(prevDrafts => prevDrafts.filter(draft => draft.id !== draftId));
-    // If initialMockDrafts is the source for persistence:
-    // const draftIndex = initialMockDrafts.findIndex(d => d.id === draftId);
-    // if (draftIndex > -1) {
-    //   initialMockDrafts.splice(draftIndex, 1);
-    // }
+    
+    const draftIndex = initialMockDrafts.findIndex(d => d.id === draftId);
+    if (draftIndex > -1) {
+      initialMockDrafts.splice(draftIndex, 1);
+    }
     setTimeout(() => {
       toast({ title: "Draft Deleted", description: "The draft has been removed." });
     }, 0);
@@ -791,20 +808,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!isLoadingAuth && currentUser && !pathname.startsWith('/auth/') && !pathname.startsWith('/join/')) {
-      if (channels.length > 0 && !activeConversation && currentView === 'chat') {
-        const selfDmUser = allUsersWithCurrent.find(u => u.id === currentUser.id);
-        if (selfDmUser) {
-          console.log("[AppContext] Setting initial active conversation to self DM.");
+      if (channels.length === 0 && users.length === 0 && !activeConversation && currentView === 'chat') {
+        // If truly a blank slate (no channels, no other users), self DM is the only option.
+        console.log("[AppContext] Setting initial active conversation to self DM (blank slate).");
+        setActiveConversation('dm', currentUser.id);
+      } else if (channels.length > 0 && !activeConversation && currentView === 'chat') {
+         // If there are channels, default to the first one or self-DM if general doesn't exist
+        const generalChannel = channels.find(c => c.name.toLowerCase() === 'general');
+        if (generalChannel) {
+          console.log("[AppContext] Setting initial active conversation to #general channel.");
+          setActiveConversation('channel', generalChannel.id);
+        } else {
+          console.log("[AppContext] Setting initial active conversation to self DM (no #general).");
           setActiveConversation('dm', currentUser.id);
-        } else if (channels[0]) { // Fallback to first channel if self DM is somehow not set up or desired
-          console.log("[AppContext] Setting initial active conversation to first channel:", channels[0].name);
-          setActiveConversation('channel', channels[0].id);
         }
-      } else if (!activeConversation && currentView === 'chat' && currentUser) { // Ensure self DM for new setup
-         setActiveConversation('dm', currentUser.id);
       }
     }
-  }, [isLoadingAuth, currentUser, channels, activeConversation, setActiveConversation, currentView, allUsersWithCurrent, pathname]);
+  }, [isLoadingAuth, currentUser, channels, users, activeConversation, setActiveConversation, currentView, pathname]);
 
 
   const getConversationName = useCallback((conversationId: string, conversationType: 'channel' | 'dm'): string => {
@@ -905,8 +925,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       iconName: iconName,
       documents: [],
     };
-    setDocumentCategories(prev => [...prev, newCategory]);
-    // initialDocumentCategories.push(newCategory); // If initialDocumentCategories is the persistent source
+    setDocumentCategories(prev => {
+        const updated = [...prev, newCategory];
+        initialDocumentCategories.push(newCategory); // Simulate persistence
+        return updated;
+    });
     setTimeout(() => {
       toast({ title: "Category Added", description: `Category "${name}" has been created.` });
     }, 0);
@@ -926,13 +949,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       fileUrl: URL.createObjectURL(file),
       fileObject: file,
     };
-    setDocumentCategories(prev => prev.map(cat =>
-        cat.id === categoryId ? { ...cat, documents: [...cat.documents, newDocument] } : cat
-    ));
-    // Update persistent mock data if needed
-    // const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
-    // if (catIndex > -1) initialDocumentCategories[catIndex].documents.push(newDocument);
-
+    setDocumentCategories(prev => prev.map(cat => {
+        if (cat.id === categoryId) {
+            const updatedCat = { ...cat, documents: [...cat.documents, newDocument] };
+            // Simulate persistence
+            const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
+            if (catIndex > -1) initialDocumentCategories[catIndex] = updatedCat;
+            return updatedCat;
+        }
+        return cat;
+    }));
+    
     const category = findDocumentCategoryById(categoryId);
     const categoryName = category ? category.name : 'Unknown Category';
     setTimeout(() => {
@@ -947,7 +974,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
     }, 0);
 
-    const generalChannelId = channels.find(c => c.name === 'general')?.id || 'c1'; // Default to c1 if general not found
+    const generalChannelId = channels.find(c => c.name.toLowerCase() === 'general')?.id || 'c1'; 
     const systemMessageContent = `${currentUser.name} added a new document: "${newDocument.name}" to the "${categoryName}" category.`;
     const systemMessage: Message = {
         id: `sys-doc-add-${Date.now()}`,
@@ -980,9 +1007,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       lastModified: format(new Date(), "MMM d, yyyy"),
       textContent: textContent,
     };
-    setDocumentCategories(prev => prev.map(cat =>
-        cat.id === categoryId ? { ...cat, documents: [...cat.documents, newDocument] } : cat
-    ));
+    setDocumentCategories(prev => prev.map(cat => {
+        if (cat.id === categoryId) {
+            const updatedCat = { ...cat, documents: [...cat.documents, newDocument] };
+            const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
+            if (catIndex > -1) initialDocumentCategories[catIndex] = updatedCat;
+            return updatedCat;
+        }
+        return cat;
+    }));
 
     const category = findDocumentCategoryById(categoryId);
     const categoryName = category ? category.name : 'Unknown Category';
@@ -998,7 +1031,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
     },0);
 
-    const generalChannelId = channels.find(c => c.name === 'general')?.id || 'c1';
+    const generalChannelId = channels.find(c => c.name.toLowerCase() === 'general')?.id || 'c1';
     const systemMessageContent = `${currentUser.name} created a new text document: "${newDocument.name}" in the "${categoryName}" category.`;
     const systemMessage: Message = {
         id: `sys-doc-create-${Date.now()}`,
@@ -1031,9 +1064,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       lastModified: format(new Date(), "MMM d, yyyy"),
       fileUrl: docUrl,
     };
-    setDocumentCategories(prev => prev.map(cat =>
-        cat.id === categoryId ? { ...cat, documents: [...cat.documents, newDocument] } : cat
-    ));
+    setDocumentCategories(prev => prev.map(cat => {
+        if (cat.id === categoryId) {
+            const updatedCat = { ...cat, documents: [...cat.documents, newDocument] };
+            const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
+            if (catIndex > -1) initialDocumentCategories[catIndex] = updatedCat;
+            return updatedCat;
+        }
+        return cat;
+    }));
 
     const category = findDocumentCategoryById(categoryId);
     const categoryName = category ? category.name : 'Unknown Category';
@@ -1049,7 +1088,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
     },0);
 
-    const generalChannelId = channels.find(c => c.name === 'general')?.id || 'c1';
+    const generalChannelId = channels.find(c => c.name.toLowerCase() === 'general')?.id || 'c1';
     const systemMessageContent = `${currentUser.name} linked an external document: "${newDocument.name}" in the "${categoryName}" category.`;
     const systemMessage: Message = {
         id: `sys-doc-link-${Date.now()}`,
@@ -1074,11 +1113,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setTimeout(() => toast({title: "Permission Denied", description: "Only admins can delete documents.", variant: "destructive"}), 0);
         return;
     }
-    setDocumentCategories(prev => prev.map(cat =>
-        cat.id === categoryId
-            ? { ...cat, documents: cat.documents.filter(doc => doc.id !== docId) }
-            : cat
-    ));
+    setDocumentCategories(prev => prev.map(cat => {
+        if (cat.id === categoryId) {
+            const updatedDocs = cat.documents.filter(doc => doc.id !== docId);
+            const updatedCat = { ...cat, documents: updatedDocs };
+            const catIndex = initialDocumentCategories.findIndex(c => c.id === categoryId);
+            if (catIndex > -1) initialDocumentCategories[catIndex] = updatedCat;
+            return updatedCat;
+        }
+        return cat;
+    }));
     setTimeout(() => {
         toast({ title: "Document Deleted", description: "The document has been removed."});
     },0);
@@ -1089,6 +1133,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const results: Array<{ doc: Document, category: DocumentCategory }> = [];
 
     if (trimmedQuery === '') {
+        // Show first 2 docs from first 5 categories if query is empty
         documentCategories.slice(0,5).forEach(category => {
             category.documents.slice(0, 2).forEach(doc => {
                 results.push({ doc, category });
@@ -1103,7 +1148,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           });
         });
     }
-    return results.slice(0, 10);
+    return results.slice(0, 10); // Limit to 10 results
   }, [documentCategories]);
 
   const startCall = (conversation: ActiveConversation | null) => {

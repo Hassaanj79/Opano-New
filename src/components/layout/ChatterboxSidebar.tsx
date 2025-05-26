@@ -33,7 +33,7 @@ import {
     LogOut,
     Clock,
     Folder,
-    MoreHorizontal
+    Users as UsersIcon // Renamed to avoid conflict
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
@@ -86,19 +86,18 @@ export function ChatterboxSidebar() {
   };
 
   const handleNavClick = (viewOrPath: CurrentView | string, isPath: boolean = false) => {
-    closeUserProfilePanel(); // Close profile panel on any main nav click
+    closeUserProfilePanel(); 
     if (isPath) {
       router.push(viewOrPath as string);
-      // For app features, ensure chat view related states are reset
-      if (viewOrPath === '/attendance' || viewOrPath === '/documents') {
-        setActiveSpecialView('chat'); // Or set to a neutral view if preferred
+      if (viewOrPath === '/attendance' || viewOrPath === '/documents' || viewOrPath === '/admin/users') {
+        setActiveSpecialView('chat'); 
       }
     } else {
       setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts');
     }
   };
   
-  const { closeUserProfilePanel } = useAppContext(); // Assuming closeUserProfilePanel is available
+  const { closeUserProfilePanel } = useAppContext(); 
 
   const handleLogin = () => {
     router.push('/auth/join');
@@ -282,6 +281,12 @@ export function ChatterboxSidebar() {
                       )}
                       <span>{currentUser.isOnline ? 'Set to Away' : 'Set to Online'}</span>
                     </DropdownMenuItem>
+                    {currentUser.role === 'admin' && (
+                        <DropdownMenuItem onClick={() => router.push('/admin/users')}>
+                            <UsersIcon className="mr-2 h-4 w-4" />
+                            <span>Manage Users</span>
+                        </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout}>
                       <LogOut className="mr-2 h-4 w-4" />
