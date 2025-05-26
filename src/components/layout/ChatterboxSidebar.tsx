@@ -19,7 +19,7 @@ import { OpanoLogo } from '@/components/OpanoLogo';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Settings, Edit, UserCheck, UserX, Plus, LogOut, MessageSquareReply, Bell, Send, Users as UsersIcon, Clock, Folder } from 'lucide-react';
+import { Settings, Edit, UserCheck, UserX, Plus, LogOut, MessageSquareReply, Bell, Send, Clock, Folder, Users as UsersIcon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,53 +28,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
+import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
+import { EditProfileDialog } from '@/components/dialogs/EditProfileDialog'; 
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, usePathname } from 'next/navigation';
 
 export function ChatterboxSidebar() {
   const {
     currentUser,
-    setActiveConversation,
     setActiveSpecialView,
     currentView,
     toggleCurrentUserStatus,
     signOutUser,
-    // Functions related to complex profile panel were removed in revert
+    isEditProfileDialogOpen, // Added for consistency, though primarily using the setter
+    setIsEditProfileDialogOpen, // Use the setter function
   } = useAppContext();
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
 
-  const [searchTerm, setSearchTerm] = useState(''); // Added search term state
-
-  const handleAddChannelPlaceholder = () => {
-    if (currentUser?.role !== 'admin') {
-      toast({ title: "Permission Denied", description: "Only admins can create channels." });
-      return;
-    }
-    // In a simplified version, this might open a very basic prompt or do nothing
-    toast({ title: "Add Channel", description: "Channel creation TBD in this simplified version." });
-  };
-
-  const handleInviteUserPlaceholder = () => {
-     if (currentUser?.role !== 'admin') {
-      toast({ title: "Permission Denied", description: "Only admins can invite users." });
-      return;
-    }
-    toast({ title: "Invite User", description: "User invitation TBD in this simplified version." });
-  };
-
-  const handleEditProfilePlaceholder = () => {
-    toast({ title: "Edit Profile", description: "Profile editing TBD in this simplified version."});
-  };
-
-  const handleManageUsersClick = () => {
-    if (currentUser?.role === 'admin') {
-      router.push('/admin/users'); // Navigate to users page
-    } else {
-      toast({ title: "Permission Denied", description: "Only admins can manage users." });
-    }
-  };
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
+  const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
 
   const appFeatureNavItems = [
     { label: 'Attendance', icon: Clock, path: '/attendance' },
@@ -87,15 +63,34 @@ export function ChatterboxSidebar() {
     { label: 'Drafts', icon: Send, view: 'drafts' as const },
   ];
 
-  const handleTopNavClick = (item: { path?: string, view?: 'chat' | 'replies' | 'activity' | 'drafts' }) => {
-    // closeUserProfilePanel(); // Removed as closeUserProfilePanel no longer exists in context
+  const handleTopNavClick = (item: { path?: string, view?: 'replies' | 'activity' | 'drafts' }) => {
+    // No longer need to call closeUserProfilePanel as it was removed
     if (item.path) {
       router.push(item.path);
-      setActiveSpecialView('chat'); 
+      setActiveSpecialView('chat'); // Reset to chat view when navigating to top-level features
     } else if (item.view) {
       setActiveSpecialView(item.view);
     }
   };
+  
+  const handleOpenEditProfileDialog = () => {
+    if (setIsEditProfileDialogOpen) {
+      setIsEditProfileDialogOpen(true);
+    } else {
+      // Fallback or error, though setIsEditProfileDialogOpen should be available
+      toast({ title: "Error", description: "Cannot open edit profile dialog."});
+    }
+  };
+
+  const handleManageUsersClick = () => {
+    if (currentUser?.role === 'admin') {
+      // closeUserProfilePanel(); // This was removed, ensure context doesn't have it
+      router.push('/admin/users');
+    } else {
+      toast({ title: "Permission Denied", description: "Only admins can manage users." });
+    }
+  };
+
 
   return (
     <>
@@ -158,7 +153,7 @@ export function ChatterboxSidebar() {
                       variant="default"
                       size="icon"
                       className="h-6 w-6 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground group-data-[collapsible=icon]:hidden"
-                      onClick={handleAddChannelPlaceholder}
+                      onClick={() => setIsAddChannelDialogOpen(true)}
                       aria-label="Add new channel"
                     >
                       <Plus className="h-3.5 w-3.5" />
@@ -190,7 +185,7 @@ export function ChatterboxSidebar() {
                   variant="outline"
                   size="sm"
                   className="w-full mb-2 group-data-[collapsible=icon]:hidden"
-                  onClick={handleInviteUserPlaceholder}
+                  onClick={() => setIsInviteUserDialogOpen(true)}
                 >
                   <Plus className="mr-2 h-4 w-4" /> Invite User
                 </Button>
@@ -200,7 +195,7 @@ export function ChatterboxSidebar() {
                 role="button"
                 tabIndex={0}
                 aria-label={`View profile for ${currentUser.name}`}
-                onClick={() => toast({ title: "View Profile", description: "Profile panel functionality simplified." })}
+                onClick={() => toast({ title: "View Profile", description: "Profile panel functionality simplified. Edit via settings." })}
               >
                 <UserAvatar user={currentUser} className="h-8 w-8" />
                 <div className="flex-grow overflow-hidden group-data-[collapsible=icon]:hidden">
@@ -214,7 +209,7 @@ export function ChatterboxSidebar() {
                       variant="ghost"
                       size="icon"
                       className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground ml-auto"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()} // Prevent parent div's onClick
                       aria-label="User settings"
                     >
                       <Settings className="h-4 w-4"/>
@@ -223,7 +218,7 @@ export function ChatterboxSidebar() {
                   <DropdownMenuContent side="top" align="end" className="w-56">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleEditProfilePlaceholder}>
+                    <DropdownMenuItem onClick={handleOpenEditProfileDialog}>
                       <Edit className="mr-2 h-4 w-4" />
                       <span>Edit Profile</span>
                     </DropdownMenuItem>
@@ -255,7 +250,18 @@ export function ChatterboxSidebar() {
           )}
         </SidebarFooter>
       </Sidebar>
-      {/* Dialogs removed as they are tied to complex features that were reverted */}
+      
+      {currentUser && (
+        <>
+          <AddChannelDialog isOpen={isAddChannelDialogOpen} onOpenChange={setIsAddChannelDialogOpen} />
+          <InviteUserDialog isOpen={isInviteUserDialogOpen} onOpenChange={setIsInviteUserDialogOpen} />
+          {/* EditProfileDialog is rendered here, controlled by context state */}
+          <EditProfileDialog 
+            isOpen={isEditProfileDialogOpen} 
+            onOpenChange={setIsEditProfileDialogOpen} 
+          />
+        </>
+      )}
     </>
   );
 }
