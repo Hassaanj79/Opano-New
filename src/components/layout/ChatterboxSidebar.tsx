@@ -33,7 +33,7 @@ import {
     LogOut,
     Clock,
     Folder,
-    Users as UsersIcon, // Renamed to avoid conflict
+    Users as UsersIcon, 
     MoreHorizontal
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
@@ -94,15 +94,13 @@ export function ChatterboxSidebar() {
     closeUserProfilePanel();
     if (isPath) {
       router.push(viewOrPath as string);
-      if (viewOrPath === '/attendance' || viewOrPath === '/documents' || viewOrPath === '/admin/users') {
-        // Keep chat view if navigating to these distinct app sections, 
-        // but don't clear activeConversation if already in a non-chat view
-        if (currentView !== 'replies' && currentView !== 'activity' && currentView !== 'drafts') {
-             setActiveSpecialView('chat'); 
-        }
+      // If navigating to a distinct app section from a special view, reset to chat view's potential default.
+      if (currentView !== 'chat' && (viewOrPath === '/attendance' || viewOrPath === '/documents' || viewOrPath === '/admin/users')) {
+           setActiveSpecialView('chat'); 
       }
     } else {
-      setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts');
+      // This handles 'replies', 'activity', 'drafts'
+      setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts' | 'chat');
     }
   };
 
@@ -121,8 +119,16 @@ export function ChatterboxSidebar() {
   };
 
   const handleManageUsersClick = () => {
-    closeUserProfilePanel();
-    router.push('/admin/users');
+    if (currentUser?.role === 'admin') {
+        closeUserProfilePanel();
+        router.push('/admin/users');
+    } else {
+        toast({
+            title: "Permission Denied",
+            description: "You do not have permission to manage users.",
+            variant: "destructive"
+        });
+    }
   };
 
 
