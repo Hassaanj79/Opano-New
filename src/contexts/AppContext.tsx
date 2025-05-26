@@ -2,7 +2,7 @@
 "use client";
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView, DocumentCategory, Document } from '@/types';
+import type { User, Channel, Message, ActiveConversation, PendingInvitation, Draft, ActivityItem, CurrentView, DocumentCategory, Document, LeaveRequest } from '@/types';
 import { auth } from '@/lib/firebase';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -20,7 +20,7 @@ import { summarizeChannel as summarizeChannelFlow } from '@/ai/flows/summarize-c
 import { sendInvitationEmail } from '@/ai/flows/send-invitation-email-flow';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, usePathname } from 'next/navigation';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { ToastAction } from '@/components/ui/toast';
 
 
@@ -31,7 +31,7 @@ export type UserProfileUpdateData = {
   phoneNumber?: string;
   avatarDataUrl?: string;
   linkedinProfileUrl?: string;
-  pronouns?: string; // Added pronouns
+  pronouns?: string; 
 };
 
 interface AppContextType {
@@ -91,6 +91,10 @@ interface AppContextType {
   viewingUserProfile: User | null;
   openUserProfilePanel: (user: User) => void;
   closeUserProfilePanel: () => void;
+
+  // Leave Management
+  leaveRequests: LeaveRequest[];
+  handleAddLeaveRequest: (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -119,6 +123,84 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const [isUserProfilePanelOpen, setIsUserProfilePanelOpen] = useState(false);
   const [viewingUserProfile, setViewingUserProfile] = useState<User | null>(null);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+
+
+  const handleAddLeaveRequest = useCallback(async (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => {
+    if (!currentUser) {
+        setTimeout(() => toast({ title: "Error", description: "You must be logged in to request leave.", variant: "destructive" }), 0);
+        return;
+    }
+    const newLeaveRequest: LeaveRequest = {
+      ...newRequestData,
+      id: `leave-${Date.now()}`,
+      userId: currentUser.id,
+      requestDate: new Date(),
+      status: 'pending', 
+    };
+    setLeaveRequests(prev => [...prev, newLeaveRequest].sort((a,b) => b.requestDate.getTime() - a.requestDate.getTime()));
+    
+    setTimeout(() => {
+        toast({
+            title: "Leave Request Submitted",
+            description: `Your leave request for ${currentUser.name} has been submitted for approval.`,
+        });
+    }, 0);
+
+    // Send email to admin
+    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+    if (adminEmail) {
+      const durationDays = differenceInDays(newLeaveRequest.endDate, newLeaveRequest.startDate) + 1;
+      const subject = `New Leave Request from ${currentUser.name}`;
+      const htmlBody = `
+        <p>Hello Admin,</p>
+        <p>A new leave request has been submitted by <strong>${currentUser.name}</strong> (ID: ${currentUser.id}).</p>
+        <p><strong>Details:</strong></p>
+        <ul>
+          <li><strong>Start Date:</strong> ${format(newLeaveRequest.startDate, 'PPP')}</li>
+          <li><strong>End Date:</strong> ${format(newLeaveRequest.endDate, 'PPP')}</li>
+          <li><strong>Duration:</strong> ${durationDays} day(s)</li>
+          <li><strong>Reason:</strong> ${newLeaveRequest.reason}</li>
+        </ul>
+        <p>Please review this request in the Opano system.</p>
+      `;
+      try {
+        console.log(`[AppContext] Attempting to send leave notification to admin: ${adminEmail}`);
+        const emailResult = await sendInvitationEmail({
+          to: adminEmail,
+          subject: subject,
+          htmlBody: htmlBody,
+          joinUrl: `${window.location.origin}/attendance` // A generic link to the attendance page
+        });
+        if (emailResult.success) {
+          console.log(`[AppContext] Leave notification email sent successfully to ${adminEmail}. Message ID: ${emailResult.messageId}`);
+        } else {
+          console.error(`[AppContext] Failed to send leave notification email to ${adminEmail}. Error: ${emailResult.error}`);
+          setTimeout(() => {
+            toast({
+              title: "Admin Notification Failed",
+              description: `Could not notify admin about the leave request. Error: ${emailResult.error}`,
+              variant: "destructive",
+              duration: 7000
+            });
+          }, 0);
+        }
+      } catch (error) {
+        console.error("[AppContext] Error calling sendInvitationEmail flow for admin notification:", error);
+         setTimeout(() => {
+            toast({
+              title: "Admin Notification Error",
+              description: "An unexpected error occurred while trying to notify the admin.",
+              variant: "destructive",
+              duration: 7000
+            });
+          }, 0);
+      }
+    } else {
+      console.warn("[AppContext] ADMIN_EMAIL not configured. Cannot send leave notification email to admin.");
+    }
+
+  }, [currentUser, toast]);
 
   const openUserProfilePanel = (userToView: User) => {
     setViewingUserProfile(userToView);
@@ -643,7 +725,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ...prevUser,
             name: profileData.name || prevUser.name,
             designation: profileData.designation || prevUser.designation,
-            email: profileData.email, // Assuming email doesn't change, or handle appropriately
+            email: profileData.email, 
             phoneNumber: profileData.phoneNumber || prevUser.phoneNumber,
             avatarDataUrl: profileData.avatarDataUrl || prevUser.avatarUrl,
             linkedinProfileUrl: profileData.linkedinProfileUrl || prevUser.linkedinProfileUrl,
@@ -993,8 +1075,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const results: Array<{ doc: Document, category: DocumentCategory }> = [];
 
     if (trimmedQuery === '') {
+        // Return up to 5 documents from each category if query is empty
         documentCategories.forEach(category => {
-            category.documents.slice(0, 5).forEach(doc => {
+            category.documents.slice(0, 5).forEach(doc => { // Limit to 5 per category for initial display
                 results.push({ doc, category });
             });
         });
@@ -1007,7 +1090,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           });
         });
     }
-    return results.slice(0, 10);
+    return results.slice(0, 10); // Global limit for results shown in popover
   }, [documentCategories]);
 
   const startCall = (conversation: ActiveConversation | null) => {
@@ -1119,6 +1202,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       viewingUserProfile,
       openUserProfilePanel,
       closeUserProfilePanel,
+      leaveRequests,
+      handleAddLeaveRequest,
     }}>
       {children}
     </AppContext.Provider>
@@ -1132,3 +1217,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
