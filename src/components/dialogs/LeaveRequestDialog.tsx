@@ -21,7 +21,7 @@ import type { LeaveRequest } from '@/types'; // Use global types
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { CalendarIcon, Send } from "lucide-react";
-import { format, isToday, isAfter } from "date-fns";
+import { format, isToday, isAfter, startOfDay } from "date-fns"; // Added startOfDay
 import { cn } from "@/lib/utils";
 import { useToast } from '@/hooks/use-toast';
 
@@ -188,3 +188,4 @@ export function LeaveRequestDialog({ isOpen, onOpenChange, onAddLeaveRequest, cu
     </Dialog>
   );
 }
+
