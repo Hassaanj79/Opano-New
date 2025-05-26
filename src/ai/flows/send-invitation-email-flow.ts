@@ -43,15 +43,26 @@ const sendInvitationEmailFlow = ai.defineFlow(
     const gmailEmail = process.env.GMAIL_EMAIL;
     const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
 
-    if (!gmailEmail || !gmailAppPassword) {
-      console.error('[sendInvitationEmailFlow] Gmail credentials (GMAIL_EMAIL, GMAIL_APP_PASSWORD) are not set or not accessible in the .env file. Please verify your .env file and restart the server.');
-      return { success: false, error: 'Server configuration error: Email credentials missing or not accessible.' };
+    // Enhanced credential checks
+    if (!gmailEmail) {
+      const errorMsg = 'GMAIL_EMAIL is not set in .env.local. Cannot send email.';
+      console.error(`[sendInvitationEmailFlow] ${errorMsg}`);
+      return { success: false, error: errorMsg };
+    }
+    if (!gmailAppPassword) {
+      const errorMsg = 'GMAIL_APP_PASSWORD is not set in .env.local. Cannot send email.';
+      console.error(`[sendInvitationEmailFlow] ${errorMsg}`);
+      return { success: false, error: errorMsg };
+    }
+    if (gmailAppPassword.includes(' ') || gmailAppPassword.length !== 16) {
+        const errorMsg = 'GMAIL_APP_PASSWORD appears to be invalid. It should be 16 characters long and contain NO spaces. Please regenerate it from your Google Account and update .env.local.';
+        console.error(`[sendInvitationEmailFlow] ${errorMsg}`);
+        console.error(`[sendInvitationEmailFlow] Current App Password (obfuscated length & spaces): Length=${gmailAppPassword.length}, HasSpaces=${gmailAppPassword.includes(' ')}`);
+        return { success: false, error: errorMsg };
     }
     
     console.log(`[sendInvitationEmailFlow] Attempting to send invitation to ${to}. Join URL for testing: ${joinUrl}`);
-    // Updated logging to show the actual email being used and length of the app password
-    console.log(`[sendInvitationEmailFlow] Using Gmail Email: ${gmailEmail || 'NOT LOADED'}, App Password: ${gmailAppPassword ? `Loaded (length: ${gmailAppPassword.length})` : 'NOT LOADED'}`);
-
+    console.log(`[sendInvitationEmailFlow] Using Gmail Email: ${gmailEmail}, App Password: Loaded (length: ${gmailAppPassword.length})`);
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -83,3 +94,4 @@ const sendInvitationEmailFlow = ai.defineFlow(
     }
   }
 );
+
