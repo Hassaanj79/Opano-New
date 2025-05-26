@@ -40,7 +40,7 @@ export default function AttendancePage() {
   const [lastTick, setLastTick] = useState<Date | null>(null);
 
   const [masterAttendanceLog, setMasterAttendanceLog] = useState<AttendanceLogEntry[]>([]);
-  const [reportDate, setReportDate] = useState<Date>(new Date());
+  const [reportDate, setReportDate] = useState<Date | undefined>(undefined); // Initialize as undefined
   const [displayedAttendanceLog, setDisplayedAttendanceLog] = useState<AttendanceLogEntry[]>([]);
 
   const [isEditLogDialogOpen, setIsEditLogDialogOpen] = useState(false);
@@ -52,6 +52,11 @@ export default function AttendancePage() {
   
   const WORK_TARGET_SECONDS = 8 * 60 * 60; // 8 hours
 
+  // Effect to set initial reportDate on client-side
+  useEffect(() => {
+    setReportDate(new Date());
+  }, []);
+
   // Timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -62,7 +67,7 @@ export default function AttendancePage() {
       interval = setInterval(() => {
         setWorkedSeconds(prevSeconds => {
           const now = new Date();
-          const currentLastTick = lastTick || now; // Use now if lastTick hasn't been set yet
+          const currentLastTick = lastTick || now; 
           const secondsSinceLastTick = differenceInSeconds(now, currentLastTick);
           setLastTick(now);
           return prevSeconds + secondsSinceLastTick;
@@ -74,10 +79,14 @@ export default function AttendancePage() {
 
 
   useEffect(() => {
-    const filtered = masterAttendanceLog.filter(entry => 
-      isSameDay(new Date(entry.clockInTime), reportDate)
-    );
-    setDisplayedAttendanceLog(filtered.sort((a, b) => new Date(b.clockInTime).getTime() - new Date(a.clockInTime).getTime()));
+    if (reportDate) { // Only filter if reportDate is set
+      const filtered = masterAttendanceLog.filter(entry => 
+        isSameDay(new Date(entry.clockInTime), reportDate)
+      );
+      setDisplayedAttendanceLog(filtered.sort((a, b) => new Date(b.clockInTime).getTime() - new Date(a.clockInTime).getTime()));
+    } else {
+      setDisplayedAttendanceLog([]); // Clear log if no date selected
+    }
   }, [masterAttendanceLog, reportDate]);
 
 
@@ -97,7 +106,7 @@ export default function AttendancePage() {
     if (!clockInTime) return;
     const now = new Date();
     let finalWorkedSeconds = workedSeconds;
-    if (status === 'on-break' && breakStartTime) { // If clocked out while on break
+    if (status === 'on-break' && breakStartTime) { 
       const breakDuration = differenceInSeconds(now, breakStartTime);
       setAccumulatedBreakDuration(prev => prev + breakDuration);
     }
@@ -110,7 +119,7 @@ export default function AttendancePage() {
       clockInTime: clockInTime,
       clockOutTime: now,
       totalHoursWorked: finalWorkedSeconds,
-      totalActivityPercent: Math.floor(Math.random() * 41) + 60, // Random 60-100%
+      totalActivityPercent: Math.floor(Math.random() * 41) + 60, 
     };
     setMasterAttendanceLog(prevLog => [newLogEntry, ...prevLog]);
     toast({ title: "Clocked Out", description: `Session ended at ${format(now, "p")}.` });
@@ -121,14 +130,14 @@ export default function AttendancePage() {
     if (status === 'working') {
       setBreakStartTime(now);
       setStatus('on-break');
-      setLastTick(null); // Stop timer updates while on break
+      setLastTick(null); 
       toast({ title: "Break Started", description: `Break started at ${format(now, "p")}.` });
     } else if (status === 'on-break' && breakStartTime) {
       const breakDuration = differenceInSeconds(now, breakStartTime);
       setAccumulatedBreakDuration(prev => prev + breakDuration);
       setBreakStartTime(null);
       setStatus('working');
-      setLastTick(now); // Resume timer updates
+      setLastTick(now); 
       toast({ title: "Break Ended", description: `Resumed work at ${format(now, "p")}.` });
     }
   };
@@ -156,7 +165,6 @@ export default function AttendancePage() {
       status: 'pending',
     };
     setLeaveRequests(prev => [newRequest, ...prev]);
-    // Email sending logic can be re-added here if needed.
   };
 
   const formatTime = (date: Date | null) => date ? format(new Date(date), "hh:mm a") + " EST" : "--:-- -- EST";
@@ -190,9 +198,12 @@ export default function AttendancePage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
-      {/* Header Section */}
-      <div className="flex items-center justify-between mb-6 md:mb-8">
-        <Button variant="outline" onClick={() => router.back()} className="h-auto py-1.5 px-3 rounded-full border-primary text-primary hover:bg-primary/10">
+      <div className="relative flex items-center justify-between mb-6 md:mb-8">
+        <Button 
+            variant="outline" 
+            onClick={() => router.back()} 
+            className="h-auto py-1.5 px-3 rounded-full border-primary text-primary hover:bg-primary/10"
+        >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
         <div className="flex flex-col items-center">
@@ -202,7 +213,11 @@ export default function AttendancePage() {
         </div>
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full border border-primary text-primary hover:bg-primary/10 hover:text-primary h-9 w-9">
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className="rounded-full border border-primary text-primary hover:bg-primary/10 hover:text-primary h-9 w-9"
+            >
                 <MoreHorizontal className="h-5 w-5" />
             </Button>
             </DropdownMenuTrigger>
@@ -220,7 +235,6 @@ export default function AttendancePage() {
         </DropdownMenu>
       </div>
 
-      {/* Main Timer and Actions */}
       {status !== 'clocked-out' ? (
         <div className="flex flex-col items-center gap-6 md:gap-8 flex-grow justify-center">
           <div className="relative w-56 h-56 md:w-72 md:h-72">
@@ -303,12 +317,10 @@ export default function AttendancePage() {
         </div>
       )}
 
-
-      {/* Attendance Log Table */}
       <div className="mt-10 pt-6 border-t">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-foreground">
-            Clock In / Clock Out Report of {format(reportDate, "dd-MMM-yyyy")}
+            {reportDate ? `Clock In / Clock Out Report of ${format(reportDate, "dd-MMM-yyyy")}` : "Select a date to view report"}
           </h2>
           <Popover>
             <PopoverTrigger asChild>
@@ -330,7 +342,7 @@ export default function AttendancePage() {
             </PopoverContent>
           </Popover>
         </div>
-        {displayedAttendanceLog.length > 0 ? (
+        {reportDate && displayedAttendanceLog.length > 0 ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -386,12 +398,13 @@ export default function AttendancePage() {
         ) : (
            <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg">
             <Clock className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-            <p className="font-medium text-lg">No attendance records for {format(reportDate, "PPP")}.</p>
+            <p className="font-medium text-lg">
+              {reportDate ? `No attendance records for ${format(reportDate, "PPP")}.` : "Please select a date to view the report."}
+            </p>
           </div>
         )}
       </div>
 
-      {/* My Leave Requests Table */}
       <div className="mt-10 pt-6 border-t">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-foreground">My Leave Requests</h2>
@@ -429,7 +442,6 @@ export default function AttendancePage() {
             </div>
         )}
       </div>
-
 
       {editingLogEntry && (
         <EditAttendanceLogDialog
