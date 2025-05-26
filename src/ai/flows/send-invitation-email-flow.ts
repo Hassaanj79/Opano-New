@@ -54,15 +54,18 @@ const sendInvitationEmailFlow = ai.defineFlow(
       console.error(`[sendInvitationEmailFlow] ${errorMsg}`);
       return { success: false, error: errorMsg };
     }
-    if (gmailAppPassword.includes(' ') || gmailAppPassword.length !== 16) {
-        const errorMsg = 'GMAIL_APP_PASSWORD appears to be invalid. It should be 16 characters long and contain NO spaces. Please regenerate it from your Google Account and update .env.local.';
+    
+    const hasSpaces = gmailAppPassword.includes(' ');
+    const isCorrectLength = gmailAppPassword.length === 16;
+
+    if (hasSpaces || !isCorrectLength) {
+        const errorMsg = `GMAIL_APP_PASSWORD appears to be invalid. It should be 16 characters long and contain NO spaces. Detected length: ${gmailAppPassword.length}, Contains spaces: ${hasSpaces}. Please regenerate it from your Google Account (https://myaccount.google.com/apppasswords) and update .env.local.`;
         console.error(`[sendInvitationEmailFlow] ${errorMsg}`);
-        console.error(`[sendInvitationEmailFlow] Current App Password (obfuscated length & spaces): Length=${gmailAppPassword.length}, HasSpaces=${gmailAppPassword.includes(' ')}`);
         return { success: false, error: errorMsg };
     }
     
     console.log(`[sendInvitationEmailFlow] Attempting to send invitation to ${to}. Join URL for testing: ${joinUrl}`);
-    console.log(`[sendInvitationEmailFlow] Using Gmail Email: ${gmailEmail}, App Password: Loaded (length: ${gmailAppPassword.length})`);
+    console.log(`[sendInvitationEmailFlow] Using Gmail Email: ${gmailEmail}, App Password: Loaded (length: ${gmailAppPassword.length}, No Spaces: ${!hasSpaces})`);
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
