@@ -74,19 +74,20 @@ export function ChatterboxSidebar() {
     signOutUser,
     openUserProfilePanel,
     closeUserProfilePanel,
+    openEditProfileDialog, // Use the function from context
   } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
-  const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
+  // EditProfileDialog state is now managed by AppContext
   const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
 
   const handleEditProfile = () => {
-    if (currentUser) {
+    if (currentUser && openEditProfileDialog) {
       closeUserProfilePanel();
-      setIsEditProfileDialogOpen(true);
+      openEditProfileDialog(); // Call context function to open the dialog
     }
   };
 
@@ -94,12 +95,10 @@ export function ChatterboxSidebar() {
     closeUserProfilePanel();
     if (isPath) {
       router.push(viewOrPath as string);
-      // If navigating to a distinct app section from a special view, reset to chat view's potential default.
       if (currentView !== 'chat' && (viewOrPath === '/attendance' || viewOrPath === '/documents' || viewOrPath === '/admin/users')) {
            setActiveSpecialView('chat'); 
       }
     } else {
-      // This handles 'replies', 'activity', 'drafts'
       setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts' | 'chat');
     }
   };
@@ -123,11 +122,13 @@ export function ChatterboxSidebar() {
         closeUserProfilePanel();
         router.push('/admin/users');
     } else {
-        toast({
-            title: "Permission Denied",
-            description: "You do not have permission to manage users.",
-            variant: "destructive"
-        });
+        setTimeout(() => {
+          toast({
+              title: "Permission Denied",
+              description: "You do not have permission to manage users.",
+              variant: "destructive"
+          });
+        },0);
     }
   };
 
@@ -279,7 +280,7 @@ export function ChatterboxSidebar() {
                       variant="ghost"
                       size="icon"
                       className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground ml-auto"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()} // Prevent parent div's onClick
                       aria-label="User settings"
                     >
                       <Settings className="h-4 w-4"/>
@@ -331,10 +332,7 @@ export function ChatterboxSidebar() {
         <>
           <AddChannelDialog isOpen={isAddChannelDialogOpen} onOpenChange={setIsAddChannelDialogOpen} />
           <InviteUserDialog isOpen={isInviteUserDialogOpen} onOpenChange={setIsInviteUserDialogOpen} />
-          <EditProfileDialog
-            isOpen={isEditProfileDialogOpen}
-            onOpenChange={setIsEditProfileDialogOpen}
-          />
+          {/* EditProfileDialog is opened via context, no local state needed here */}
         </>
       )}
     </>
