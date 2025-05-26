@@ -32,6 +32,8 @@ import {
     Plus,
     LogIn, 
     LogOut,
+    Clock, // Added Clock
+    Folder, // Added Folder
 } from 'lucide-react';
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
@@ -55,6 +57,11 @@ const topNavItems: { label: string; icon: React.ElementType; view: CurrentView |
     { label: 'More', icon: MoreHorizontal, view: 'more' },
 ];
 
+const appFeatureNavItems = [
+  { label: 'Attendance', icon: Clock, path: '/attendance' },
+  { label: 'Documents', icon: Folder, path: '/documents' },
+];
+
 export function ChatterboxSidebar() {
   const { 
     currentUser, 
@@ -63,12 +70,12 @@ export function ChatterboxSidebar() {
     currentView, 
     isLoadingAuth, 
     signOutUser,
-    openUserProfilePanel // Get openUserProfilePanel from context
+    openUserProfilePanel 
   } = useAppContext();
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
   const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(''); // Search term remains local to sidebar
+  const [searchTerm, setSearchTerm] = useState(''); 
   const router = useRouter();
   const pathname = usePathname();
 
@@ -78,11 +85,17 @@ export function ChatterboxSidebar() {
     }
   };
 
-  const handleTopNavClick = (view: CurrentView | 'more') => {
-    if (view === 'more') {
+  const handleTopNavClick = (viewOrPath: CurrentView | 'more' | string, isPath: boolean = false) => {
+    if (isPath) {
+      router.push(viewOrPath as string);
+      // When navigating to a distinct page, ensure chat context is cleared
+      if (viewOrPath === '/attendance' || viewOrPath === '/documents') {
+        setActiveSpecialView('chat'); // or a new context function to clear activeConversation
+      }
+    } else if (viewOrPath === 'more') {
       router.push('/more');
     } else {
-      setActiveSpecialView(view as 'replies' | 'activity' | 'drafts');
+      setActiveSpecialView(viewOrPath as 'replies' | 'activity' | 'drafts');
     }
   };
 
@@ -157,6 +170,27 @@ export function ChatterboxSidebar() {
 
               <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
 
+              {/* New App Features Section */}
+              <SidebarGroup className="pt-1 pb-1 group-data-[collapsible=icon]:px-0">
+                <SidebarMenu>
+                  {appFeatureNavItems.map((item) => (
+                    <SidebarMenuItem key={item.label}>
+                      <SidebarMenuButton
+                        onClick={() => handleTopNavClick(item.path, true)}
+                        isActive={pathname.startsWith(item.path)}
+                        tooltip={item.label}
+                        className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
+                      >
+                        <item.icon className="h-5 w-5" />
+                        <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroup>
+
+              <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
+
               <SidebarGroup className="pt-1 group-data-[collapsible=icon]:px-0">
                 <div className="flex items-center justify-between w-full px-3 mb-1 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:mb-0.5">
                   <SidebarGroupLabel className="text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden p-0 normal-case">
@@ -204,7 +238,7 @@ export function ChatterboxSidebar() {
               <SidebarSeparator className="my-1"/>
               <div 
                 className="flex items-center p-1 gap-2 rounded-md group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center hover:bg-sidebar-accent cursor-pointer"
-                onClick={handleViewOwnProfile} // Added onClick to open profile
+                onClick={handleViewOwnProfile} 
                 role="button"
                 tabIndex={0}
                 aria-label={`View profile for ${currentUser.name}`}
@@ -220,8 +254,8 @@ export function ChatterboxSidebar() {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground ml-auto" // Added ml-auto
-                      onClick={(e) => e.stopPropagation()} // Prevent parent div's onClick
+                      className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground ml-auto" 
+                      onClick={(e) => e.stopPropagation()} 
                       aria-label="User settings"
                     >
                       <Settings className="h-4 w-4"/>
@@ -276,3 +310,5 @@ export function ChatterboxSidebar() {
     </>
   );
 }
+
+    

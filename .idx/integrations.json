@@ -1,5 +1,10 @@
 {
   "firebase_hosting": {
     "deploymentHostingUrl": "https://chatterbox-rlppa.web.app"
+  },
+  "cloud_run_deploy": {
+    "region": "us-central1",
+    "sourceFlag": "--source .",
+    "allowUnauthenticatedInvocationsFlag": "--allow-unauthenticated"
   }
 }
