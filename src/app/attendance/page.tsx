@@ -41,7 +41,7 @@ import { format, isSameDay, startOfDay, endOfDay, isWithinInterval, differenceIn
 import type { DateRange } from 'react-day-picker';
 import type { AttendanceLogEntry, LeaveRequest } from '@/types';
 import { EditAttendanceLogDialog } from "@/components/dialogs/EditAttendanceLogDialog";
-import { LeaveRequestDialog } from "@/components/dialogs/LeaveRequestDialog"; // New Import
+import { LeaveRequestDialog } from "@/components/dialogs/LeaveRequestDialog";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useRouter } from "next/navigation";
@@ -277,7 +277,6 @@ export default function AttendancePage() {
       status: 'pending', // Default status
     };
     setLeaveRequests(prev => [newLeaveRequest, ...prev].sort((a,b) => b.requestDate.getTime() - a.requestDate.getTime()));
-    // TODO: Add toast notification for success
   };
 
   if (isLoadingAuth) {
@@ -318,7 +317,7 @@ export default function AttendancePage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto relative">
-      <div className="flex items-center justify-between w-full py-2 mb-6">
+      <div className="flex items-center justify-between w-full py-2 mb-6 relative">
         <Button
           onClick={() => router.back()}
           className="flex items-center gap-1 px-4 py-1.5 rounded-full border border-primary bg-transparent text-primary hover:bg-primary/10 focus-visible:ring-primary text-sm font-medium h-auto"
@@ -557,7 +556,7 @@ export default function AttendancePage() {
 
       {/* Leave Requests Section */}
       <div className="mt-10 w-full max-w-4xl mx-auto bg-card p-4 sm:p-6 rounded-lg shadow-lg">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-6"> {/* Increased mb */}
           <h2 className="text-xl font-semibold text-foreground">My Leave Requests</h2>
           <Button variant="outline" onClick={() => setIsLeaveRequestDialogOpen(true)}>
             <PlusCircle className="mr-2 h-4 w-4" /> New Leave Request
@@ -568,30 +567,33 @@ export default function AttendancePage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Request Date</TableHead>
-                  <TableHead>Start Date</TableHead>
-                  <TableHead>End Date</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="text-muted-foreground font-medium">Request Date</TableHead>
+                  <TableHead className="text-muted-foreground font-medium">Start Date</TableHead>
+                  <TableHead className="text-muted-foreground font-medium">End Date</TableHead>
+                  <TableHead className="text-muted-foreground font-medium">Duration</TableHead>
+                  <TableHead className="text-muted-foreground font-medium">Reason</TableHead>
+                  <TableHead className="text-muted-foreground font-medium">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {leaveRequests.map((req) => {
                   const durationDays = differenceInDays(req.endDate, req.startDate) + 1;
                   return (
-                  <TableRow key={req.id}>
-                    <TableCell>{format(req.requestDate, "MMM d, yyyy")}</TableCell>
-                    <TableCell>{format(req.startDate, "MMM d, yyyy")}</TableCell>
-                    <TableCell>{format(req.endDate, "MMM d, yyyy")}</TableCell>
-                    <TableCell>{durationDays} day{durationDays !== 1 ? 's' : ''}</TableCell>
-                    <TableCell className="max-w-xs truncate" title={req.reason}>{req.reason}</TableCell>
-                    <TableCell>
-                      <Badge variant={req.status === 'approved' ? 'default' : req.status === 'rejected' ? 'destructive' : 'secondary'}
+                  <TableRow key={req.id} className="bg-muted/20 hover:bg-muted/40">
+                    <TableCell className="py-3">{format(req.requestDate, "MMM d, yyyy")}</TableCell>
+                    <TableCell className="py-3">{format(req.startDate, "MMM d, yyyy")}</TableCell>
+                    <TableCell className="py-3">{format(req.endDate, "MMM d, yyyy")}</TableCell>
+                    <TableCell className="py-3">{durationDays} day{durationDays !== 1 ? 's' : ''}</TableCell>
+                    <TableCell className="py-3 max-w-xs truncate" title={req.reason}>{req.reason}</TableCell>
+                    <TableCell className="py-3">
+                      <Badge 
                        className={cn(
-                        req.status === 'approved' && 'bg-green-500 hover:bg-green-600',
-                        req.status === 'pending' && 'bg-yellow-400 text-yellow-800 hover:bg-yellow-500',
+                        "text-xs",
+                        req.status === 'approved' && 'bg-green-100 text-green-700 border-green-300',
+                        req.status === 'pending' && 'bg-yellow-100 text-yellow-700 border-yellow-300',
+                        req.status === 'rejected' && 'bg-red-100 text-red-700 border-red-300'
                        )}
+                       variant="outline"
                       >
                         {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
                       </Badge>
@@ -629,3 +631,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
