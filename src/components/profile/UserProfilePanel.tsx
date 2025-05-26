@@ -4,9 +4,15 @@ import { useAppContext } from '@/contexts/AppContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { X, Mail, Phone, Edit3, MessageSquare, PhoneCall, CalendarDays, Laptop, Moon, Clock, Link as LinkIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
+import { X, Mail, Phone, Edit3, MessageSquare, PhoneCall, CalendarDays, Laptop, Moon, Clock, Link as LinkIcon, Users as UsersIcon, ShieldCheck } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 export function UserProfilePanel() {
   const {
@@ -15,20 +21,22 @@ export function UserProfilePanel() {
     currentUser,
     setActiveConversation,
     startCall,
-    // Assuming a function to trigger edit profile dialog from sidebar will be used or implemented
+    openEditProfileDialog, // Assuming this function exists in context to open the edit dialog
   } = useAppContext();
+  const router = useRouter();
+  const { toast } = useToast();
 
   if (!viewingUserProfile) {
     return null;
   }
 
   const isCurrentUserProfile = currentUser?.id === viewingUserProfile.id;
+  const isAdmin = currentUser?.role === 'admin';
 
   // Mock data - some will be replaced by actual data
-  const mockStatus = viewingUserProfile.isOnline ? "Online" : "Away, notifications snoozed"; // Make status dynamic
-  const mockLocalTime = "6:20 AM local time"; // Keep as static for now
-  const mockStartDate = "Dec 6, 2022 (7 months ago)"; // Keep as static for now
-
+  const mockStatus = viewingUserProfile.isOnline ? "Online" : "Away, notifications snoozed";
+  const mockLocalTime = "6:20 AM local time";
+  const mockStartDate = "Dec 6, 2022 (7 months ago)";
 
   const handleMessageUser = () => {
     if (viewingUserProfile.id !== currentUser?.id) {
@@ -50,11 +58,25 @@ export function UserProfilePanel() {
   };
 
   const handleEditProfile = () => {
-    // This should ideally trigger the same dialog as the sidebar settings
-    // For now, closing this panel, user will use sidebar settings for actual edit
-    console.log("Edit profile clicked for:", viewingUserProfile.name);
+    if (currentUser) {
+      // Assuming AppContext has a function to open the dialog
+      // For example: appContext.openEditProfileDialog(currentUser);
+      // For now, direct action based on sidebar or if a global dialog open function exists
+      closeUserProfilePanel(); // Close this panel first
+      // A more integrated solution would call a function from AppContext
+      // to open the EditProfileDialog. The sidebar has this logic.
+      // If a global openEditProfileDialog exists in context, use it:
+      if (openEditProfileDialog) {
+        openEditProfileDialog();
+      } else {
+        toast({title: "Edit Profile", description: "Please use the settings in the main sidebar to edit your profile."});
+      }
+    }
+  }
+
+  const handleManageUsers = () => {
     closeUserProfilePanel();
-    // A more integrated solution would be: appContext.openEditProfileDialog(currentUser);
+    router.push('/admin/users');
   }
 
   return (
@@ -75,9 +97,9 @@ export function UserProfilePanel() {
           {/* Left Column - Main User Info & Image */}
           <div className="lg:w-2/5 flex flex-col items-center lg:items-start space-y-3">
             <div className="w-full aspect-[4/3] bg-muted rounded-lg overflow-hidden flex items-center justify-center">
-               <UserAvatar 
-                user={{ ...viewingUserProfile, avatarUrl: viewingUserProfile.avatarUrl || 'https://placehold.co/600x400.png' }} 
-                className="w-full h-full object-cover text-6xl" 
+               <UserAvatar
+                user={{ ...viewingUserProfile, avatarUrl: viewingUserProfile.avatarUrl || 'https://placehold.co/600x400.png' }}
+                className="w-full h-full object-cover text-6xl"
                 data-ai-hint="profile photo"
                />
             </div>
@@ -97,15 +119,34 @@ export function UserProfilePanel() {
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                     <Clock className="h-4 w-4" />
-                    <span>{mockLocalTime}</span> 
+                    <span>{mockLocalTime}</span>
                 </div>
             </div>
              <div className="space-y-2 w-full pt-2">
               {isCurrentUserProfile ? (
+                <>
                   <Button variant="outline" size="sm" onClick={handleEditProfile} className="w-full">
                     <Edit3 className="mr-2 h-4 w-4" />
                     Edit Profile
                   </Button>
+                  {isAdmin && (
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="w-full border-primary text-primary hover:bg-primary/10">
+                            <ShieldCheck className="mr-2 h-4 w-4" />
+                            Admin Settings
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56">
+                          <DropdownMenuItem onClick={handleManageUsers}>
+                            <UsersIcon className="mr-2 h-4 w-4" />
+                            Manage Users
+                          </DropdownMenuItem>
+                          {/* Add other admin-specific actions here if needed */}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                  )}
+                </>
                 ) : (
                   <>
                     <Button variant="outline" className="w-full justify-start gap-2" onClick={handleMessageUser}>
@@ -114,7 +155,7 @@ export function UserProfilePanel() {
                     <Button variant="outline" className="w-full justify-start gap-2" onClick={handleCallUser}>
                         <PhoneCall className="h-4 w-4" /> Call
                     </Button>
-                    <Button variant="outline" className="w-full justify-start gap-2" onClick={() => alert("Calendar feature coming soon!")}>
+                    <Button variant="outline" className="w-full justify-start gap-2" onClick={() => toast({title: "Calendar (Coming Soon)", description:"Calendar integration will be available soon."})}>
                         <CalendarDays className="h-4 w-4" /> Calendar
                     </Button>
                   </>
@@ -130,15 +171,15 @@ export function UserProfilePanel() {
               <div className="space-y-3 text-sm">
                 <div className="flex flex-col">
                     <span className="text-muted-foreground text-xs">Start Date</span>
-                    <span className="text-foreground">{mockStartDate}</span> 
+                    <span className="text-foreground">{mockStartDate}</span>
                 </div>
                 {viewingUserProfile.linkedinProfileUrl && (
                     <div className="flex flex-col">
                         <span className="text-muted-foreground text-xs">LinkedIn</span>
-                        <a 
-                            href={viewingUserProfile.linkedinProfileUrl.startsWith('http') ? viewingUserProfile.linkedinProfileUrl : `https://${viewingUserProfile.linkedinProfileUrl}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
+                        <a
+                            href={viewingUserProfile.linkedinProfileUrl.startsWith('http') ? viewingUserProfile.linkedinProfileUrl : `https://${viewingUserProfile.linkedinProfileUrl}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="text-primary hover:underline flex items-center gap-1 break-all"
                         >
                            <LinkIcon className="h-3.5 w-3.5 shrink-0"/> {viewingUserProfile.linkedinProfileUrl}
@@ -147,7 +188,7 @@ export function UserProfilePanel() {
                 )}
               </div>
             </div>
-            
+
             <Separator />
 
             <div>

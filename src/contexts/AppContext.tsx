@@ -59,7 +59,7 @@ interface AppContextType {
   toggleCurrentUserStatus: () => void;
   updateUserProfile: (profileData: UserProfileUpdateData) => void;
   signOutUser: () => Promise<void>;
-  updateUserRole: (targetUserId: string, newRole: UserRole) => void; // New function
+  updateUserRole: (targetUserId: string, newRole: UserRole) => void;
 
   currentView: CurrentView;
   setActiveSpecialView: (view: 'replies' | 'activity' | 'drafts') => void;
@@ -92,6 +92,7 @@ interface AppContextType {
   viewingUserProfile: User | null;
   openUserProfilePanel: (user: User) => void;
   closeUserProfilePanel: () => void;
+  openEditProfileDialog?: () => void; // Added for UserProfilePanel to trigger the main edit dialog
 
   leaveRequests: LeaveRequest[];
   handleAddLeaveRequest: (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => void;
@@ -102,8 +103,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [users, setUsers] = useState<User[]>([]);
-  const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>(initialMockUsers); // Initialize with mock data
+  const [allUsersWithCurrent, setAllUsersWithCurrent] = useState<User[]>(initialMockUsers); // Initialize
   const [channels, setChannels] = useState<Channel[]>(initialMockChannels);
   const [activeConversation, setActiveConversationState] = useState<ActiveConversation>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -123,7 +124,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const [isUserProfilePanelOpen, setIsUserProfilePanelOpen] = useState(false);
   const [viewingUserProfile, setViewingUserProfile] = useState<User | null>(null);
+  const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false); // State for EditProfileDialog
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+
+
+  const openEditProfileDialog = useCallback(() => {
+    setIsEditProfileDialogOpen(true);
+  }, []);
 
   const closeUserProfilePanel = useCallback(() => {
     setIsUserProfilePanelOpen(false);
@@ -134,34 +141,39 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setCurrentSummary(null);
     closeUserProfilePanel();
     let foundConversation: ActiveConversation = null;
-    const currentChannels = channels; // Use state value
-    const currentAllUsers = allUsersWithCurrent; // Use state value
-
-    if (type === 'channel') {
-      const channel = currentChannels.find(c => c.id === id);
-      if (channel) {
-        if (channel.isPrivate && (!currentUser || !channel.memberIds.includes(currentUser.id))) {
-          setTimeout(() => {
-            toast({
-              title: "Access Denied",
-              description: `You are not a member of this private channel.`,
-              variant: "destructive",
-            });
-          },0);
-          return;
+    
+    // Use function form of setState to ensure latest state is used if called rapidly
+    setChannels(currentChannels => {
+      setAllUsersWithCurrent(currentAllUsers => {
+        if (type === 'channel') {
+          const channel = currentChannels.find(c => c.id === id);
+          if (channel) {
+            if (channel.isPrivate && (!currentUser || !channel.memberIds.includes(currentUser.id))) {
+              setTimeout(() => {
+                toast({
+                  title: "Access Denied",
+                  description: `You are not a member of this private channel.`,
+                  variant: "destructive",
+                });
+              },0);
+              return currentAllUsers; // No change if access denied
+            }
+            foundConversation = { type, id, name: channel.name, channel };
+          }
+        } else { 
+          const user = currentAllUsers.find(u => u.id === id);
+          if (user) {
+            foundConversation = { type, id, name: user.name, recipient: user };
+          }
         }
-        foundConversation = { type, id, name: channel.name, channel };
-      }
-    } else { 
-      const user = currentAllUsers.find(u => u.id === id);
-      if (user) {
-        foundConversation = { type, id, name: user.name, recipient: user };
-      }
-    }
-    setActiveConversationState(foundConversation);
-    setCurrentViewState('chat');
-    setReplyingToMessage(null);
-  }, [closeUserProfilePanel, channels, allUsersWithCurrent, currentUser, toast]);
+        setActiveConversationState(foundConversation);
+        setCurrentViewState('chat');
+        setReplyingToMessage(null);
+        return currentAllUsers;
+      });
+      return currentChannels;
+    });
+  }, [closeUserProfilePanel, currentUser, toast]); // Dependencies simplified, but internal logic will use fresh state
 
   const setActiveSpecialView = useCallback((view: 'replies' | 'activity' | 'drafts') => {
     setCurrentViewState(view);
@@ -169,6 +181,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setReplyingToMessage(null);
     closeUserProfilePanel();
   }, [closeUserProfilePanel]);
+
 
   // Firebase Auth Listener
   useEffect(() => {
@@ -207,8 +220,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
            console.log(`[AppContext] Existing app user found: ${appUser.name}, Role: ${appUser.role}`);
         }
         setCurrentUser(appUser);
-        setUsers(initialMockUsers.filter(u => u.id !== appUser!.id)); // For DM list etc.
-        setAllUsersWithCurrent([...initialMockUsers]); // For things like member lookups
+        setUsers(initialMockUsers.filter(u => u.id !== appUser!.id));
+        setAllUsersWithCurrent([...initialMockUsers]);
 
       } else { 
         setCurrentUser(null);
@@ -228,7 +241,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [closeUserProfilePanel]); 
 
   // Redirection Logic
-  useEffect(() => {
+   useEffect(() => {
     if (isLoadingAuth) return;
     console.log("[AppContext] Redirection check. currentUser:", currentUser?.id || 'null', "pathname:", pathname);
     const isAuthPage = pathname.startsWith('/auth/') || pathname.startsWith('/join/');
@@ -598,10 +611,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       },0);
       return false;
     }
-    setTimeout(() => { 
-      toast({ title: "Invitation Accepted", description: `User with email ${invitation.email} can now sign up.` });
-    }, 0);
+    // This logic is now largely handled by Firebase Auth sign-up flow.
+    // We can keep this to remove the pending invitation after successful Firebase sign-up if the email matches.
+    // Or, Firebase sign-up itself is the 'acceptance'.
+    // For now, just removing the pending invite:
     setPendingInvitations(prevInvites => prevInvites.filter(inv => inv.token !== token)); 
+    setTimeout(() => { 
+      toast({ title: "Registration Complete", description: `User ${userDetails.name} can now sign in.` });
+    }, 0);
     return true;
   }, [verifyInviteToken, toast]);
 
@@ -670,7 +687,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const updatedCurrentUser = { ...prevUser, isOnline: newStatus };
 
         setAllUsersWithCurrent(prevAllUsers => prevAllUsers.map(u => u.id === updatedCurrentUser.id ? updatedCurrentUser : u));
-        setUsers(prevOtherUsers => prevOtherUsers.map(u => u.id === updatedCurrentUser.id ? updatedCurrentUser : u));
+        // No need to update `users` state separately if `allUsersWithCurrent` is the source of truth for DMs
         
         const userIndex = initialMockUsers.findIndex(u => u.id === updatedCurrentUser.id);
         if (userIndex !== -1) {
@@ -695,7 +712,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ...prevUser,
             name: profileData.name || prevUser.name,
             designation: profileData.designation === undefined ? prevUser.designation : profileData.designation,
-            email: profileData.email,
+            email: profileData.email, // Assuming email might be editable, though typically not for Firebase Auth users
             phoneNumber: profileData.phoneNumber === undefined ? prevUser.phoneNumber : profileData.phoneNumber,
             avatarUrl: profileData.avatarDataUrl || prevUser.avatarUrl, 
             linkedinProfileUrl: profileData.linkedinProfileUrl === undefined ? prevUser.linkedinProfileUrl : profileData.linkedinProfileUrl,
@@ -710,7 +727,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             initialMockUsers.push(updatedUser); 
         }
         setAllUsersWithCurrent(initialMockUsers.map(u => u.id === updatedUser.id ? updatedUser : u));
-        setUsers(initialMockUsers.filter(u => u.id !== updatedUser.id));
+        // No need to update `users` state separately if `allUsersWithCurrent` is the source of truth for DMs
 
         setTimeout(() => { 
             toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
@@ -742,24 +759,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }, 0);
       return;
     }
-    if (currentUser.id === targetUserId && newRole !== 'admin') {
+    if (currentUser.id === targetUserId && newRole !== 'admin') { // Admins cannot demote themselves
         setTimeout(() => {
           toast({ title: "Action Not Allowed", description: "Admins cannot demote themselves.", variant: "destructive" });
         }, 0);
         return;
     }
 
-
     const userIndexInMock = initialMockUsers.findIndex(u => u.id === targetUserId);
     if (userIndexInMock !== -1) {
       initialMockUsers[userIndexInMock] = { ...initialMockUsers[userIndexInMock], role: newRole };
-
-      // Update states
-      setAllUsersWithCurrent(prevAll => prevAll.map(u => u.id === targetUserId ? { ...u, role: newRole } : u));
-      setUsers(prevUsers => prevUsers.map(u => u.id === targetUserId ? { ...u, role: newRole } : u));
       
-      // If the updated user is the current user (e.g. promoting self, though UI prevents demotion)
-      if (currentUser.id === targetUserId) {
+      setAllUsersWithCurrent(prevAll => prevAll.map(u => u.id === targetUserId ? { ...u, role: newRole } : u));
+      // Update users state if needed, though allUsersWithCurrent should be primary source now
+      setUsers(prevUsers => prevUsers.map(u => u.id === targetUserId ? {...u, role: newRole} : u));
+      
+      if (currentUser.id === targetUserId) { // If the admin promoted/demoted themselves (though demotion is blocked)
         setCurrentUser(prev => prev ? { ...prev, role: newRole } : null);
       }
 
@@ -1099,7 +1114,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const results: Array<{ doc: Document, category: DocumentCategory }> = [];
 
     if (trimmedQuery === '') {
-        documentCategories.slice(0,5).forEach(category => {
+        // Return first 2 docs from first 5 categories if query is empty
+        documentCategories.slice(0, 5).forEach(category => {
             category.documents.slice(0, 2).forEach(doc => {
                 results.push({ doc, category });
             });
@@ -1113,7 +1129,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           });
         });
     }
-    return results.slice(0, 10); 
+    return results.slice(0, 10); // Limit results to 10 for performance
   }, [documentCategories]);
 
   const startCall = (conversation: ActiveConversation | null) => {
@@ -1273,62 +1289,75 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setIsUserProfilePanelOpen(true);
   };
 
+  const contextValue = useMemo(() => ({
+    currentUser,
+    users,
+    allUsersWithCurrent,
+    channels,
+    activeConversation,
+    setActiveConversation,
+    messages,
+    addMessage,
+    addChannel,
+    addMembersToChannel,
+    currentSummary,
+    isLoadingSummary,
+    generateSummary,
+    clearSummary,
+    sendInvitation,
+    verifyInviteToken,
+    acceptInvitation,
+    pendingInvitations,
+    toggleReaction,
+    editMessage,
+    deleteMessage,
+    toggleCurrentUserStatus,
+    updateUserProfile,
+    signOutUser,
+    updateUserRole,
+    currentView,
+    setActiveSpecialView,
+    drafts,
+    deleteDraft,
+    replies,
+    activities,
+    getConversationName,
+    replyingToMessage,
+    setReplyingToMessage,
+    documentCategories,
+    addDocumentCategory,
+    addFileDocumentToCategory,
+    addTextDocumentToCategory,
+    addLinkedDocumentToCategory,
+    deleteDocumentFromCategory,
+    findDocumentCategoryById,
+    searchAllDocuments,
+    isCallActive,
+    callingWith,
+    startCall,
+    endCall,
+    isLoadingAuth,
+    isUserProfilePanelOpen,
+    viewingUserProfile,
+    openUserProfilePanel,
+    closeUserProfilePanel,
+    openEditProfileDialog, // Expose this
+    leaveRequests,
+    handleAddLeaveRequest,
+  }), [
+    currentUser, users, allUsersWithCurrent, channels, activeConversation, setActiveConversation,
+    messages, addMessage, addChannel, addMembersToChannel, currentSummary, isLoadingSummary, generateSummary,
+    sendInvitation, verifyInviteToken, acceptInvitation, pendingInvitations,
+    toggleReaction, editMessage, deleteMessage, toggleCurrentUserStatus, updateUserProfile, signOutUser, updateUserRole,
+    currentView, setActiveSpecialView, drafts, deleteDraft, replies, activities, getConversationName,
+    replyingToMessage, documentCategories, addDocumentCategory, addFileDocumentToCategory, addTextDocumentToCategory,
+    addLinkedDocumentToCategory, deleteDocumentFromCategory, findDocumentCategoryById, searchAllDocuments,
+    isCallActive, callingWith, startCall, endCall, isLoadingAuth, isUserProfilePanelOpen, viewingUserProfile,
+    openUserProfilePanel, closeUserProfilePanel, openEditProfileDialog, leaveRequests, handleAddLeaveRequest
+  ]); // All state & callbacks included
+
   return (
-    <AppContext.Provider value={{
-      currentUser,
-      users,
-      allUsersWithCurrent,
-      channels,
-      activeConversation,
-      setActiveConversation,
-      messages,
-      addMessage,
-      addChannel,
-      addMembersToChannel,
-      currentSummary,
-      isLoadingSummary,
-      generateSummary,
-      clearSummary,
-      sendInvitation,
-      verifyInviteToken,
-      acceptInvitation,
-      pendingInvitations,
-      toggleReaction,
-      editMessage,
-      deleteMessage,
-      toggleCurrentUserStatus,
-      updateUserProfile,
-      signOutUser,
-      updateUserRole,
-      currentView,
-      setActiveSpecialView,
-      drafts,
-      deleteDraft,
-      replies,
-      activities,
-      getConversationName,
-      replyingToMessage,
-      setReplyingToMessage,
-      documentCategories,
-      addDocumentCategory,
-      addFileDocumentToCategory,
-      addTextDocumentToCategory,
-      addLinkedDocumentToCategory,
-      deleteDocumentFromCategory,
-      findDocumentCategoryById,
-      searchAllDocuments,
-      isCallActive,
-      callingWith,
-      startCall,
-      endCall,
-      isLoadingAuth,
-      isUserProfilePanelOpen,
-      viewingUserProfile,
-      openUserProfilePanel,
-      closeUserProfilePanel,
-      leaveRequests,
-      handleAddLeaveRequest,
-    }}>
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );
@@ -1341,3 +1370,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
