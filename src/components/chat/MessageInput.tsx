@@ -1,10 +1,9 @@
 
-      
 "use client";
 import React, { useState, useRef, type ChangeEvent, type KeyboardEvent, type DragEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Paperclip, SendHorizonal, SmilePlus, UploadCloud, Mic, StopCircle } from 'lucide-react';
+import { Paperclip, SendHorizonal, SmilePlus, UploadCloud, Mic, StopCircle, Brain, AlertCircle, PartyPopper, FileText as FileTextIcon, Link as LinkIconLucide } from 'lucide-react'; // Renamed Link to LinkIconLucide to avoid conflict
 import { useAppContext } from '@/contexts/AppContext';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/components/ui/popover';
@@ -22,7 +21,7 @@ export function MessageInput() {
     activeConversation,
     replyingToMessage,
     setReplyingToMessage,
-    users: allUsers, // For @mentions, excluding current user
+    users: allUsers, 
     currentUser,
     searchAllDocuments,
   } = useAppContext();
@@ -30,40 +29,32 @@ export function MessageInput() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // State for @mentions
   const [showMentionPopover, setShowMentionPopover] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const [mentionStartPosition, setMentionStartPosition] = useState<number | null>(null);
 
-  // State for /share documents
   const [showDocSearchPopover, setShowDocSearchPopover] = useState(false);
   const [docSearchQuery, setDocSearchQuery] = useState('');
   const [filteredDocsForSharing, setFilteredDocsForSharing] = useState<Array<{ doc: Document, category: DocumentCategory }>>([]);
   const [activeDocSearchIndex, setActiveDocSearchIndex] = useState(0);
   const [slashCommandStartPosition, setSlashCommandStartPosition] = useState<number | null>(null);
 
-  // State for voice recording
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // State for drag and drop
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-
 
   const availableUsersForMention = allUsers.filter(u => u.id !== currentUser?.id);
 
   const handleSendMessage = () => {
     if (messageContent.trim() === '' || !activeConversation || !currentUser) return;
 
-    let messageType = 'standard';
-    let fileToSend: File | undefined = undefined;
-
-    addMessage(messageContent.trim(), fileToSend, messageType);
+    addMessage(messageContent.trim());
     setMessageContent('');
-    setReplyingToMessage(null); // Clear reply context after sending
+    setReplyingToMessage(null); 
     setShowMentionPopover(false);
     setShowDocSearchPopover(false);
     setMentionStartPosition(null);
@@ -90,7 +81,6 @@ export function MessageInput() {
     setMessageContent(text);
     const cursorPosition = event.target.selectionStart;
 
-    // @mention logic
     const atMentionMatch = /@(\w*)$/.exec(text.substring(0, cursorPosition));
     if (atMentionMatch) {
       const query = atMentionMatch[1].toLowerCase();
@@ -104,49 +94,52 @@ export function MessageInput() {
       if (mentionStartPosition === null) {
         setMentionStartPosition(cursorPosition - query.length - 1);
       }
+      setShowDocSearchPopover(false); 
+      setSlashCommandStartPosition(null);
     } else {
       setShowMentionPopover(false);
       setMentionStartPosition(null);
-    }
 
-    // /share document logic
-    const slashCommandIndex = text.lastIndexOf(SLASH_COMMAND);
-    if (slashCommandIndex !== -1 && cursorPosition >= slashCommandIndex + SLASH_COMMAND.length) {
-        const query = text.substring(slashCommandIndex + SLASH_COMMAND.length, cursorPosition).toLowerCase();
-        setDocSearchQuery(query);
-        const results = searchAllDocuments(query).slice(0, 5);
-        setFilteredDocsForSharing(results);
-        setActiveDocSearchIndex(0);
-        setShowDocSearchPopover(results.length > 0);
-        if (slashCommandStartPosition === null) {
-          setSlashCommandStartPosition(slashCommandIndex);
-        }
-    } else if (slashCommandStartPosition !== null) { // User has backspaced or moved out of share mode
-        setShowDocSearchPopover(false);
-        setSlashCommandStartPosition(null);
-        setDocSearchQuery('');
-    } else {
-        // Ensure popover is hidden if neither @mention nor /share is active
-        if (!atMentionMatch) {
+      const slashCommandIndex = text.lastIndexOf(SLASH_COMMAND);
+      if (slashCommandIndex !== -1 && cursorPosition >= slashCommandIndex + SLASH_COMMAND.length) {
+          const query = text.substring(slashCommandIndex + SLASH_COMMAND.length, cursorPosition).toLowerCase();
+          setDocSearchQuery(query);
+          const results = searchAllDocuments(query).slice(0, 5);
+          setFilteredDocsForSharing(results);
+          setActiveDocSearchIndex(0);
+          setShowDocSearchPopover(results.length > 0);
+          if (slashCommandStartPosition === null) {
+            setSlashCommandStartPosition(slashCommandIndex);
+          }
+      } else {
           setShowDocSearchPopover(false);
           setSlashCommandStartPosition(null);
-        }
+          setDocSearchQuery('');
+      }
     }
   };
 
   const handleMentionSelect = (user: User) => {
-    if (mentionStartPosition !== null) {
-      const newText =
-        messageContent.substring(0, mentionStartPosition) +
-        `@${user.name} ` +
-        messageContent.substring(textareaRef.current?.selectionStart || 0);
+    if (mentionStartPosition !== null && textareaRef.current) {
+      const currentText = messageContent;
+      const currentSelectionStart = textareaRef.current.selectionStart;
+      const textBeforeMention = currentText.substring(0, mentionStartPosition);
+      const textAfterMention = currentText.substring(currentSelectionStart);
+      
+      const newText = `${textBeforeMention}@${user.name} ${textAfterMention}`;
       setMessageContent(newText);
+      
       setShowMentionPopover(false);
       setMentionStartPosition(null);
-      setTimeout(() => textareaRef.current?.focus(), 0);
+
+      const newCursorPosition = mentionStartPosition + `@${user.name} `.length;
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.setSelectionRange(newCursorPosition, newCursorPosition);
+      }, 0);
     }
   };
-
+  
   const handleDocShareSelect = (doc: Document, category: DocumentCategory) => {
     if (!activeConversation || !currentUser || slashCommandStartPosition === null) return;
 
@@ -154,7 +147,7 @@ export function MessageInput() {
     let fileToShare: File | undefined = undefined;
 
     if (doc.docType === 'file' && doc.fileObject) {
-      sharedContent = `Sharing file: ${doc.name}`;
+      sharedContent = `Sharing: ${doc.name}`;
       fileToShare = doc.fileObject;
     } else if (doc.docType === 'text' && doc.textContent) {
       sharedContent = `Shared document: "${doc.name}"\n\n${doc.textContent}`;
@@ -164,7 +157,7 @@ export function MessageInput() {
     
     addMessage(sharedContent, fileToShare);
 
-    setMessageContent(messageContent.substring(0, slashCommandStartPosition)); // Remove the /share command part
+    setMessageContent(messageContent.substring(0, slashCommandStartPosition)); 
     setShowDocSearchPopover(false);
     setSlashCommandStartPosition(null);
     setTimeout(() => textareaRef.current?.focus(), 0);
@@ -227,7 +220,7 @@ export function MessageInput() {
         if (activeConversation && currentUser) {
           addMessage(`[Voice Message]`, audioFile);
         }
-        stream.getTracks().forEach(track => track.stop()); // Stop microphone access
+        stream.getTracks().forEach(track => track.stop()); 
       };
 
       mediaRecorderRef.current.start();
@@ -245,7 +238,6 @@ export function MessageInput() {
     }
   };
 
-  // Drag and Drop Handlers
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -261,7 +253,6 @@ export function MessageInput() {
   const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    // Check if the leave target is outside the drop zone
     if (event.currentTarget.contains(event.relatedTarget as Node)) {
         return;
     }
@@ -301,7 +292,7 @@ export function MessageInput() {
       onDrop={handleDrop}
     >
       {isDraggingOver && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-primary/10 pointer-events-none rounded-lg">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-primary/10 pointer-events-none rounded-lg z-10">
           <UploadCloud className="h-12 w-12 text-primary mb-2" />
           <p className="text-sm font-medium text-primary">Drop files to upload</p>
         </div>
@@ -316,79 +307,93 @@ export function MessageInput() {
         </div>
       )}
        <div className={cn(
-        "flex items-center gap-2 rounded-lg border border-input p-1.5 focus-within:ring-1 focus-within:ring-ring bg-card",
-        isDraggingOver && "opacity-50" // Dim input area when dragging over
+        "flex items-end gap-2 rounded-lg border border-input p-1.5 focus-within:ring-1 focus-within:ring-ring bg-card",
+        isDraggingOver && "opacity-50" 
       )}>
-        <Popover open={showMentionPopover} onOpenChange={setShowMentionPopover}>
-          <PopoverAnchor asChild>
-            <div className="flex-grow relative">
-              <Textarea
-                ref={textareaRef}
-                value={messageContent}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Type a message or /share for documents..."
-                className="flex-grow resize-none border-0 shadow-none focus-visible:ring-0 p-1.5 min-h-[2.25rem] max-h-32 bg-transparent"
-                rows={1}
-              />
-            </div>
-          </PopoverAnchor>
-          {filteredUsers.length > 0 && (
-            <PopoverContent
-                className="w-[250px] p-1 max-h-60 overflow-y-auto"
-                side="top"
-                align="start"
-                onOpenAutoFocus={(e) => e.preventDefault()} // Prevent stealing focus
-            >
-              <ScrollArea className="max-h-56">
-                {filteredUsers.map((user, index) => (
-                  <div
-                    key={user.id}
-                    onClick={() => handleMentionSelect(user)}
-                    className={cn(
-                      "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-accent",
-                      index === activeMentionIndex && "bg-accent"
-                    )}
-                  >
-                    <UserAvatar user={user} className="h-6 w-6" />
-                    <span className="text-sm">{user.name}</span>
-                  </div>
-                ))}
-              </ScrollArea>
-            </PopoverContent>
-          )}
-        </Popover>
 
-         <Popover open={showDocSearchPopover} onOpenChange={setShowDocSearchPopover}>
-          <PopoverAnchor asChild>
-            <div className="absolute" /> {/* Dummy anchor, actual anchor is textarea */}
-          </PopoverAnchor>
-          {filteredDocsForSharing.length > 0 && (
-            <PopoverContent
-                className="w-[300px] p-1 max-h-60 overflow-y-auto"
-                side="top"
-                align="start"
-                onOpenAutoFocus={(e) => e.preventDefault()}
-            >
+        <div className="flex-grow relative">
+          {/* Popover for @mentions */}
+          <Popover open={showMentionPopover} onOpenChange={setShowMentionPopover}>
+            <PopoverTrigger asChild>
+              {/* The Textarea itself acts as the conceptual trigger via its onChange handler */}
+              {/* PopoverAnchor helps explicitly position the PopoverContent relative to Textarea */}
+              <div className="relative w-full"> {/* Wrapper for Textarea and its anchor */}
+                 <PopoverAnchor className="absolute top-0 left-0 w-full" />{/* Stretch anchor over textarea area */}
+                 <Textarea
+                    ref={textareaRef}
+                    value={messageContent}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type a message or /share for documents..."
+                    className="w-full resize-none border-0 shadow-none focus-visible:ring-0 p-1.5 min-h-[2.25rem] max-h-32 bg-transparent"
+                    rows={1}
+                />
+              </div>
+            </PopoverTrigger>
+            {filteredUsers.length > 0 && ( // PopoverContent is a child of Popover
+              <PopoverContent
+                  className="w-[250px] p-1 max-h-60 overflow-y-auto"
+                  side="top"
+                  align="start"
+                  onOpenAutoFocus={(e) => e.preventDefault()} 
+              >
                 <ScrollArea className="max-h-56">
-                  <p className="text-xs text-muted-foreground px-2 py-1">Share a document:</p>
-                  {filteredDocsForSharing.map(({ doc, category }, index) => (
+                  {filteredUsers.map((user, index) => (
                     <div
-                      key={doc.id}
-                      onClick={() => handleDocShareSelect(doc, category)}
+                      key={user.id}
+                      onClick={() => handleMentionSelect(user)}
                       className={cn(
-                        "p-2 rounded-md cursor-pointer hover:bg-accent",
-                        index === activeDocSearchIndex && "bg-accent"
+                        "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-accent",
+                        index === activeMentionIndex && "bg-accent"
                       )}
                     >
-                      <p className="text-sm font-medium truncate">{doc.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">In: {category.name}</p>
+                      <UserAvatar user={user} className="h-6 w-6" />
+                      <span className="text-sm">{user.name}</span>
                     </div>
                   ))}
                 </ScrollArea>
-            </PopoverContent>
-          )}
-        </Popover>
+              </PopoverContent>
+            )}
+          </Popover>
+
+          {/* Popover for /share documents - Sits logically at same level as Textarea for anchoring */}
+          <Popover open={showDocSearchPopover} onOpenChange={setShowDocSearchPopover}>
+             {/* No explicit PopoverTrigger needed, controlled programmatically */}
+             {/* PopoverAnchor helps position relative to the Textarea container conceptually */}
+             <PopoverAnchor className="absolute top-0 left-0 w-full" /> {/* Invisible anchor over textarea area */}
+            {filteredDocsForSharing.length > 0 && ( // PopoverContent is a child of Popover
+                  <PopoverContent
+                      className="w-[300px] p-1 max-h-60 overflow-y-auto"
+                      side="top"
+                      align="start"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                  >
+                      <ScrollArea className="max-h-56">
+                      <p className="text-xs text-muted-foreground px-2 py-1">Share a document:</p>
+                      {filteredDocsForSharing.map(({ doc, category }, index) => (
+                          <div
+                          key={doc.id}
+                          onClick={() => handleDocShareSelect(doc, category)}
+                          className={cn(
+                              "p-2 rounded-md cursor-pointer hover:bg-accent",
+                              index === activeDocSearchIndex && "bg-accent"
+                          )}
+                          >
+                          <div className="flex items-center gap-2">
+                              {doc.docType === 'file' && <FileTextIcon className="h-4 w-4 text-muted-foreground" />}
+                              {doc.docType === 'text' && <FileTextIcon className="h-4 w-4 text-muted-foreground" />}
+                              {doc.docType === 'url' && <LinkIconLucide className="h-4 w-4 text-muted-foreground" />}
+                              <p className="text-sm font-medium truncate">{doc.name}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate ml-6">In: {category.name}</p>
+                          </div>
+                      ))}
+                      </ScrollArea>
+                  </PopoverContent>
+              )}
+          </Popover>
+        </div>
+
 
         <Button type="button" variant="ghost" size="icon" onClick={handleAttachClick} className="text-muted-foreground hover:text-primary h-8 w-8">
           <Paperclip className="h-4.5 w-4.5" />
@@ -431,9 +436,6 @@ export function MessageInput() {
   );
 }
 
-// Helper: A small X icon component if not already available or to avoid lucide import in simple cases
 const X = ({ className } : { className?: string}) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-4 w-4", className)}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
 );
-
-    
