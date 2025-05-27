@@ -63,7 +63,7 @@ export const initialMockUsers: User[] = [
 
 export let initialMockChannels: Channel[] = [];
 export let mockMessages: Record<string, Message[]> = {};
-export let mockDrafts: Draft[] = [];
+export let initialMockDrafts: Draft[] = []; // Changed from mockDrafts to initialMockDrafts
 export let initialDocumentCategories: DocumentCategory[] = [];
 
 export const getMessagesForConversation = (conversationId: string): Message[] => {
@@ -83,3 +83,4 @@ export const updateMockMessage = (conversationId: string, messageId: string, upd
     }
   }
 };
+
