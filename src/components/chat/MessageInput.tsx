@@ -1,9 +1,9 @@
 
 "use client";
-import React, { useState, useRef, type ChangeEvent, type KeyboardEvent, type DragEvent } from 'react';
+import React, { useState, useRef, type ChangeEvent, type KeyboardEvent, type DragEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Paperclip, SendHorizonal, SmilePlus, UploadCloud, Mic, StopCircle, Brain, AlertCircle, PartyPopper, FileText as FileTextIcon, Link as LinkIconLucide } from 'lucide-react'; // Renamed Link to LinkIconLucide to avoid conflict
+import { Paperclip, SendHorizonal, SmilePlus, UploadCloud, Mic, StopCircle, Brain, AlertCircle, PartyPopper, FileText as FileTextIcon, Link as LinkIconLucide, X } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/components/ui/popover';
@@ -13,6 +13,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 const SLASH_COMMAND = "/share ";
+
+const COMMON_EMOJIS = [
+  '😀', '😂', '😊', '😍', '🤔', '😢', '😠', '👍', '👎', '❤️', '🎉', '🔥', '💯', '🙏', '🙌', '🤷', '🤦', '👀', '🤔', '🥳'
+];
+
 
 export function MessageInput() {
   const [messageContent, setMessageContent] = useState('');
@@ -46,6 +51,7 @@ export function MessageInput() {
   const audioChunksRef = useRef<Blob[]>([]);
 
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
   const availableUsersForMention = allUsers.filter(u => u.id !== currentUser?.id);
 
@@ -253,6 +259,7 @@ export function MessageInput() {
   const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    // Check if the drag is leaving to an element outside the drop zone
     if (event.currentTarget.contains(event.relatedTarget as Node)) {
         return;
     }
@@ -271,6 +278,23 @@ export function MessageInput() {
       event.dataTransfer.clearData();
     }
   };
+  
+  const handleEmojiSelect = (emoji: string) => {
+    if (textareaRef.current) {
+      const { selectionStart, selectionEnd, value } = textareaRef.current;
+      const newText = value.substring(0, selectionStart) + emoji + value.substring(selectionEnd);
+      setMessageContent(newText);
+
+      const newCursorPosition = selectionStart + emoji.length;
+      // Use a timeout to ensure the state update has rendered before setting selection
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.setSelectionRange(newCursorPosition, newCursorPosition);
+      }, 0);
+    }
+    setIsEmojiPickerOpen(false);
+  };
+
 
   if (!activeConversation) {
     return null;
@@ -315,10 +339,8 @@ export function MessageInput() {
           {/* Popover for @mentions */}
           <Popover open={showMentionPopover} onOpenChange={setShowMentionPopover}>
             <PopoverTrigger asChild>
-              {/* The Textarea itself acts as the conceptual trigger via its onChange handler */}
-              {/* PopoverAnchor helps explicitly position the PopoverContent relative to Textarea */}
-              <div className="relative w-full"> {/* Wrapper for Textarea and its anchor */}
-                 <PopoverAnchor className="absolute top-0 left-0 w-full" />{/* Stretch anchor over textarea area */}
+              <div className="relative w-full"> 
+                <PopoverAnchor className="absolute top-0 left-0 w-full" />
                  <Textarea
                     ref={textareaRef}
                     value={messageContent}
@@ -330,67 +352,63 @@ export function MessageInput() {
                 />
               </div>
             </PopoverTrigger>
-            {filteredUsers.length > 0 && ( // PopoverContent is a child of Popover
-              <PopoverContent
-                  className="w-[250px] p-1 max-h-60 overflow-y-auto"
-                  side="top"
-                  align="start"
-                  onOpenAutoFocus={(e) => e.preventDefault()} 
-              >
-                <ScrollArea className="max-h-56">
-                  {filteredUsers.map((user, index) => (
-                    <div
-                      key={user.id}
-                      onClick={() => handleMentionSelect(user)}
-                      className={cn(
-                        "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-accent",
-                        index === activeMentionIndex && "bg-accent"
-                      )}
-                    >
-                      <UserAvatar user={user} className="h-6 w-6" />
-                      <span className="text-sm">{user.name}</span>
-                    </div>
-                  ))}
-                </ScrollArea>
-              </PopoverContent>
-            )}
+            <PopoverContent
+                className="w-[250px] p-1 max-h-60 overflow-y-auto"
+                side="top"
+                align="start"
+                onOpenAutoFocus={(e) => e.preventDefault()} 
+                hidden={!showMentionPopover || filteredUsers.length === 0}
+            >
+              <ScrollArea className="max-h-56">
+                {filteredUsers.map((user, index) => (
+                  <div
+                    key={user.id}
+                    onClick={() => handleMentionSelect(user)}
+                    className={cn(
+                      "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-accent",
+                      index === activeMentionIndex && "bg-accent"
+                    )}
+                  >
+                    <UserAvatar user={user} className="h-6 w-6" />
+                    <span className="text-sm">{user.name}</span>
+                  </div>
+                ))}
+              </ScrollArea>
+            </PopoverContent>
           </Popover>
 
-          {/* Popover for /share documents - Sits logically at same level as Textarea for anchoring */}
+          {/* Popover for /share documents */}
           <Popover open={showDocSearchPopover} onOpenChange={setShowDocSearchPopover}>
-             {/* No explicit PopoverTrigger needed, controlled programmatically */}
-             {/* PopoverAnchor helps position relative to the Textarea container conceptually */}
-             <PopoverAnchor className="absolute top-0 left-0 w-full" /> {/* Invisible anchor over textarea area */}
-            {filteredDocsForSharing.length > 0 && ( // PopoverContent is a child of Popover
-                  <PopoverContent
-                      className="w-[300px] p-1 max-h-60 overflow-y-auto"
-                      side="top"
-                      align="start"
-                      onOpenAutoFocus={(e) => e.preventDefault()}
-                  >
-                      <ScrollArea className="max-h-56">
-                      <p className="text-xs text-muted-foreground px-2 py-1">Share a document:</p>
-                      {filteredDocsForSharing.map(({ doc, category }, index) => (
-                          <div
-                          key={doc.id}
-                          onClick={() => handleDocShareSelect(doc, category)}
-                          className={cn(
-                              "p-2 rounded-md cursor-pointer hover:bg-accent",
-                              index === activeDocSearchIndex && "bg-accent"
-                          )}
-                          >
-                          <div className="flex items-center gap-2">
-                              {doc.docType === 'file' && <FileTextIcon className="h-4 w-4 text-muted-foreground" />}
-                              {doc.docType === 'text' && <FileTextIcon className="h-4 w-4 text-muted-foreground" />}
-                              {doc.docType === 'url' && <LinkIconLucide className="h-4 w-4 text-muted-foreground" />}
-                              <p className="text-sm font-medium truncate">{doc.name}</p>
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate ml-6">In: {category.name}</p>
-                          </div>
-                      ))}
-                      </ScrollArea>
-                  </PopoverContent>
-              )}
+             <PopoverAnchor className="absolute top-0 left-0 w-full" /> 
+            <PopoverContent
+                className="w-[300px] p-1 max-h-60 overflow-y-auto"
+                side="top"
+                align="start"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                hidden={!showDocSearchPopover || filteredDocsForSharing.length === 0}
+            >
+                <ScrollArea className="max-h-56">
+                <p className="text-xs text-muted-foreground px-2 py-1">Share a document:</p>
+                {filteredDocsForSharing.map(({ doc, category }, index) => (
+                    <div
+                    key={doc.id}
+                    onClick={() => handleDocShareSelect(doc, category)}
+                    className={cn(
+                        "p-2 rounded-md cursor-pointer hover:bg-accent",
+                        index === activeDocSearchIndex && "bg-accent"
+                    )}
+                    >
+                    <div className="flex items-center gap-2">
+                        {doc.docType === 'file' && <FileTextIcon className="h-4 w-4 text-muted-foreground" />}
+                        {doc.docType === 'text' && <FileTextIcon className="h-4 w-4 text-muted-foreground" />}
+                        {doc.docType === 'url' && <LinkIconLucide className="h-4 w-4 text-muted-foreground" />}
+                        <p className="text-sm font-medium truncate">{doc.name}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate ml-6">In: {category.name}</p>
+                    </div>
+                ))}
+                </ScrollArea>
+            </PopoverContent>
           </Popover>
         </div>
 
@@ -417,10 +435,37 @@ export function MessageInput() {
             <span className="sr-only">Stop recording</span>
           </Button>
         )}
-        <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8">
-          <SmilePlus className="h-5 w-5" />
-          <span className="sr-only">Add emoji</span>
-        </Button>
+        
+        <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8">
+              <SmilePlus className="h-5 w-5" />
+              <span className="sr-only">Add emoji</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent 
+            className="w-auto p-2 border shadow-lg rounded-md bg-popover"
+            side="top"
+            align="end"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            onInteractOutside={() => setIsEmojiPickerOpen(false)}
+          >
+            <div className="grid grid-cols-5 gap-1">
+              {COMMON_EMOJIS.map(emoji => (
+                <Button
+                  key={emoji}
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-xl hover:bg-accent"
+                  onClick={() => handleEmojiSelect(emoji)}
+                >
+                  {emoji}
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
         <Button
             type="button"
             size="icon"
@@ -436,6 +481,8 @@ export function MessageInput() {
   );
 }
 
-const X = ({ className } : { className?: string}) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-4 w-4", className)}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-);
+// Re-add X if it's used and not globally available
+// const X = ({ className } : { className?: string}) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-4 w-4", className)}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+// );
+
