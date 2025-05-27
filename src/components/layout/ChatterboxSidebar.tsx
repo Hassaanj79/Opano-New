@@ -19,7 +19,7 @@ import { OpanoLogo } from '@/components/OpanoLogo';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Settings, Edit, UserCheck, UserX, Plus, LogOut, MessageSquareReply, Bell, Send, Clock, Folder, Users as UsersIcon } from 'lucide-react';
+import { Settings, Edit, UserCheck, UserX, Plus, LogOut, MessageSquareReply, Bell, Send, Clock, Folder, Users as UsersIcon, MoreHorizontal, CalendarDays } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,8 +41,9 @@ export function ChatterboxSidebar() {
     currentView,
     toggleCurrentUserStatus,
     signOutUser,
-    isEditProfileDialogOpen, // Added for consistency, though primarily using the setter
-    setIsEditProfileDialogOpen, // Use the setter function
+    isEditProfileDialogOpen,
+    setIsEditProfileDialogOpen,
+    closeUserProfilePanel,
   } = useAppContext();
   const { toast } = useToast();
   const router = useRouter();
@@ -52,10 +53,7 @@ export function ChatterboxSidebar() {
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
 
-  const appFeatureNavItems = [
-    { label: 'Attendance', icon: Clock, path: '/attendance' },
-    { label: 'Documents', icon: Folder, path: '/documents' },
-  ];
+  const documentFeatureNavItem = { label: 'Documents', icon: Folder, path: '/documents' };
 
   const topNavItems = [
     { label: 'Replies', icon: MessageSquareReply, view: 'replies' as const },
@@ -64,10 +62,10 @@ export function ChatterboxSidebar() {
   ];
 
   const handleTopNavClick = (item: { path?: string, view?: 'replies' | 'activity' | 'drafts' }) => {
-    // No longer need to call closeUserProfilePanel as it was removed
+    closeUserProfilePanel(); 
     if (item.path) {
       router.push(item.path);
-      setActiveSpecialView('chat'); // Reset to chat view when navigating to top-level features
+      setActiveSpecialView('chat'); 
     } else if (item.view) {
       setActiveSpecialView(item.view);
     }
@@ -77,14 +75,13 @@ export function ChatterboxSidebar() {
     if (setIsEditProfileDialogOpen) {
       setIsEditProfileDialogOpen(true);
     } else {
-      // Fallback or error, though setIsEditProfileDialogOpen should be available
       toast({ title: "Error", description: "Cannot open edit profile dialog."});
     }
   };
 
   const handleManageUsersClick = () => {
+    closeUserProfilePanel();
     if (currentUser?.role === 'admin') {
-      // closeUserProfilePanel(); // This was removed, ensure context doesn't have it
       router.push('/admin/users');
     } else {
       toast({ title: "Permission Denied", description: "Only admins can manage users." });
@@ -106,19 +103,44 @@ export function ChatterboxSidebar() {
             <>
               <SidebarGroup className="pt-2 pb-1 group-data-[collapsible=icon]:px-0">
                 <SidebarMenu>
-                  {appFeatureNavItems.map((item) => (
-                    <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton
-                        onClick={() => handleTopNavClick(item)}
-                        isActive={pathname.startsWith(item.path)}
-                        tooltip={item.label}
-                        className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
-                      >
-                        <item.icon className="h-5 w-5" />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {/* Attendance Dropdown */}
+                  <SidebarMenuItem>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <SidebarMenuButton
+                          isActive={pathname.startsWith('/attendance')}
+                          tooltip="Attendance Options"
+                          className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
+                        >
+                          <Clock className="h-5 w-5" />
+                          <span className="truncate group-data-[collapsible=icon]:hidden">Attendance</span>
+                        </SidebarMenuButton>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent side="right" align="start" className="w-56 ml-2 group-data-[collapsible=icon]:ml-0">
+                        <DropdownMenuItem onClick={() => { handleTopNavClick({ path: '/attendance' }); }}>
+                          <Clock className="mr-2 h-4 w-4" />
+                          Clock In / Clock Out
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { handleTopNavClick({ path: '/attendance' }); /* User will click button on page */ }}>
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                          Leave Request
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </SidebarMenuItem>
+                  
+                  {/* Documents Link */}
+                  <SidebarMenuItem key={documentFeatureNavItem.label}>
+                    <SidebarMenuButton
+                      onClick={() => handleTopNavClick(documentFeatureNavItem)}
+                      isActive={pathname.startsWith(documentFeatureNavItem.path)}
+                      tooltip={documentFeatureNavItem.label}
+                      className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
+                    >
+                      <documentFeatureNavItem.icon className="h-5 w-5" />
+                      <span className="truncate group-data-[collapsible=icon]:hidden">{documentFeatureNavItem.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroup>
               <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
@@ -209,7 +231,7 @@ export function ChatterboxSidebar() {
                       variant="ghost"
                       size="icon"
                       className="group-data-[collapsible=icon]:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground ml-auto"
-                      onClick={(e) => e.stopPropagation()} // Prevent parent div's onClick
+                      onClick={(e) => e.stopPropagation()} 
                       aria-label="User settings"
                     >
                       <Settings className="h-4 w-4"/>
@@ -255,7 +277,6 @@ export function ChatterboxSidebar() {
         <>
           <AddChannelDialog isOpen={isAddChannelDialogOpen} onOpenChange={setIsAddChannelDialogOpen} />
           <InviteUserDialog isOpen={isInviteUserDialogOpen} onOpenChange={setIsInviteUserDialogOpen} />
-          {/* EditProfileDialog is rendered here, controlled by context state */}
           <EditProfileDialog 
             isOpen={isEditProfileDialogOpen} 
             onOpenChange={setIsEditProfileDialogOpen} 
