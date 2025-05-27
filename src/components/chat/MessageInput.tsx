@@ -14,8 +14,9 @@ import { cn } from '@/lib/utils';
 
 const SLASH_COMMAND = "/share ";
 
+// Removed duplicate '🤔'
 const COMMON_EMOJIS = [
-  '😀', '😂', '😊', '😍', '🤔', '😢', '😠', '👍', '👎', '❤️', '🎉', '🔥', '💯', '🙏', '🙌', '🤷', '🤦', '👀', '🤔', '🥳'
+  '😀', '😂', '😊', '😍', '🤔', '😢', '😠', '👍', '👎', '❤️', '🎉', '🔥', '💯', '🙏', '🙌', '🤷', '🤦', '👀', '🥳'
 ];
 
 
@@ -259,7 +260,6 @@ export function MessageInput() {
   const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    // Check if the drag is leaving to an element outside the drop zone
     if (event.currentTarget.contains(event.relatedTarget as Node)) {
         return;
     }
@@ -286,7 +286,6 @@ export function MessageInput() {
       setMessageContent(newText);
 
       const newCursorPosition = selectionStart + emoji.length;
-      // Use a timeout to ensure the state update has rendered before setting selection
       setTimeout(() => {
         textareaRef.current?.focus();
         textareaRef.current?.setSelectionRange(newCursorPosition, newCursorPosition);
@@ -336,26 +335,27 @@ export function MessageInput() {
       )}>
 
         <div className="flex-grow relative">
-          {/* Popover for @mentions */}
           <Popover open={showMentionPopover} onOpenChange={setShowMentionPopover}>
             <PopoverTrigger asChild>
-              <div className="relative w-full"> 
-                <PopoverAnchor className="absolute top-0 left-0 w-full" />
-                 <Textarea
-                    ref={textareaRef}
-                    value={messageContent}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Type a message or /share for documents..."
-                    className="w-full resize-none border-0 shadow-none focus-visible:ring-0 p-1.5 min-h-[2.25rem] max-h-32 bg-transparent"
-                    rows={1}
-                />
-              </div>
+               {/* The Textarea itself or its wrapper acts as the conceptual trigger.
+                   PopoverAnchor is used for positioning relative to the input area. */}
+                <div>
+                    <PopoverAnchor className="absolute bottom-full mb-1 w-full" /> {/* Positioned above */}
+                    <Textarea
+                        ref={textareaRef}
+                        value={messageContent}
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Type a message or /share for documents..."
+                        className="w-full resize-none border-0 shadow-none focus-visible:ring-0 p-1.5 min-h-[2.25rem] max-h-32 bg-transparent"
+                        rows={1}
+                    />
+                </div>
             </PopoverTrigger>
             <PopoverContent
                 className="w-[250px] p-1 max-h-60 overflow-y-auto"
-                side="top"
-                align="start"
+                side="top" 
+                align="start" 
                 onOpenAutoFocus={(e) => e.preventDefault()} 
                 hidden={!showMentionPopover || filteredUsers.length === 0}
             >
@@ -377,9 +377,10 @@ export function MessageInput() {
             </PopoverContent>
           </Popover>
 
-          {/* Popover for /share documents */}
           <Popover open={showDocSearchPopover} onOpenChange={setShowDocSearchPopover}>
-             <PopoverAnchor className="absolute top-0 left-0 w-full" /> 
+            {/* No explicit PopoverTrigger here; it's controlled programmatically.
+                 PopoverAnchor helps Radix position the content. */}
+             <PopoverAnchor className="absolute bottom-full mb-1 w-full" /> {/* Positioned above */}
             <PopoverContent
                 className="w-[300px] p-1 max-h-60 overflow-y-auto"
                 side="top"
@@ -451,9 +452,9 @@ export function MessageInput() {
             onInteractOutside={() => setIsEmojiPickerOpen(false)}
           >
             <div className="grid grid-cols-5 gap-1">
-              {COMMON_EMOJIS.map(emoji => (
+              {COMMON_EMOJIS.map((emoji, index) => ( // Added index to key
                 <Button
-                  key={emoji}
+                  key={emoji + '-' + index} // Use emoji + index for key
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-xl hover:bg-accent"
@@ -481,8 +482,4 @@ export function MessageInput() {
   );
 }
 
-// Re-add X if it's used and not globally available
-// const X = ({ className } : { className?: string}) => (
-//   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-4 w-4", className)}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-// );
-
+    
