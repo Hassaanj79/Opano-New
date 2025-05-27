@@ -1,87 +1,74 @@
 
-import type { User, Channel, Message } from '@/types';
+import type { User, Channel, Message, Draft, DocumentCategory, Document } from '@/types';
+import * as Icons from 'lucide-react';
 
-export const initialMockCurrentUser: User = {
-  id: 'u1',
-  name: 'Hassaan',
-  avatarUrl: 'https://placehold.co/40x40.png?text=ME',
-  isOnline: true,
-  designation: 'Lead Developer',
-  email: 'hassaan@example.com',
-};
+// No initialMockCurrentUser as current user will come from Firebase Auth.
+// initialMockUsers will be populated by AppContext if a Firebase user isn't found here,
+// or will use the roles defined here if a match is found by email.
 
 export const initialMockUsers: User[] = [
-  initialMockCurrentUser,
   {
-    id: 'u2',
-    name: 'Hanzlah',
-    email: 'hanzlah@example.com',
+    id: 'u1-admin', // Changed ID to be distinct if firebase.uid is different
+    name: 'Hassaan', // Assuming this is the intended admin
+    email: 'hassyku786@gmail.com', // Admin email
     avatarUrl: 'https://placehold.co/40x40.png?text=HA',
-    isOnline: false,
-    designation: 'Frontend Developer',
-  },
-  {
-    id: 'u3',
-    name: 'Huzaifa',
-    email: 'huzaifa@example.com',
-    avatarUrl: 'https://placehold.co/40x40.png?text=HU',
     isOnline: true,
-    designation: 'Backend Developer',
+    designation: 'Org Admin',
+    role: 'admin', // Explicitly admin
+    phoneNumber: '123-456-7890',
+    linkedinProfileUrl: 'https://linkedin.com/in/hassaan',
+    pronouns: 'He/Him',
   },
   {
-    id: 'u4',
-    name: 'Fahad',
-    email: 'fahad@example.com',
-    avatarUrl: 'https://placehold.co/40x40.png?text=FA',
-    isOnline: false,
-    designation: 'QA Engineer',
-  },
-  {
-    id: 'u5',
+    id: 'u5', // Areeb
     name: 'Areeb',
     email: 'areeb@example.com',
     avatarUrl: 'https://placehold.co/40x40.png?text=AR',
     isOnline: true,
     designation: 'UI/UX Designer',
+    role: 'member',
+    pronouns: 'He/Him',
+  },
+  {
+    id: 'u2', // Hanzlah
+    name: 'Hanzlah',
+    email: 'hanzlah@example.com',
+    avatarUrl: 'https://placehold.co/40x40.png?text=HZ',
+    isOnline: false,
+    designation: 'Frontend Developer',
+    role: 'member',
+    pronouns: 'He/Him',
+  },
+  {
+    id: 'u3', // Huzaifa
+    name: 'Huzaifa',
+    email: 'huzaifa@example.com',
+    avatarUrl: 'https://placehold.co/40x40.png?text=HU',
+    isOnline: true,
+    designation: 'Backend Developer',
+    role: 'member',
+    pronouns: 'He/Him',
+  },
+  {
+    id: 'u4', // Fahad
+    name: 'Fahad',
+    email: 'fahad@example.com',
+    avatarUrl: 'https://placehold.co/40x40.png?text=FA',
+    isOnline: false,
+    designation: 'QA Engineer',
+    role: 'member',
+    pronouns: 'He/Him',
   },
 ];
 
-export let initialMockChannels: Channel[] = [
-  {
-    id: 'c1',
-    name: 'general',
-    memberIds: ['u1', 'u2', 'u3', 'u4', 'u5'],
-    description: 'General chat for everyone',
-    isPrivate: false,
-  },
-  {
-    id: 'c2',
-    name: 'project-alpha',
-    memberIds: ['u1', 'u2', 'u3'],
-    description: 'Discussions for Project Alpha',
-    isPrivate: true,
-  },
-];
-
-export let mockMessages: Record<string, Message[]> = {
-  c1: [
-    { id: 'm1', userId: 'u2', content: 'Hello everyone!', timestamp: Date.now() - 100000, reactions: {'👍': ['u1']} },
-    { id: 'm2', userId: 'u1', content: 'Hi Hanzlah!', timestamp: Date.now() - 90000 },
-  ],
-  c2: [
-    { id: 'm3', userId: 'u1', content: 'Project Alpha meeting at 3 PM.', timestamp: Date.now() - 50000 },
-  ],
-  u2: [ // DM with Hanzlah
-    { id: 'dm1', userId: 'u1', content: 'Hey Hanzlah, how are you?', timestamp: Date.now() - 200000 },
-    { id: 'dm2', userId: 'u2', content: 'Doing good, Hassaan! You?', timestamp: Date.now() - 190000 },
-  ],
-  u1: [ // Notes to self
-    { id: 'self1', userId: 'u1', content: 'Remember to deploy on Friday.', timestamp: Date.now() - 300000 },
-  ]
-};
+export let initialMockChannels: Channel[] = [];
+export let mockMessages: Record<string, Message[]> = {};
+export let mockDrafts: Draft[] = [];
+export let initialDocumentCategories: DocumentCategory[] = [];
 
 export const getMessagesForConversation = (conversationId: string): Message[] => {
   const msgs = mockMessages[conversationId] || [];
+  // Ensure reactions is always an object, even if undefined in mock data initially
   return msgs.map(msg => ({ ...msg, reactions: msg.reactions ? { ...msg.reactions } : {} }));
 };
 
