@@ -5,20 +5,43 @@ import { useAppContext } from '@/contexts/AppContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, ImageIcon, Smile, Edit3, Trash2, ThumbsUp, Heart, Mic } from 'lucide-react';
+import { FileText, ImageIcon, MessageSquareReply, Edit3, Trash2, ThumbsUp, Heart, Brain, AlertCircle, PartyPopper, MoreHorizontal, Mic } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Textarea } from '../ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface MessageItemProps {
   message: Message;
 }
 
 export function MessageItem({ message }: MessageItemProps) {
-  const { users, currentUser, toggleReaction } = useAppContext(); // Removed edit/delete/reply state/functions
+  const { users, currentUser, toggleReaction, editMessage, deleteMessage, setReplyingToMessage } = useAppContext();
+  const { toast } = useToast();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(message.content);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (isEditing && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.setSelectionRange(editInputRef.current.value.length, editInputRef.current.value.length);
+    }
+  }, [isEditing]);
 
   if (message.isSystemMessage) {
     return (
@@ -33,48 +56,85 @@ export function MessageItem({ message }: MessageItemProps) {
   const sender = users.find(u => u.id === message.userId) || (message.userId === currentUser?.id ? currentUser : null);
   const isCurrentUserSender = sender?.id === currentUser?.id;
 
-  const { toast } = useToast();
   const messageTimestamp = format(new Date(message.timestamp), 'p');
 
   const handleReactionClick = (emoji: string) => {
-    if (currentUser) {
+    if (currentUser && !isEditing) { // Disable reactions while editing
       toggleReaction(message.id, emoji);
     }
   };
 
+  const handleEdit = () => {
+    if (!isCurrentUserSender) return;
+    setEditedContent(message.content);
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!isCurrentUserSender || !editMessage) return;
+    if (editedContent.trim() !== message.content.trim()) {
+      editMessage(message.id, editedContent.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditedContent(message.content);
+    setIsEditing(false);
+  };
+
+  const handleDelete = () => {
+    // The AlertDialog will call deleteMessage via its action
+    // No direct call needed here if using AlertDialogTrigger
+    if (!isCurrentUserSender || !deleteMessage) return;
+     // This function is primarily to trigger the AlertDialog, actual deletion is handled by AlertDialogAction
+  };
+
+  const confirmDelete = () => {
+    if (!isCurrentUserSender || !deleteMessage) return;
+    deleteMessage(message.id);
+  }
+
   const renderFileAttachment = () => {
     if (!message.file) return null;
-    if (message.file.type === 'audio') {
-      return (
-        <div className="mt-2 max-w-xs">
-           <audio controls src={message.file.url} className="w-full h-10 rounded-md bg-card/80 shadow-none border-border/50">
-             Your browser does not support the audio element.
-           </audio>
-        </div>
-      );
-    }
+    const isImage = message.file.type === 'image' && message.file.url;
+    const isAudio = message.file.type === 'audio' && message.file.url;
+    const isOtherFile = !isImage && !isAudio && message.file.url;
+
+
     return (
       <Card className="mt-2 max-w-xs bg-card/80 shadow-none border-border/50">
         <CardContent className="p-2">
-          <div className="flex items-center gap-2">
-            {message.file.type === 'image' ? (
-              <ImageIcon className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            )}
-            <a href={message.file.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">
-              {message.file.name}
-            </a>
-          </div>
-          {message.file.type === 'image' && message.file.url && (
-             <Image
-                src={message.file.url}
+          {isImage && (
+            <a href={message.file.url} target="_blank" rel="noopener noreferrer" className="block">
+              <Image
+                src={message.file.url!}
                 alt={message.file.name}
-                width={150}
-                height={100}
-                className="mt-1.5 rounded-md object-cover"
-                data-ai-hint="placeholder image"
-             />
+                width={200} // Increased size for better preview
+                height={150}
+                className="rounded-md object-cover hover:opacity-80 transition-opacity"
+                data-ai-hint="image attachment"
+              />
+            </a>
+          )}
+          {isAudio && (
+             <audio controls src={message.file.url} className="w-full h-10 rounded-md bg-card/80 shadow-none border-border/50 my-1">
+               Your browser does not support the audio element.
+             </audio>
+          )}
+          {isOtherFile && (
+            <div className="flex items-center gap-2">
+              <FileText className="h-6 w-6 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                 <a href={message.file.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline truncate block" title={message.file.name}>
+                    {message.file.name}
+                 </a>
+                 <p className="text-xs text-muted-foreground">Generic File</p>
+              </div>
+            </div>
+          )}
+          {!isImage && !isAudio && ( // Text for file name when not image/audio (but only if URL exists)
+             <p className="text-xs text-muted-foreground mt-1 truncate">{message.file.name}</p>
           )}
         </CardContent>
       </Card>
@@ -87,7 +147,7 @@ export function MessageItem({ message }: MessageItemProps) {
       isCurrentUserSender ? "justify-end" : "justify-start"
     )}>
       {!isCurrentUserSender && <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />}
-      
+
       <div className={cn(
         "flex flex-col max-w-[70%]",
         isCurrentUserSender ? "items-end" : "items-start"
@@ -98,25 +158,56 @@ export function MessageItem({ message }: MessageItemProps) {
             <span className="text-xs text-muted-foreground">{messageTimestamp}</span>
           </div>
         )}
-        
-        {/* Reply UI removed */}
+
+        {message.replyToMessageId && (
+          <div className={cn(
+            "text-xs text-muted-foreground mb-1 pl-2 py-1 border-l-2 border-primary/50 bg-muted/30 rounded-r-sm w-full",
+             isCurrentUserSender ? "border-primary/30" : "border-primary/50"
+            )}>
+            Replying to <strong className="text-foreground/80">{message.originalMessageSenderName || 'Unknown User'}</strong>:
+            <em className="ml-1 truncate block italic">"{message.originalMessageContent?.substring(0,50)}{message.originalMessageContent && message.originalMessageContent.length > 50 ? '...' : ''}"</em>
+          </div>
+        )}
 
         <div className={cn(
           "relative rounded-lg px-3 py-2 text-sm shadow-sm w-full",
-          isCurrentUserSender 
-            ? "bg-user-message-background text-user-message-foreground rounded-br-none" 
+          isCurrentUserSender
+            ? "bg-user-message-background text-user-message-foreground rounded-br-none"
             : "bg-other-message-background text-other-message-foreground rounded-bl-none"
         )}>
+          {isEditing ? (
+            <div className="space-y-2">
+              <Textarea
+                ref={editInputRef}
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full text-sm bg-card/90 text-card-foreground p-2 min-h-[60px]"
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSaveEdit();
+                    } else if (e.key === 'Escape') {
+                        handleCancelEdit();
+                    }
+                }}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={handleCancelEdit} className="text-xs">Cancel</Button>
+                <Button size="sm" onClick={handleSaveEdit} className="text-xs">Save</Button>
+              </div>
+            </div>
+          ) : (
             <>
               {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
               {message.isEdited && <span className="text-xs text-muted-foreground/70 italic ml-1">(edited)</span>}
               {renderFileAttachment()}
             </>
+          )}
 
-          {currentUser && (
+          {currentUser && !isEditing && ( // Show hover actions only if not editing
             <div className={cn(
                 "absolute top-[-12px] opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 p-0.5 rounded-full border bg-background shadow-sm",
-                isCurrentUserSender ? "right-2" : "left-2" 
+                isCurrentUserSender ? "right-2" : "left-2"
             )}>
                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('👍')} aria-label="Thumbs Up">
                     <ThumbsUp className="h-3.5 w-3.5 text-muted-foreground"/>
@@ -124,20 +215,57 @@ export function MessageItem({ message }: MessageItemProps) {
                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('❤️')} aria-label="Heart">
                     <Heart className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                {/* Simpler reactions, removed edit/delete/reply buttons from hover */}
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('🤯')} aria-label="Mind Blown">
+                    <Brain className="h-3.5 w-3.5 text-muted-foreground"/>
+                </Button>
+                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('😮')} aria-label="Shocked">
+                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground"/>
+                </Button>
+                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('🎉')} aria-label="Party Popper">
+                    <PartyPopper className="h-3.5 w-3.5 text-muted-foreground"/>
+                </Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => { setReplyingToMessage?.(message); toast({ title: "Replying", description: "Your next message will be a reply."}); }} aria-label="Reply">
+                    <MessageSquareReply className="h-3.5 w-3.5 text-muted-foreground"/>
+                </Button>
+                {isCurrentUserSender && (
+                  <>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={handleEdit} aria-label="Edit message">
+                      <Edit3 className="h-3.5 w-3.5 text-muted-foreground"/>
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" aria-label="Delete message">
+                          <Trash2 className="h-3.5 w-3.5 text-destructive"/>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Message?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. Are you sure you want to permanently delete this message?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
+                )}
             </div>
           )}
         </div>
 
-        {message.reactions && Object.keys(message.reactions).length > 0 && currentUser && (
+        {message.reactions && Object.keys(message.reactions).length > 0 && currentUser && !isEditing && (
             <div className={cn(
-                "flex gap-1 mt-1 flex-wrap", 
+                "flex gap-1 mt-1 flex-wrap",
                 isCurrentUserSender ? "justify-end" : ""
             )}>
                 {Object.entries(message.reactions).map(([emoji, userIds]) => (
                     userIds.length > 0 && (
-                        <button 
-                            key={emoji} 
+                        <button
+                            key={emoji}
                             onClick={() => handleReactionClick(emoji)}
                             className={cn(
                                 "flex items-center gap-1 rounded-full border bg-background hover:bg-muted/50 px-1.5 py-0.5 text-xs",
@@ -153,7 +281,7 @@ export function MessageItem({ message }: MessageItemProps) {
             </div>
         )}
 
-        {isCurrentUserSender && (
+        {isCurrentUserSender && !isEditing && (
           <div className="flex items-center gap-1 mt-0.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="M20 6 9 17l-5-5"/></svg>
             <span className="text-xs text-muted-foreground">{messageTimestamp}</span>
@@ -164,3 +292,5 @@ export function MessageItem({ message }: MessageItemProps) {
     </div>
   );
 }
+
+    
