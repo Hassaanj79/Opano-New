@@ -7,15 +7,18 @@ import { Button } from "@/components/ui/button";
 import * as Icons from "lucide-react";
 import Link from "next/link";
 import { AddDocumentCategoryDialog } from '@/components/dialogs/AddDocumentCategoryDialog';
-import { useAppContext } from '@/contexts/AppContext'; 
-import type { DocumentCategory } from '@/types'; 
+import { useAppContext } from '@/contexts/AppContext';
+import type { DocumentCategory } from '@/types';
+import { useRouter } from 'next/navigation'; // Import useRouter
+import { ArrowLeft } from 'lucide-react'; // Import ArrowLeft icon
 
 export default function DocumentsPage() {
-  const { documentCategories, addDocumentCategory, currentUser } = useAppContext(); // Added currentUser
+  const { documentCategories, addDocumentCategory, currentUser } = useAppContext();
   const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
+  const router = useRouter(); // Initialize useRouter
 
   const handleAddCategory = (name: string, description: string) => {
-    addDocumentCategory(name, description, 'FolderKanban'); 
+    addDocumentCategory(name, description, 'FolderKanban');
   };
 
   const IconComponent = ({ iconName }: { iconName: DocumentCategory['iconName'] }) => {
@@ -26,6 +29,11 @@ export default function DocumentsPage() {
   return (
     <>
       <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
+        <div className="flex justify-between items-start mb-4">
+          <Button variant="outline" onClick={() => router.push('/')} className="mb-2 md:mb-0">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+          </Button>
+        </div>
         <div className="flex justify-between items-center mb-6 md:mb-8">
           <header>
             <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Document Management</h1>
@@ -33,7 +41,7 @@ export default function DocumentsPage() {
               Organize, share, and manage all your important documents across different categories.
             </p>
           </header>
-          {currentUser?.role === 'admin' && ( // Conditionally render button
+          {currentUser?.role === 'admin' && (
             <Button variant="outline" onClick={() => setIsAddCategoryDialogOpen(true)}>
               <Icons.PlusCircle className="mr-2 h-4 w-4" />
               New Category
@@ -66,9 +74,16 @@ export default function DocumentsPage() {
               </a>
             </Link>
           ))}
+          {documentCategories.length === 0 && (
+             <div className="md:col-span-2 lg:col-span-3 xl:col-span-4 text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                <Icons.FolderOpen className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                <p className="font-medium text-lg">No document categories found.</p>
+                {currentUser?.role === 'admin' && <p className="text-sm">Click "New Category" to add your first one.</p>}
+             </div>
+          )}
         </div>
       </div>
-      {currentUser?.role === 'admin' && ( // Conditionally render dialog
+      {currentUser?.role === 'admin' && (
         <AddDocumentCategoryDialog
           isOpen={isAddCategoryDialogOpen}
           onOpenChange={setIsAddCategoryDialogOpen}
