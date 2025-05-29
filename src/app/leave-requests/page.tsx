@@ -21,8 +21,10 @@ export default function LeaveRequestsPage() {
   const [isLeaveRequestDialogOpen, setIsLeaveRequestDialogOpen] = useState(false);
 
   // Filter leave requests for the current user
-  const userLeaveRequests = currentUser 
-    ? leaveRequests.filter(req => req.userId === currentUser.id).sort((a,b) => b.requestDate.getTime() - a.requestDate.getTime())
+  // Ensure leaveRequests is an array before trying to filter
+  const safeLeaveRequests = Array.isArray(leaveRequests) ? leaveRequests : [];
+  const userLeaveRequests = currentUser
+    ? safeLeaveRequests.filter(req => req.userId === currentUser.id).sort((a,b) => b.requestDate.getTime() - a.requestDate.getTime())
     : [];
 
   if (isLoadingAuth) {
@@ -52,7 +54,7 @@ export default function LeaveRequestsPage() {
         <div className="flex items-center gap-3">
           <Button
               variant="outline"
-              onClick={() => router.back()} 
+              onClick={() => router.back()}
               className="h-auto py-1.5 px-3 rounded-full border-primary text-primary hover:bg-primary/10 flex-shrink-0"
           >
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
@@ -81,7 +83,8 @@ export default function LeaveRequestsPage() {
             <div className="space-y-3">
             {userLeaveRequests.map(req => {
                 const durationMs = endOfDay(req.endDate).getTime() - startOfDay(req.startDate).getTime();
-                const durationDays = Math.max(1, Math.round(durationMs / (1000 * 60 * 60 * 24)) +1); // ensure at least 1 day
+                // +1 to make duration inclusive of start and end days
+                const durationDays = Math.max(1, Math.floor(durationMs / (1000 * 60 * 60 * 24)) + 1); 
                 const durationString = `${durationDays} day${durationDays !== 1 ? 's' : ''}`;
 
                 let statusBadgeClass = "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200"; // Default to pending
