@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EditAttendanceLogDialog } from '@/components/dialogs/EditAttendanceLogDialog';
-import { LeaveRequestDialog } from '@/components/dialogs/LeaveRequestDialog';
+// LeaveRequestDialog will now be managed by the dedicated /leave-requests page
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, MoreHorizontal, ArrowLeft, Clock, Pause, Play, Coffee, CalendarDays, BarChart, FileText as ReportIcon, Edit2, Trash, PlusCircle, LogOut, Activity, Clock10, Percent, UserCog } from "lucide-react";
 import { format, differenceInSeconds, intervalToDuration, formatDuration, add, sub, isSameDay, startOfDay, endOfDay, isValid, isWithinInterval } from "date-fns";
@@ -60,7 +60,7 @@ const InfoRow = ({ icon: Icon, label, value, valueClassName }: { icon: React.Ele
 );
 
 interface AttendancePageProps {
-  params: unknown; // Explicitly define params and searchParams
+  params: unknown; 
   searchParams: unknown;
 }
 
@@ -73,7 +73,7 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
   const [clockInTime, setClockInTime] = useState<Date | null>(null);
   const [clockOutTime, setClockOutTime] = useState<Date | null>(null);
   const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
-  const [accumulatedBreakDuration, setAccumulatedBreakDuration] = useState(0); // in seconds
+  const [accumulatedBreakDuration, setAccumulatedBreakDuration] = useState(0); 
   const [workedSeconds, setWorkedSeconds] = useState(0);
   
   const [masterAttendanceLog, setMasterAttendanceLog] = useState<AttendanceLogEntry[]>([]);
@@ -84,10 +84,7 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
   const [editingLogEntry, setEditingLogEntry] = useState<AttendanceLogEntry | null>(null);
   const [deletingLogEntryId, setDeletingLogEntryId] = useState<string | null>(null);
 
-  const [isLeaveRequestDialogOpen, setIsLeaveRequestDialogOpen] = useState(false);
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-
-  const WORK_TARGET_SECONDS = 8 * 60 * 60; // 8 hours
+  const WORK_TARGET_SECONDS = 8 * 60 * 60; 
 
  useEffect(() => {
     let intervalId: NodeJS.Timeout | undefined;
@@ -95,7 +92,6 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
     if (status === 'working' && clockInTime) {
       const updateTimer = () => {
         const now = new Date();
-        // Ensure clockInTime is valid before using it
         if (clockInTime) { 
             const totalElapsedMilliseconds = now.getTime() - clockInTime.getTime();
             const totalElapsedSeconds = Math.floor(totalElapsedMilliseconds / 1000);
@@ -104,7 +100,7 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
         }
       };
 
-      updateTimer(); // Initial update when status changes to 'working'
+      updateTimer(); 
       intervalId = setInterval(updateTimer, 1000);
     } else if (intervalId) {
       clearInterval(intervalId);
@@ -155,11 +151,10 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
     }
     const finalAccumulatedBreak = accumulatedBreakDuration + currentBreakDuration;
 
-    // Final calculation of workedSeconds before clocking out
     const totalElapsedSeconds = differenceInSeconds(now, clockInTime);
     const finalWorkedSeconds = Math.max(0, totalElapsedSeconds - finalAccumulatedBreak);
     
-    setWorkedSeconds(finalWorkedSeconds); // Update workedSeconds one last time
+    setWorkedSeconds(finalWorkedSeconds); 
     setClockOutTime(now);
     setStatus('clocked-out');
 
@@ -168,7 +163,7 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
       clockInTime: clockInTime,
       clockOutTime: now,
       totalHoursWorked: finalWorkedSeconds,
-      totalActivityPercent: Math.floor(Math.random() * 41) + 60, // Mock activity
+      totalActivityPercent: Math.floor(Math.random() * 41) + 60, 
       totalBreakDuration: finalAccumulatedBreak,
     };
     setMasterAttendanceLog(prevLog => [newLogEntry, ...prevLog].sort((a, b) => new Date(b.clockInTime).getTime() - new Date(a.clockInTime).getTime()));
@@ -204,23 +199,6 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
     }
   };
 
-  const handleAddLeaveRequest = (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => {
-    if (!currentUser) return;
-
-    const newRequest: LeaveRequest = {
-      ...newRequestData,
-      id: `leave-${Date.now()}`,
-      userId: currentUser.id,
-      requestDate: new Date(),
-      status: 'pending',
-    };
-    setLeaveRequests(prev => [newRequest, ...prev].sort((a,b) => b.requestDate.getTime() - a.requestDate.getTime()));
-     toast({
-        title: "Leave Request Submitted",
-        description: `Your leave request has been submitted for approval.`,
-    });
-  };
-
   const formatTimeWithZone = (date: Date | null) => date ? format(new Date(date), "hh:mm a") + " EST" : "--:-- -- EST";
   const formatDurationForDisplay = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -230,12 +208,11 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
   };
 
   useEffect(() => {
-    // Default report date range to today if not set
-    if (!reportDateRange?.from) {
+    if (!reportDateRange?.from && !isLoadingAuth && currentUser) { // Only set default if user is loaded
       const today = startOfDay(new Date());
       setReportDateRange({ from: today, to: endOfDay(today) });
     }
-  }, [reportDateRange]);
+  }, [reportDateRange, isLoadingAuth, currentUser]);
 
   if (isLoadingAuth) {
     return (
@@ -269,7 +246,6 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
-      {/* Header Section */}
        <div className="relative flex items-center justify-between mb-6 md:mb-8 border-b pb-4">
         <Button
             variant="outline"
@@ -300,7 +276,7 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
             <DropdownMenuItem onClick={() => toast({ title: "Reports (Coming Soon)", description: "Downloadable reports will be available soon." })}>
                 <ReportIcon className="mr-2 h-4 w-4" /> Reports
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIsLeaveRequestDialogOpen(true)}>
+            <DropdownMenuItem onClick={() => router.push('/leave-requests')}>
                 <CalendarDays className="mr-2 h-4 w-4" /> Leave request
             </DropdownMenuItem>
             </DropdownMenuContent>
@@ -308,18 +284,14 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
       </div>
 
 
-      {/* Main Timer and Actions Section */}
       <div className="flex flex-col items-center gap-3 md:gap-4 py-6">
         <WorkTimerDisplay currentSeconds={workedSeconds} status={status} />
-
         <div className="mb-4">{getStatusBadge()}</div>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-lg text-sm">
           <InfoRow icon={Clock} label="Clocked In At" value={formatTimeWithZone(clockInTime)} />
           <InfoRow icon={Coffee} label="Total Break" value={formatDurationForDisplay(accumulatedBreakDuration)} />
           <InfoRow icon={Clock10} label="Work Target" value={formatDurationForDisplay(WORK_TARGET_SECONDS)} />
         </div>
-
         {status === 'clocked-out' && clockOutTime && (
           <div className="w-full max-w-lg mt-3 p-4 rounded-md bg-muted/50 border text-center">
             <h3 className="font-semibold text-md mb-2">Last Session Summary</h3>
@@ -327,7 +299,6 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
              <InfoRow icon={Activity} label="Time Worked" value={formatDurationForDisplay(workedSeconds)} />
           </div>
         )}
-
         <div className="flex items-center gap-4 mt-6 pb-4">
           {status === 'not-clocked-in' && (
             <Button onClick={handleClockIn} size="lg" className="w-48">
@@ -362,7 +333,6 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
         </div>
       </div>
 
-      {/* Attendance Report Section */}
       <div className="mt-10 pt-6 border-t">
         <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
           <h2 className="text-lg font-semibold text-foreground">
@@ -479,46 +449,6 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
         )}
       </div>
 
-      {/* Leave Requests Section */}
-      <div className="mt-10 pt-6 border-t">
-        <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-foreground">My Leave Requests</h2>
-            <Button variant="outline" size="sm" onClick={() => setIsLeaveRequestDialogOpen(true)}>
-                <PlusCircle className="mr-2 h-4 w-4" /> New Leave Request
-            </Button>
-        </div>
-         {leaveRequests.length > 0 ? (
-            <div className="space-y-3">
-            {leaveRequests.map(req => {
-                const durationDays = differenceInSeconds(endOfDay(req.endDate), startOfDay(req.startDate)) / (60 * 60 * 24) + 1;
-                const durationString = `${durationDays} day${durationDays > 1 ? 's' : ''}`;
-
-                let statusBadgeClass = "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200"; // Default to pending
-                if (req.status === 'approved') statusBadgeClass = "bg-green-100 text-green-800 border-green-300 hover:bg-green-200";
-                if (req.status === 'rejected') statusBadgeClass = "bg-red-100 text-red-800 border-red-300 hover:bg-red-200";
-
-                return (
-                <div key={req.id} className="p-3 rounded-md bg-muted/40 border hover:shadow-sm transition-shadow">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2 text-sm">
-                        <div><span className="font-medium text-muted-foreground text-xs block">Request Date</span>{format(req.requestDate, "MMM d, yyyy")}</div>
-                        <div><span className="font-medium text-muted-foreground text-xs block">Start Date</span>{format(req.startDate, "MMM d, yyyy")}</div>
-                        <div><span className="font-medium text-muted-foreground text-xs block">End Date</span>{format(req.endDate, "MMM d, yyyy")}</div>
-                        <div><span className="font-medium text-muted-foreground text-xs block">Duration</span>{durationString}</div>
-                        <div className="md:text-right"><span className="font-medium text-muted-foreground text-xs block md:hidden">Status</span><Badge variant="outline" className={cn("text-xs capitalize py-0.5 px-2", statusBadgeClass)}>{req.status}</Badge></div>
-                        <div className="sm:col-span-3 md:col-span-5 mt-1"><span className="font-medium text-muted-foreground text-xs block">Reason</span><p className="truncate text-foreground/90" title={req.reason}>{req.reason}</p></div>
-                    </div>
-                </div>
-                );
-            })}
-            </div>
-        ) : (
-            <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg">
-                <CalendarDays className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                <p className="font-medium text-lg">No leave requests submitted yet.</p>
-            </div>
-        )}
-      </div>
-
       {/* Dialogs */}
       {editingLogEntry && (
         <EditAttendanceLogDialog
@@ -528,14 +458,7 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
           onSave={handleSaveEdit}
         />
       )}
-       <LeaveRequestDialog
-        isOpen={isLeaveRequestDialogOpen}
-        onOpenChange={setIsLeaveRequestDialogOpen}
-        onAddLeaveRequest={handleAddLeaveRequest}
-        currentUserName={currentUser.name}
-      />
+      {/* LeaveRequestDialog removed from here */}
     </div>
   );
 }
-
-

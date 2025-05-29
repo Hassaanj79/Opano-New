@@ -19,7 +19,7 @@ import { OpanoLogo } from '@/components/OpanoLogo';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Settings, Edit, UserCheck, UserX, Plus, LogOut, MessageSquareReply, Bell, Send, Clock, Folder, Users as UsersIcon, MoreHorizontal, CalendarDays } from 'lucide-react';
+import { Settings, Edit, UserCheck, UserX, Plus, LogOut, MessageSquareReply, Bell, Send, Clock, Folder, Users as UsersIcon, CalendarDays } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,10 +33,12 @@ import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
 import { EditProfileDialog } from '@/components/dialogs/EditProfileDialog'; 
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, usePathname } from 'next/navigation';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 export function ChatterboxSidebar() {
   const {
     currentUser,
+    isLoadingAuth,
     setActiveSpecialView,
     currentView,
     toggleCurrentUserStatus,
@@ -53,14 +55,22 @@ export function ChatterboxSidebar() {
   const [isAddChannelDialogOpen, setIsAddChannelDialogOpen] = useState(false);
   const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false);
 
-  const documentFeatureNavItem = { label: 'Documents', icon: Folder, path: '/documents' };
+  const appFeatureNavItems = [
+    { label: 'Attendance', icon: Clock, path: '/attendance', isDropdown: true, 
+      subItems: [
+        { label: 'Clock In / Clock Out', icon: Clock, path: '/attendance'},
+        { label: 'Leave Request', icon: CalendarDays, path: '/leave-requests'} // Updated path
+      ] 
+    },
+    { label: 'Documents', icon: Folder, path: '/documents' },
+  ];
 
   const topNavItems = [
     { label: 'Replies', icon: MessageSquareReply, view: 'replies' as const },
     { label: 'Activity', icon: Bell, view: 'activity' as const },
     { label: 'Drafts', icon: Send, view: 'drafts' as const },
   ];
-
+  
   const handleTopNavClick = (item: { path?: string, view?: 'replies' | 'activity' | 'drafts' }) => {
     closeUserProfilePanel(); 
     if (item.path) {
@@ -88,6 +98,20 @@ export function ChatterboxSidebar() {
     }
   };
 
+  if (isLoadingAuth) {
+    return (
+      <Sidebar collapsible="icon" side="left" variant="sidebar" className="border-r border-sidebar-border">
+        <SidebarHeader className="p-3 border-b border-sidebar-border">
+          <div className="flex items-center justify-between w-full group-data-[collapsible=icon]:justify-center">
+              <OpanoLogo />
+          </div>
+        </SidebarHeader>
+        <SidebarContent className="p-2 flex items-center justify-center">
+          <LoadingSpinner size="md" />
+        </SidebarContent>
+      </Sidebar>
+    );
+  }
 
   return (
     <>
@@ -103,44 +127,42 @@ export function ChatterboxSidebar() {
             <>
               <SidebarGroup className="pt-2 pb-1 group-data-[collapsible=icon]:px-0">
                 <SidebarMenu>
-                  {/* Attendance Dropdown */}
-                  <SidebarMenuItem>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                  {appFeatureNavItems.map((item) => (
+                    <SidebarMenuItem key={item.label}>
+                       {item.isDropdown && item.subItems ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <SidebarMenuButton
+                              isActive={pathname.startsWith(item.path) || item.subItems.some(sub => pathname.startsWith(sub.path))}
+                              tooltip={item.label}
+                              className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
+                            >
+                              <item.icon className="h-5 w-5" />
+                              <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+                            </SidebarMenuButton>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent side="right" align="start" className="w-56 ml-2 group-data-[collapsible=icon]:ml-0">
+                            {item.subItems.map(subItem => (
+                              <DropdownMenuItem key={subItem.label} onClick={() => handleTopNavClick({ path: subItem.path })}>
+                                <subItem.icon className="mr-2 h-4 w-4" />
+                                {subItem.label}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
                         <SidebarMenuButton
-                          isActive={pathname.startsWith('/attendance')}
-                          tooltip="Attendance Options"
+                          onClick={() => handleTopNavClick(item)}
+                          isActive={pathname.startsWith(item.path)}
+                          tooltip={item.label}
                           className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
                         >
-                          <Clock className="h-5 w-5" />
-                          <span className="truncate group-data-[collapsible=icon]:hidden">Attendance</span>
+                          <item.icon className="h-5 w-5" />
+                          <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
                         </SidebarMenuButton>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent side="right" align="start" className="w-56 ml-2 group-data-[collapsible=icon]:ml-0">
-                        <DropdownMenuItem onClick={() => { handleTopNavClick({ path: '/attendance' }); }}>
-                          <Clock className="mr-2 h-4 w-4" />
-                          Clock In / Clock Out
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { handleTopNavClick({ path: '/attendance' }); /* User will click button on page */ }}>
-                          <CalendarDays className="mr-2 h-4 w-4" />
-                          Leave Request
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </SidebarMenuItem>
-                  
-                  {/* Documents Link */}
-                  <SidebarMenuItem key={documentFeatureNavItem.label}>
-                    <SidebarMenuButton
-                      onClick={() => handleTopNavClick(documentFeatureNavItem)}
-                      isActive={pathname.startsWith(documentFeatureNavItem.path)}
-                      tooltip={documentFeatureNavItem.label}
-                      className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
-                    >
-                      <documentFeatureNavItem.icon className="h-5 w-5" />
-                      <span className="truncate group-data-[collapsible=icon]:hidden">{documentFeatureNavItem.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                      )}
+                    </SidebarMenuItem>
+                  ))}
                 </SidebarMenu>
               </SidebarGroup>
               <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-1" />
