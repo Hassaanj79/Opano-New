@@ -21,7 +21,6 @@ export default function LeaveRequestsPage() {
   const [isLeaveRequestDialogOpen, setIsLeaveRequestDialogOpen] = useState(false);
 
   // Filter leave requests for the current user
-  // Ensure leaveRequests is an array before trying to filter
   const safeLeaveRequests = Array.isArray(leaveRequests) ? leaveRequests : [];
   const userLeaveRequests = currentUser
     ? safeLeaveRequests.filter(req => req.userId === currentUser.id).sort((a,b) => b.requestDate.getTime() - a.requestDate.getTime())
