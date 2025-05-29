@@ -15,7 +15,13 @@ import { LeaveRequestDialog } from '@/components/dialogs/LeaveRequestDialog';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { cn } from "@/lib/utils";
 
-export default function LeaveRequestsPage() {
+// Define props for the page component
+interface LeaveRequestsPageProps {
+  params: unknown; // Or a more specific type if you expect certain params
+  searchParams: unknown; // Or a more specific type for searchParams
+}
+
+export default function LeaveRequestsPage({ params, searchParams }: LeaveRequestsPageProps) {
   const router = useRouter();
   const { currentUser, isLoadingAuth, leaveRequests, handleAddLeaveRequest } = useAppContext();
   const [isLeaveRequestDialogOpen, setIsLeaveRequestDialogOpen] = useState(false);
@@ -113,12 +119,15 @@ export default function LeaveRequestsPage() {
         </CardContent>
       </Card>
 
-      <LeaveRequestDialog
-        isOpen={isLeaveRequestDialogOpen}
-        onOpenChange={setIsLeaveRequestDialogOpen}
-        onAddLeaveRequest={handleAddLeaveRequest}
-        currentUserName={currentUser.name}
-      />
+      {currentUser && ( // Ensure currentUser is available before rendering dialog
+          <LeaveRequestDialog
+            isOpen={isLeaveRequestDialogOpen}
+            onOpenChange={setIsLeaveRequestDialogOpen}
+            onAddLeaveRequest={handleAddLeaveRequest}
+            currentUserName={currentUser.name}
+          />
+        )}
     </div>
   );
 }
+
