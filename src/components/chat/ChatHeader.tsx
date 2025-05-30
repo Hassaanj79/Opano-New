@@ -2,15 +2,24 @@
 "use client";
 import React, { useState } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
-import { Hash, UserCircle2, Users, UserPlus } from 'lucide-react'; // Added UserPlus
+import { Hash, UserCircle2, Users, UserPlus, Brain } from 'lucide-react'; // Added Brain icon
 import { ViewChannelMembersDialog } from '@/components/dialogs/ViewChannelMembersDialog';
-import { AddMembersToChannelDialog } from '@/components/dialogs/AddMembersToChannelDialog'; // Import AddMembers dialog
+import { AddMembersToChannelDialog } from '@/components/dialogs/AddMembersToChannelDialog';
+import { SummarizeDialog } from '@/components/chat/SummarizeDialog'; // Import SummarizeDialog
 import { Button } from '@/components/ui/button';
 
 export function ChatHeader() {
-  const { activeConversation, currentUser } = useAppContext();
+  const { 
+    activeConversation, 
+    currentUser, 
+    fetchAndSetSummary, 
+    currentSummary, 
+    isLoadingSummary 
+  } = useAppContext();
+  
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false);
-  const [isAddMembersDialogOpen, setIsAddMembersDialogOpen] = useState(false); // State for AddMembersDialog
+  const [isAddMembersDialogOpen, setIsAddMembersDialogOpen] = useState(false);
+  const [isSummarizeDialogOpen, setIsSummarizeDialogOpen] = useState(false); // State for SummarizeDialog
 
   if (!activeConversation || !currentUser) return null;
 
@@ -39,6 +48,12 @@ export function ChatHeader() {
     );
   }
 
+  const handleSummarizeClick = () => {
+    if (activeConversation?.type === 'channel') {
+      fetchAndSetSummary(activeConversation.id, activeConversation.name);
+      setIsSummarizeDialogOpen(true);
+    }
+  };
 
   return (
     <>
@@ -55,12 +70,25 @@ export function ChatHeader() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {activeConversation.type === 'channel' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSummarizeClick}
+              className="group-data-[collapsible=icon]:hidden"
+              aria-label="Summarize channel"
+            >
+              <Brain className="h-4 w-4 mr-1.5" />
+              Summarize
+            </Button>
+          )}
           {activeConversation.type === 'channel' && currentUser?.role === 'admin' && (
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => setIsAddMembersDialogOpen(true)}
               className="group-data-[collapsible=icon]:hidden"
+              aria-label="Add members to channel"
             >
               <UserPlus className="h-4 w-4 mr-1.5" />
               Add Members
@@ -80,6 +108,13 @@ export function ChatHeader() {
             isOpen={isAddMembersDialogOpen}
             onOpenChange={setIsAddMembersDialogOpen}
             channelId={activeConversation.id}
+          />
+          <SummarizeDialog
+            isOpen={isSummarizeDialogOpen}
+            onOpenChange={setIsSummarizeDialogOpen}
+            summary={currentSummary}
+            isLoading={isLoadingSummary}
+            channelName={activeConversation.name}
           />
         </>
       )}
