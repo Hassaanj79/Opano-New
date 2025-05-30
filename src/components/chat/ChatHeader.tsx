@@ -1,17 +1,42 @@
 
 "use client";
+import React, { useState } from 'react'; // Added useState
 import { useAppContext } from '@/contexts/AppContext';
-import { Hash, UserCircle2 } from 'lucide-react'; // Removed Sparkles, UserPlus, Phone, Users
+import { Hash, UserCircle2, Users } from 'lucide-react'; // Added Users icon
+import { ViewChannelMembersDialog } from '@/components/dialogs/ViewChannelMembersDialog'; // Import dialog
+import { Button } from '@/components/ui/button'; // Import Button for clickable member count
 
 export function ChatHeader() {
   const { activeConversation, currentUser } = useAppContext();
+  const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false); // State for dialog
 
   if (!activeConversation || !currentUser) return null;
 
   const name = activeConversation.name;
-  const description = activeConversation.type === 'channel'
-    ? `${activeConversation.channel?.memberIds.length || 0} Members`
-    : (activeConversation.recipient?.designation || (activeConversation.recipient?.isOnline ? 'Online' : 'Offline'));
+  let descriptionElement: React.ReactNode;
+
+  if (activeConversation.type === 'channel' && activeConversation.channel) {
+    const memberCount = activeConversation.channel.memberIds.length || 0;
+    descriptionElement = (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-xs text-muted-foreground p-0 h-auto hover:bg-transparent hover:underline flex items-center gap-1"
+        onClick={() => setIsMembersDialogOpen(true)}
+        aria-label={`View ${memberCount} members`}
+      >
+        <Users className="h-3 w-3" /> 
+        {`${memberCount} Member${memberCount !== 1 ? 's' : ''}`}
+      </Button>
+    );
+  } else if (activeConversation.type === 'dm' && activeConversation.recipient) {
+    descriptionElement = (
+      <p className="text-xs text-muted-foreground">
+        {activeConversation.recipient.designation || (activeConversation.recipient.isOnline ? 'Online' : 'Offline')}
+      </p>
+    );
+  }
+
 
   return (
     <>
@@ -24,14 +49,23 @@ export function ChatHeader() {
           )}
           <div>
             <h2 className="text-base font-semibold text-foreground">{name}</h2>
-            {description && <p className="text-xs text-muted-foreground">{description}</p>}
+            {descriptionElement}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Call, Summary, Add/View Members buttons removed for simplicity */}
+          {/* Call, Summary, Add/View Members buttons removed for simplicity previously */}
+          {/* This is where "Add user" or "View members" for channels would typically go if not part of description */}
         </div>
       </div>
-      {/* Dialogs removed */}
+      
+      {activeConversation.type === 'channel' && activeConversation.channel && (
+        <ViewChannelMembersDialog
+          isOpen={isMembersDialogOpen}
+          onOpenChange={setIsMembersDialogOpen}
+          channel={activeConversation.channel}
+        />
+      )}
     </>
   );
 }
+
