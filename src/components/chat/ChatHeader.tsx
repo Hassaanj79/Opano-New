@@ -1,14 +1,16 @@
 
 "use client";
-import React, { useState } from 'react'; // Added useState
+import React, { useState } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
-import { Hash, UserCircle2, Users } from 'lucide-react'; // Added Users icon
-import { ViewChannelMembersDialog } from '@/components/dialogs/ViewChannelMembersDialog'; // Import dialog
-import { Button } from '@/components/ui/button'; // Import Button for clickable member count
+import { Hash, UserCircle2, Users, UserPlus } from 'lucide-react'; // Added UserPlus
+import { ViewChannelMembersDialog } from '@/components/dialogs/ViewChannelMembersDialog';
+import { AddMembersToChannelDialog } from '@/components/dialogs/AddMembersToChannelDialog'; // Import AddMembers dialog
+import { Button } from '@/components/ui/button';
 
 export function ChatHeader() {
   const { activeConversation, currentUser } = useAppContext();
-  const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false); // State for dialog
+  const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false);
+  const [isAddMembersDialogOpen, setIsAddMembersDialogOpen] = useState(false); // State for AddMembersDialog
 
   if (!activeConversation || !currentUser) return null;
 
@@ -53,19 +55,34 @@ export function ChatHeader() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Call, Summary, Add/View Members buttons removed for simplicity previously */}
-          {/* This is where "Add user" or "View members" for channels would typically go if not part of description */}
+          {activeConversation.type === 'channel' && currentUser?.role === 'admin' && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsAddMembersDialogOpen(true)}
+              className="group-data-[collapsible=icon]:hidden"
+            >
+              <UserPlus className="h-4 w-4 mr-1.5" />
+              Add Members
+            </Button>
+          )}
         </div>
       </div>
       
       {activeConversation.type === 'channel' && activeConversation.channel && (
-        <ViewChannelMembersDialog
-          isOpen={isMembersDialogOpen}
-          onOpenChange={setIsMembersDialogOpen}
-          channel={activeConversation.channel}
-        />
+        <>
+          <ViewChannelMembersDialog
+            isOpen={isMembersDialogOpen}
+            onOpenChange={setIsMembersDialogOpen}
+            channel={activeConversation.channel}
+          />
+          <AddMembersToChannelDialog
+            isOpen={isAddMembersDialogOpen}
+            onOpenChange={setIsAddMembersDialogOpen}
+            channelId={activeConversation.id}
+          />
+        </>
       )}
     </>
   );
 }
-
