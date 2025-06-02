@@ -67,6 +67,9 @@ const u5AreebId = initialMockUsers.find(u => u.email === 'areeb@example.com')!.i
 
 const allUserIds = initialMockUsers.map(u => u.id);
 
+// Dynamically get all admin IDs specifically for the admin lounge
+const allAdminUserIds = initialMockUsers.filter(u => u.role === 'admin').map(u => u.id);
+
 export let initialMockChannels: Channel[] = [
   {
     id: 'c1',
@@ -100,7 +103,7 @@ export let initialMockChannels: Channel[] = [
     id: 'c5',
     name: 'admin-private-lounge',
     description: 'Private channel for admin discussions.',
-    memberIds: [u1AdminId],
+    memberIds: allAdminUserIds, // Updated to use allAdminUserIds
     isPrivate: true,
   },
 ].sort((a, b) => a.name.localeCompare(b.name));
