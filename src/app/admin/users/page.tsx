@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserAvatar } from '@/components/UserAvatar';
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ShieldAlert, MailOpen, MoreHorizontal, ShieldCheck, UserCog, Users, UserPlus, UserCheck as UserCheckIcon } from "lucide-react"; // Added Users, UserPlus, UserCheckIcon
+import { ArrowLeft, ShieldAlert, MailOpen, MoreHorizontal, ShieldCheck, UserCog, Users, UserPlus, UserCheck as UserCheckIcon } from "lucide-react";
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { cn } from '@/lib/utils';
 import type { User, PendingInvitation, UserRole } from '@/types';
@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from '@/hooks/use-toast';
+import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog'; // Import the dialog
 
 type TableUserItem =
   | { type: 'active'; data: User }
@@ -30,6 +31,7 @@ export default function ManageUsersPage() {
   const { allUsersWithCurrent, currentUser, isLoadingAuth, pendingInvitations, updateUserRole } = useAppContext();
   const router = useRouter();
   const { toast } = useToast();
+  const [isInviteUserDialogOpen, setIsInviteUserDialogOpen] = useState(false); // State for invite dialog
 
   const handleRoleChange = (userId: string, currentRole: UserRole) => {
     const newRole: UserRole = currentRole === 'admin' ? 'member' : 'admin';
@@ -103,7 +105,10 @@ export default function ManageUsersPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Invitations</CardTitle>
-            <UserPlus className="h-4 w-4 text-muted-foreground" />
+            {/* Replaced decorative icon with an actionable button */}
+            <Button variant="outline" size="sm" onClick={() => setIsInviteUserDialogOpen(true)} className="h-7 px-2 py-1 text-xs">
+                <UserPlus className="mr-1 h-3.5 w-3.5" /> Invite
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{pendingInvitations.length}</div>
@@ -120,14 +125,14 @@ export default function ManageUsersPage() {
         </Card>
       </div>
 
-      <Card className="flex-grow flex flex-col"> {/* Added flex flex-col to Card */}
+      <Card className="flex-grow flex flex-col">
         <CardHeader>
           <CardTitle>User List</CardTitle>
           <CardDescription>
             A complete list of all {allUsersWithCurrent.length} active user(s) and {pendingInvitations.length} pending invitation(s).
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex-grow"> {/* Added flex-grow to CardContent */}
+        <CardContent className="flex-grow"> 
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -248,12 +253,17 @@ export default function ManageUsersPage() {
           )}
         </CardContent>
       </Card>
+      {/* Invite User Dialog */}
+      <InviteUserDialog 
+        isOpen={isInviteUserDialogOpen} 
+        onOpenChange={setIsInviteUserDialogOpen} 
+      />
     </div>
   );
 }
 
 // Using an inline SVG for UsersIcon as it might have been removed if not directly used elsewhere
-const UsersIconLucide = ({ className }: { className?: string }) => ( // Renamed to avoid conflict with imported Users
+const UsersIconLucide = ({ className }: { className?: string }) => ( 
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("lucide lucide-users", className)}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
 );
 
