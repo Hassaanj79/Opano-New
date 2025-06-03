@@ -23,13 +23,20 @@ const firebaseConfig = {
 console.log("[Firebase Setup] firebaseConfig object to be used for initialization:", JSON.stringify(firebaseConfig, null, 2));
 
 let app: FirebaseApp | undefined;
-let auth: Auth | undefined;
+let authModule: Auth | undefined; // Renamed to avoid conflict with auth variable from getAuth
 let db: Firestore | undefined;
 
 if (typeof window !== "undefined") {
-  if (!firebaseApiKey || firebaseApiKey === "YOUR_API_KEY" || firebaseApiKey.startsWith("AIzaSyYOUR_REAL_API_KEY")) {
+  const isApiKeyPlaceholder = 
+    !firebaseApiKey || 
+    firebaseApiKey === "YOUR_API_KEY" || 
+    firebaseApiKey === "YOUR_FIREBASE_API_KEY_HERE" || // Common placeholder from previous prompt
+    firebaseApiKey.includes("AIzaSyYOUR_REAL_API_KEY") || // Common placeholder format
+    firebaseApiKey.startsWith("AIzaSy") === false; // Basic check for typical Firebase API key start
+
+  if (isApiKeyPlaceholder) {
     console.error(
-      "[Firebase Setup] CRITICAL ERROR: Firebase API Key is invalid, a placeholder, or missing. " +
+      "[Firebase Setup] CRITICAL ERROR: Firebase API Key appears to be invalid, a placeholder, or missing. " +
       "Actual value seen: '" + firebaseApiKey + "'. " +
       "Firebase will NOT be initialized. Please check your .env.local file for NEXT_PUBLIC_FIREBASE_API_KEY, " +
       "ensure it's correctly set with your *actual* key, and restart the server."
@@ -38,7 +45,6 @@ if (typeof window !== "undefined") {
       !firebaseConfig.authDomain ||
       !firebaseConfig.projectId ||
       !firebaseConfig.appId
-      // Add checks for other essential config values if they might also be missing
   ) {
     console.error(
       "[Firebase Setup] CRITICAL ERROR: One or more essential Firebase config values (authDomain, projectId, appId) are missing. " +
@@ -49,7 +55,7 @@ if (typeof window !== "undefined") {
       try {
         console.log("[Firebase Setup] Attempting to initialize Firebase app with valid-looking config.");
         app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
+        authModule = getAuth(app);
         db = getFirestore(app);
         console.log("[Firebase Setup] Firebase app initialized successfully on the client.");
       } catch (error) {
@@ -57,7 +63,7 @@ if (typeof window !== "undefined") {
       }
     } else {
       app = getApps()[0];
-      auth = getAuth(app);
+      authModule = getAuth(app);
       db = getFirestore(app);
       console.log("[Firebase Setup] Firebase app already initialized on the client.");
     }
@@ -66,4 +72,5 @@ if (typeof window !== "undefined") {
   console.log("[Firebase Setup] Firebase client SDK initialization deferred (server-side or pre-client execution).");
 }
 
-export { app, auth, db };
+// Export auth module as 'auth' for consistency with its usage in other files
+export { app, authModule as auth, db };
