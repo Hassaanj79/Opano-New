@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserAvatar } from '@/components/UserAvatar';
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ShieldAlert, MailOpen, MoreHorizontal, ShieldCheck, UserCog } from "lucide-react";
+import { ArrowLeft, ShieldAlert, MailOpen, MoreHorizontal, ShieldCheck, UserCog, Users, UserPlus, UserCheck as UserCheckIcon } from "lucide-react"; // Added Users, UserPlus, UserCheckIcon
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { cn } from '@/lib/utils';
 import type { User, PendingInvitation, UserRole } from '@/types';
@@ -72,6 +72,8 @@ export default function ManageUsersPage() {
     ...pendingInvitations.map(invitation => ({ type: 'invited' as const, data: invitation }))
   ];
 
+  const onlineUsersCount = allUsersWithCurrent.filter(user => user.isOnline).length;
+
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full">
       <div className="mb-6 flex items-start justify-between">
@@ -85,6 +87,37 @@ export default function ManageUsersPage() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
+      </div>
+
+      {/* Dashboard Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Active Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{allUsersWithCurrent.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Invitations</CardTitle>
+            <UserPlus className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pendingInvitations.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Currently Online</CardTitle>
+            <UserCheckIcon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{onlineUsersCount}</div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="flex-grow flex flex-col"> {/* Added flex flex-col to Card */}
@@ -220,6 +253,7 @@ export default function ManageUsersPage() {
 }
 
 // Using an inline SVG for UsersIcon as it might have been removed if not directly used elsewhere
-const UsersIcon = ({ className }: { className?: string }) => (
+const UsersIconLucide = ({ className }: { className?: string }) => ( // Renamed to avoid conflict with imported Users
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("lucide lucide-users", className)}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
 );
+
