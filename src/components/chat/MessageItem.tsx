@@ -83,13 +83,6 @@ export function MessageItem({ message }: MessageItemProps) {
     setIsEditing(false);
   };
 
-  const handleDelete = () => {
-    // The AlertDialog will call deleteMessage via its action
-    // No direct call needed here if using AlertDialogTrigger
-    if (!isCurrentUserSender || !deleteMessage) return;
-     // This function is primarily to trigger the AlertDialog, actual deletion is handled by AlertDialogAction
-  };
-
   const confirmDelete = () => {
     if (!isCurrentUserSender || !deleteMessage) return;
     deleteMessage(message.id);
@@ -110,7 +103,7 @@ export function MessageItem({ message }: MessageItemProps) {
               <Image
                 src={message.file.url!}
                 alt={message.file.name}
-                width={200} // Increased size for better preview
+                width={200} 
                 height={150}
                 className="rounded-md object-cover hover:opacity-80 transition-opacity"
                 data-ai-hint="image attachment"
@@ -133,12 +126,23 @@ export function MessageItem({ message }: MessageItemProps) {
               </div>
             </div>
           )}
-          {!isImage && !isAudio && ( // Text for file name when not image/audio (but only if URL exists)
+          {!isImage && !isAudio && ( 
              <p className="text-xs text-muted-foreground mt-1 truncate">{message.file.name}</p>
           )}
         </CardContent>
       </Card>
     );
+  };
+
+  const getReactionBadgeStyle = (emoji: string) => {
+    switch (emoji) {
+      case '👍': return 'bg-[hsl(var(--reaction-like-bg))] text-[hsl(var(--reaction-like-fg))] border-[hsl(var(--reaction-like-fg))]';
+      case '❤️': return 'bg-[hsl(var(--reaction-love-bg))] text-[hsl(var(--reaction-love-fg))] border-[hsl(var(--reaction-love-fg))]';
+      case '🤯': return 'bg-[hsl(var(--reaction-brain-bg))] text-[hsl(var(--reaction-brain-fg))] border-[hsl(var(--reaction-brain-fg))]';
+      case '😮': return 'bg-[hsl(var(--reaction-alert-bg))] text-[hsl(var(--reaction-alert-fg))] border-[hsl(var(--reaction-alert-fg))]';
+      case '🎉': return 'bg-[hsl(var(--reaction-party-bg))] text-[hsl(var(--reaction-party-fg))] border-[hsl(var(--reaction-party-fg))]';
+      default: return 'bg-muted border-border text-muted-foreground';
+    }
   };
 
   return (
@@ -161,8 +165,8 @@ export function MessageItem({ message }: MessageItemProps) {
 
         {message.replyToMessageId && (
           <div className={cn(
-            "text-xs text-muted-foreground mb-1 pl-2 py-1 border-l-2 border-primary/50 bg-muted/30 rounded-r-sm w-full",
-             isCurrentUserSender ? "border-primary/30" : "border-primary/50"
+            "text-xs text-muted-foreground mb-1 pl-2 py-1 border-l-2 rounded-r-sm w-full",
+             isCurrentUserSender ? "border-primary/30 bg-primary/5" : "border-primary/50 bg-muted/30"
             )}>
             Replying to <strong className="text-foreground/80">{message.originalMessageSenderName || 'Unknown User'}</strong>:
             <em className="ml-1 truncate block italic">"{message.originalMessageContent?.substring(0,50)}{message.originalMessageContent && message.originalMessageContent.length > 50 ? '...' : ''}"</em>
@@ -204,37 +208,37 @@ export function MessageItem({ message }: MessageItemProps) {
             </>
           )}
 
-          {currentUser && !isEditing && ( // Show hover actions only if not editing
+          {currentUser && !isEditing && ( 
             <div className={cn(
                 "absolute top-[-12px] opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 p-0.5 rounded-full border bg-background shadow-sm",
                 isCurrentUserSender ? "right-2" : "left-2"
             )}>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('👍')} aria-label="Thumbs Up">
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => handleReactionClick('👍')} aria-label="Thumbs Up">
                     <ThumbsUp className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('❤️')} aria-label="Heart">
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => handleReactionClick('❤️')} aria-label="Heart">
                     <Heart className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('🤯')} aria-label="Mind Blown">
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => handleReactionClick('🤯')} aria-label="Mind Blown">
                     <Brain className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('😮')} aria-label="Shocked">
+                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => handleReactionClick('😮')} aria-label="Shocked">
                     <AlertCircle className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => handleReactionClick('🎉')} aria-label="Party Popper">
+                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => handleReactionClick('🎉')} aria-label="Party Popper">
                     <PartyPopper className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={() => { setReplyingToMessage?.(message); toast({ title: "Replying", description: "Your next message will be a reply."}); }} aria-label="Reply">
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => { setReplyingToMessage?.(message); toast({ title: "Replying", description: "Your next message will be a reply."}); }} aria-label="Reply">
                     <MessageSquareReply className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
                 {isCurrentUserSender && (
                   <>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" onClick={handleEdit} aria-label="Edit message">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={handleEdit} aria-label="Edit message">
                       <Edit3 className="h-3.5 w-3.5 text-muted-foreground"/>
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent" aria-label="Delete message">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" aria-label="Delete message">
                           <Trash2 className="h-3.5 w-3.5 text-destructive"/>
                         </Button>
                       </AlertDialogTrigger>
@@ -268,13 +272,14 @@ export function MessageItem({ message }: MessageItemProps) {
                             key={emoji}
                             onClick={() => handleReactionClick(emoji)}
                             className={cn(
-                                "flex items-center gap-1 rounded-full border bg-background hover:bg-muted/50 px-1.5 py-0.5 text-xs",
-                                userIds.includes(currentUser.id) ? "border-primary bg-primary/10" : "border-border"
+                                "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs shadow-sm transition-all hover:shadow-md",
+                                getReactionBadgeStyle(emoji),
+                                userIds.includes(currentUser.id) ? "ring-1 ring-offset-1 ring-offset-background ring-current" : "opacity-80 hover:opacity-100"
                             )}
                             aria-label={`React with ${emoji}`}
                         >
                             <span>{emoji}</span>
-                            <span className="text-muted-foreground font-medium">{userIds.length}</span>
+                            <span className="font-medium">{userIds.length}</span>
                         </button>
                     )
                 ))}
@@ -292,5 +297,3 @@ export function MessageItem({ message }: MessageItemProps) {
     </div>
   );
 }
-
-    

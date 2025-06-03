@@ -27,8 +27,6 @@ body {
     --muted: 210 16% 88%; /* Muted gray */
     --muted-foreground: 210 10% 45%;
 
-    /* Accent can be a slightly different shade or used for specific highlights if needed */
-    /* For now, let's make accent a slightly lighter/softer orange or a neutral supporting color */
     --accent: 35 85% 70%; /* Lighter orange or a neutral if primary is the main orange */
     --accent-foreground: 210 10% 15%; /* Darker text on lighter accent */
     
@@ -65,6 +63,18 @@ body {
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+
+    /* Reaction Colors */
+    --reaction-like-bg: hsl(210, 100%, 95%);
+    --reaction-like-fg: hsl(210, 80%, 60%);
+    --reaction-love-bg: hsl(0, 100%, 96%);
+    --reaction-love-fg: hsl(0, 85%, 60%);
+    --reaction-brain-bg: hsl(260, 100%, 96%);
+    --reaction-brain-fg: hsl(260, 70%, 65%);
+    --reaction-alert-bg: hsl(40, 100%, 95%);
+    --reaction-alert-fg: hsl(40, 90%, 55%);
+    --reaction-party-bg: hsl(120, 100%, 95%);
+    --reaction-party-fg: hsl(120, 60%, 50%);
   }
 
   .dark {
@@ -116,6 +126,18 @@ body {
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
+    /* Dark Theme Reaction Colors */
+    --reaction-like-bg: hsl(210, 30%, 20%);
+    --reaction-like-fg: hsl(210, 70%, 75%);
+    --reaction-love-bg: hsl(0, 30%, 20%);
+    --reaction-love-fg: hsl(0, 70%, 75%);
+    --reaction-brain-bg: hsl(260, 30%, 20%);
+    --reaction-brain-fg: hsl(260, 70%, 75%);
+    --reaction-alert-bg: hsl(40, 30%, 20%);
+    --reaction-alert-fg: hsl(40, 70%, 70%);
+    --reaction-party-bg: hsl(120, 30%, 20%);
+    --reaction-party-fg: hsl(120, 60%, 70%);
   }
 }
 
