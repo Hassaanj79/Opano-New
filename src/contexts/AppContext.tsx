@@ -52,6 +52,7 @@ interface AppContextType {
   verifyInviteToken: (token: string) => PendingInvitation | null;
   acceptInvitation: (token: string, newUserDetails: { name: string; designation?: string }) => boolean;
   addMembersToChannel: (channelId: string, userIdsToAdd: string[]) => void;
+  removeUserFromChannel: (channelId: string, userIdToRemove: string) => void;
   currentSummary: string | null;
   isLoadingSummary: boolean;
   fetchAndSetSummary: (channelId: string, channelName: string) => void;
@@ -401,6 +402,67 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       })
     );
   }, [currentUser, allUsersWithCurrent, toast, activeConversation]);
+
+  const removeUserFromChannel = useCallback((channelId: string, userIdToRemove: string) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      setTimeout(() => toast({ title: "Permission Denied", description: "Only admins can remove users.", variant: "destructive" }), 0);
+      return;
+    }
+    if (currentUser.id === userIdToRemove) {
+      setTimeout(() => toast({ title: "Action Denied", description: "You cannot remove yourself from a channel this way.", variant: "destructive" }), 0);
+      return;
+    }
+
+    let userWasRemoved = false;
+    let removedUserName = "A user";
+    let targetChannelName = "the channel";
+
+    setChannels(prevChannels =>
+      prevChannels.map(channel => {
+        if (channel.id === channelId) {
+          targetChannelName = channel.name;
+          const userToRemoveDetails = allUsersWithCurrent.find(u => u.id === userIdToRemove);
+          if (userToRemoveDetails) {
+            removedUserName = userToRemoveDetails.name;
+          }
+          const newMemberIds = channel.memberIds.filter(id => id !== userIdToRemove);
+          if (newMemberIds.length < channel.memberIds.length) {
+            userWasRemoved = true;
+          }
+          const updatedChannel = { ...channel, memberIds: newMemberIds };
+          
+          const mockChannelIndex = initialMockChannels.findIndex(mc => mc.id === channelId);
+          if (mockChannelIndex !== -1) {
+            initialMockChannels[mockChannelIndex] = updatedChannel;
+          }
+          return updatedChannel;
+        }
+        return channel;
+      })
+    );
+
+    if (userWasRemoved) {
+      const systemMessage: Message = {
+        id: `sys-remove-${Date.now()}`,
+        userId: 'system',
+        content: `${currentUser.name} removed ${removedUserName} from the channel.`,
+        timestamp: Date.now(),
+        isSystemMessage: true,
+      };
+      if (mockMessages[channelId]) {
+        mockMessages[channelId].push(systemMessage);
+      } else {
+        mockMessages[channelId] = [systemMessage];
+      }
+      if (activeConversation?.id === channelId) {
+        setMessages(prevMsgs => [...prevMsgs, systemMessage]);
+      }
+      setTimeout(() => toast({ title: "User Removed", description: `${removedUserName} has been removed from #${targetChannelName}.` }), 0);
+    } else {
+      setTimeout(() => toast({ title: "User Not Found", description: `Could not find user in #${targetChannelName}.`, variant: "default" }), 0);
+    }
+  }, [currentUser, allUsersWithCurrent, toast, activeConversation]);
+
 
   const toggleReaction = useCallback((messageId: string, emoji: string) => {
     if (!currentUser || !activeConversation) return;
@@ -1068,6 +1130,7 @@ Reason: ${newRequestData.reason}`;
     verifyInviteToken,
     acceptInvitation,
     addMembersToChannel,
+    removeUserFromChannel,
     currentSummary,
     isLoadingSummary,
     fetchAndSetSummary,
@@ -1093,7 +1156,7 @@ Reason: ${newRequestData.reason}`;
     messages, addMessage, addChannel, toggleReaction, currentView, setActiveSpecialView,
     isUserProfilePanelOpen, viewingUserProfile, openUserProfilePanel, closeUserProfilePanel, isEditProfileDialogOpen, setIsEditProfileDialogOpen, openEditProfileDialog,
     updateUserProfile, toggleCurrentUserStatus, signOutUser, getConversationName,
-    sendInvitation, pendingInvitations, verifyInviteToken, acceptInvitation, addMembersToChannel,
+    sendInvitation, pendingInvitations, verifyInviteToken, acceptInvitation, addMembersToChannel, removeUserFromChannel,
     currentSummary, isLoadingSummary, fetchAndSetSummary,
     replyingToMessage, setReplyingToMessage, drafts, saveDraft, deleteDraft, activities, replies,
     documentCategories, addDocumentCategory, findDocumentCategoryById, addFileDocumentToCategory,
