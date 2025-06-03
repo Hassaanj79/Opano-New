@@ -126,7 +126,7 @@ export let mockMessages: Record<string, Message[]> = {
     { id: 'm4-c2', userId: u5AreebId, content: '@Hanzlah, yes! I just uploaded them to the "Project Specs" document category. File name: `Phoenix_Dashboard_Wireframes_v1.pdf`. Let me know if you have trouble accessing it.', timestamp: Date.now() - 1000 * 60 * 95, file: { name: 'Phoenix_Dashboard_Wireframes_v1.pdf', url: 'https://placehold.co/300x200.png?text=PDF+Mock', type: 'document'}},
     { id: 'm5-c2', userId: u1AdminId, content: '@Huzaifa, let\'s start with: active users, new sign-ups (daily/weekly), and top 5 most used features. We can expand later.', timestamp: Date.now() - 1000 * 60 * 90 },
     { id: 'm6-c2', userId: u2HanzlahId, content: 'Got the wireframes, @Areeb! Looks great. @Hassaan, let\'s sync on the design for the main graph component tomorrow morning. I have a few ideas.', timestamp: Date.now() - 1000 * 60 * 85, replyToMessageId: 'm4-c2', originalMessageSenderName: initialMockUsers.find(u=>u.id === u5AreebId)?.name, originalMessageContent: '@Hanzlah, yes! I just uploaded them to the "Project Specs" document category...' },
-    { id: 'm7-c2', userId: u3HuzaifaId, content: 'Endpoints for initial data points are now live on the dev server. `/api/dashboard/summary`. Documentation is in `API_Docs_Phoenix.md` under Project Specs.', timestamp: Date.now() - 1000 * 60 * 30, reactions: {'👍': [u1AdminId, u2HanzlahId]}},
+    { id: 'm7-c2', userId: u3HuzaifaId, content: 'Endpoints for initial data points are now live on the dev server. `/api/dashboard/summary`. Documentation is in `API_Docs_Phoenix_v1.md` under Project Specs.', timestamp: Date.now() - 1000 * 60 * 30, reactions: {'👍': [u1AdminId, u2HanzlahId]}},
   ],
   c3: [ // Design Critiques (channel ID: c3)
     { id: 'm1-c3', userId: u5AreebId, content: 'Hey team! Here\'s the first draft of the new login page design. Looking for feedback on the overall flow and aesthetics. Link: [Figma Link Placeholder]', timestamp: Date.now() - 1000 * 60 * 150, file: {name: 'login_v1.png', url: 'https://placehold.co/600x400.png?text=Login+V1', type: 'image'}},
@@ -249,7 +249,51 @@ export let initialDocumentCategories: DocumentCategory[] = [
       createTextDoc('mktg3', 'Ad Copy Q3 - "Connect & Collaborate".txt', 'New campaign slogan: "Opano: Connecting Your Future!" Focus on seamless integration and ease of use. Target audience: SMBs.', 1, 'cat3'),
       createUrlDoc('mktg4', 'Competitor Analysis Q2 2024', 'https://example.com/marketing/reports/comp-q2-2024', 25, 'cat3'),
     ],
-  }
+  },
+  {
+    id: 'cat-dev',
+    name: 'Development Team',
+    description: 'Resources, guidelines, and documentation for the development team.',
+    iconName: 'Code2',
+    documents: [
+      createTextDoc('coding_std', 'Coding Standards v2.1.txt', 'All code must be linted before commit. Use Prettier for formatting. Follow SOLID principles.', 5, 'cat-dev'),
+      createFileDoc('setup_guide', 'Dev Environment Setup Guide.md', 'text/markdown', 10, 'cat-dev', 'guide markdown'),
+      createUrlDoc('ci_cd_pipeline', 'CI/CD Pipeline (Jenkins)', 'https://jenkins.example.com/job/opano-main', 1, 'cat-dev'),
+    ],
+  },
+  {
+    id: 'cat-sales',
+    name: 'Sales',
+    description: 'Sales scripts, product pricing, and CRM integration guides.',
+    iconName: 'DollarSign',
+    documents: [
+      createFileDoc('pricing_sheet', 'Product Pricing Sheet Q3-2024.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 3, 'cat-sales', 'pricing excel'),
+      createTextDoc('sales_script_intro', 'Intro Sales Script - Cold Call.txt', 'Hi [Prospect Name], this is [Your Name] from Opano. We help businesses like yours streamline communication...', 7, 'cat-sales'),
+      createUrlDoc('crm_guide', 'Salesforce Integration Guide', 'https://help.salesforce.com/opano-integration', 12, 'cat-sales'),
+    ],
+  },
+  {
+    id: 'cat-success',
+    name: 'Success',
+    description: 'Customer success playbooks, onboarding checklists, and churn analysis reports.',
+    iconName: 'Award',
+    documents: [
+      createFileDoc('onboarding_checklist', 'New Customer Onboarding Checklist.pdf', 'application/pdf', 4, 'cat-success', 'checklist pdf'),
+      createTextDoc('qbr_template', 'Quarterly Business Review (QBR) Template.txt', 'Agenda: Review goals, discuss progress, identify challenges, plan next steps.', 15, 'cat-success'),
+      createUrlDoc('churn_dashboard', 'Customer Churn Dashboard (Tableau)', 'https://tableau.example.com/views/ChurnDashboard', 2, 'cat-success'),
+    ],
+  },
+  {
+    id: 'cat-support',
+    name: 'Support',
+    description: 'KB articles, troubleshooting guides, and support ticket escalation procedures.',
+    iconName: 'LifeBuoy',
+    documents: [
+      createUrlDoc('kb_main', 'Knowledge Base Home', 'https://support.opano.com/kb', 1, 'cat-support'),
+      createTextDoc('escalation_matrix', 'Support Ticket Escalation Matrix.txt', 'Level 1: Respond within 1hr. Level 2: Escalate after 4hrs no resolution. Level 3: Critical issues to engineering.', 20, 'cat-support'),
+      createFileDoc('troubleshooting_common', 'Common Issues Troubleshooting Guide.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 8, 'cat-support', 'guide document'),
+    ],
+  },
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 
@@ -270,3 +314,4 @@ export const updateMockMessage = (conversationId: string, messageId: string, upd
     }
   }
 };
+
