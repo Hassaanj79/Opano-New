@@ -134,7 +134,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setActiveConversationState(null);
     setReplyingToMessage(null);
     closeUserProfilePanel();
-  }, []); // Added closeUserProfilePanel
+  }, []); 
 
   const setActiveSpecialViewRef = useRef(setActiveSpecialView);
   useEffect(() => {
@@ -153,7 +153,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (appUser) {
           appUser = {
             ...appUser,
-            id: firebaseUser.uid, // Ensure Firebase UID is used
+            id: firebaseUser.uid, 
             name: firebaseUser.displayName || appUser.name,
             email: firebaseUser.email!,
             avatarUrl: firebaseUser.photoURL || appUser.avatarUrl,
@@ -179,7 +179,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setAllUsersWithCurrent([...otherUsers, appUser]);
 
         if (isFirstUserEver && appUser.role === 'admin') {
-          // Create #general channel for the first admin
+          
           const generalChannelName = "general";
           const generalChannelId = `c${Date.now()}-general`;
           const newGeneralChannel: Channel = {
@@ -205,8 +205,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           } else {
             mockMessages[generalChannelId] = [systemMessage];
           }
-          // Automatically set #general as active for the new admin
-          // Call directly if this logic is inside the AppProvider scope
+          
           setActiveConversation('channel', newGeneralChannel.id);
         }
 
@@ -222,7 +221,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.log('[AppContext] Auth listener cleanup.');
       unsubscribe();
     }
-  }, []); // Removed setActiveConversation from deps, it's stable via ref or context
+  }, []); 
 
   useEffect(() => {
     console.log('[AppContext] Redirection check. isLoadingAuth:', isLoadingAuth, 'currentUser:', !!currentUser, 'pathname:', pathname);
@@ -392,7 +391,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               mockMessages[channelId] = [systemMessage];
             }
             if (activeConversation?.id === channelId) {
-              setMessages(prevMsgs => [...prevMsgs, systemMessage]);
+              setMessages(fetchMockMessages(channelId)); 
             }
           }
            setTimeout(() => toast({ title: "Members Added", description: `${addedUsersNames.join(', ')} added to #${channel.name}.` }), 0);
@@ -455,7 +454,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         mockMessages[channelId] = [systemMessage];
       }
       if (activeConversation?.id === channelId) {
-        setMessages(prevMsgs => [...prevMsgs, systemMessage]);
+        setMessages(fetchMockMessages(channelId));
       }
       setTimeout(() => toast({ title: "User Removed", description: `${removedUserName} has been removed from #${targetChannelName}.` }), 0);
     } else {
@@ -729,7 +728,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const allMsgs: Message[] = Object.values(mockMessages).flat();
     return allMsgs.filter(msg => msg.content.toLowerCase().includes(`@${currentUser.name.toLowerCase()}`) && msg.userId !== currentUser.id && !msg.isSystemMessage)
                   .sort((a, b) => b.timestamp - a.timestamp);
-  }, [currentUser, mockMessages]);
+  }, [currentUser]); 
 
   const activities = useMemo(() => {
     if (!currentUser) return [];
@@ -747,7 +746,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     reactor,
                     message: msg,
                     emoji,
-                    timestamp: Date.now(),
+                    timestamp: Date.now(), 
                     conversationId,
                     conversationName: getConversationName(conversationId, channels.some(c => c.id === conversationId) ? 'channel' : 'dm'),
                     conversationType: channels.some(c => c.id === conversationId) ? 'channel' : 'dm',
@@ -839,7 +838,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             mockMessages[generalChannelId] = [systemMessage];
         }
         if (activeConversation?.id === generalChannelId) {
-            setMessages(prev => [...prev, systemMessage]);
+            setMessages(fetchMockMessages(generalChannelId));
         }
     }
 
@@ -894,7 +893,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             mockMessages[generalChannelId] = [systemMessage];
         }
          if (activeConversation?.id === generalChannelId) {
-            setMessages(prev => [...prev, systemMessage]);
+            setMessages(fetchMockMessages(generalChannelId));
         }
     }
 
@@ -949,7 +948,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             mockMessages[generalChannelId] = [systemMessage];
         }
         if (activeConversation?.id === generalChannelId) {
-            setMessages(prev => [...prev, systemMessage]);
+            setMessages(fetchMockMessages(generalChannelId));
         }
     }
   }, [currentUser, documentCategories, findDocumentCategoryById, toast, router, channels, activeConversation]);
@@ -1082,13 +1081,13 @@ Reason: ${newRequestData.reason}`;
             timestamp: Date.now(),
             isSystemMessage: true,
         };
-        if (mockMessages[adminUser.id]) {
+        if (mockMessages[adminUser.id]) { // Send DM to admin
             mockMessages[adminUser.id].push(systemMessage);
         } else {
             mockMessages[adminUser.id] = [systemMessage];
         }
         if (activeConversation?.type === 'dm' && activeConversation.id === adminUser.id) {
-            setMessages(prev => [...prev, systemMessage]);
+            setMessages(fetchMockMessages(adminUser.id)); // Refresh if admin's DM is active
         }
          console.log(`[AppContext] System message about leave request added to admin (${adminUser.name}) DM.`);
     } else if (adminUser && adminUser.id === currentUser.id) {
@@ -1178,3 +1177,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
