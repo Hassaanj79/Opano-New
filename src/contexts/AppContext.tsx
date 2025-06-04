@@ -2,7 +2,7 @@
 "use client";
 import type { ReactNode } from 'react';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
-import type { User, Channel, Message, ActiveConversation, CurrentView, PendingInvitation, UserRole, Draft, ActivityItem, Document, DocumentCategory, UserProfileUpdateData, LeaveRequest } from '@/types';
+import type { User, Channel, Message, ActiveConversation, CurrentView, PendingInvitation, UserRole, Draft, ActivityItem, Document, DocumentCategory, UserProfileUpdateData, LeaveRequest, AttendanceLogEntry } from '@/types';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 
 import {
@@ -32,6 +32,8 @@ interface AppContextType {
   setActiveConversation: (type: 'channel' | 'dm', id: string) => void;
   messages: Message[];
   addMessage: (content: string, file?: File) => void;
+  editMessage: (messageId: string, newContent: string) => void;
+  deleteMessage: (messageId: string) => void;
   addChannel: (name: string, description?: string, memberIds?: string[], isPrivate?: boolean) => void;
   toggleReaction: (messageId: string, emoji: string) => void;
   currentView: CurrentView;
@@ -73,7 +75,13 @@ interface AppContextType {
   searchAllDocuments: (query: string) => Array<{ doc: Document, category: DocumentCategory }>;
   updateUserRole: (targetUserId: string, newRole: UserRole) => void;
   leaveRequests: LeaveRequest[];
-  handleAddLeaveRequest: (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => void;
+  handleAddLeaveRequest: (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status' | 'adminNotes'>) => void;
+  approveLeaveRequest: (requestId: string, adminNotes?: string) => void;
+  declineLeaveRequest: (requestId: string, adminNotes: string) => void;
+  attendanceLog: AttendanceLogEntry[]; // Renamed from masterAttendanceLog for clarity
+  addAttendanceLogEntry: (entry: AttendanceLogEntry) => void;
+  updateAttendanceLogEntry: (updatedEntry: AttendanceLogEntry) => void;
+  deleteAttendanceLogEntry: (entryId: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -97,6 +105,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts);
   const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [attendanceLog, setAttendanceLog] = useState<AttendanceLogEntry[]>([]);
 
 
   const { toast } = useToast();
@@ -309,6 +318,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     setReplyingToMessage(null);
   }, [activeConversation, currentUser, replyingToMessage, allUsersWithCurrent]);
+
+  const editMessage = useCallback((messageId: string, newContent: string) => {
+    if (!activeConversation || !currentUser) return;
+    setMessages(prevMessages => prevMessages.map(msg => {
+      if (msg.id === messageId && msg.userId === currentUser.id) {
+        const updatedMsg = { ...msg, content: newContent, isEdited: true, timestamp: Date.now() };
+        updateMockMessage(activeConversation.id, messageId, updatedMsg);
+        return updatedMsg;
+      }
+      return msg;
+    }));
+     setTimeout(() => toast({ title: "Message Edited" }), 0);
+  }, [activeConversation, currentUser, toast]);
+
+  const deleteMessage = useCallback((messageId: string) => {
+    if (!activeConversation || !currentUser) return;
+    setMessages(prevMessages => prevMessages.filter(msg => {
+      if (msg.id === messageId && msg.userId === currentUser.id) {
+        // Also delete from mockMessages
+        if (mockMessages[activeConversation.id]) {
+          mockMessages[activeConversation.id] = mockMessages[activeConversation.id].filter(m => m.id !== messageId);
+        }
+        return false; // filter it out
+      }
+      return true;
+    }));
+    setTimeout(() => toast({ title: "Message Deleted" }), 0);
+  }, [activeConversation, currentUser, toast]);
 
   const addChannel = useCallback((name: string, description: string = '', memberIds: string[] = [], isPrivate: boolean = false) => {
     if (!currentUser) {
@@ -1013,7 +1050,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [currentUser, toast]);
 
-  const handleAddLeaveRequest = useCallback(async (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => {
+  const handleAddLeaveRequest = useCallback(async (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status' | 'adminNotes'>) => {
     if (!currentUser) return;
 
     const newLeaveRequest: LeaveRequest = {
@@ -1030,17 +1067,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       [...prevRequests, newLeaveRequest].sort((a, b) => b.requestDate.getTime() - a.requestDate.getTime())
     );
 
-    console.log("[AppContext] handleAddLeaveRequest called with data:", newRequestData, "by user:", currentUser.name);
     const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "hassyku786@gmail.com";
-    if (process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
-      console.log(`[AppContext] Using admin email from .env.local: ${adminEmail}`);
-    } else {
-      console.log(`[AppContext] NEXT_PUBLIC_ADMIN_EMAIL not set, defaulting to: ${adminEmail}`);
-    }
-
     const durationMs = endOfDay(newRequestData.endDate).getTime() - startOfDay(newRequestData.startDate).getTime();
     const durationDays = Math.max(1, Math.floor(durationMs / (1000 * 60 * 60 * 24)) + 1);
     const durationString = `${durationDays} day${durationDays !== 1 ? 's' : ''}`;
+    
+    const appBaseUrl = window.location.origin;
+    const approveLink = `${appBaseUrl}/leave-action?requestId=${newLeaveRequest.id}&action=approve`;
+    const declineLink = `${appBaseUrl}/leave-action?requestId=${newLeaveRequest.id}&action=decline`;
 
     const emailSubject = `New Leave Request from ${currentUser.name}`;
     const emailHtmlBody = `
@@ -1052,16 +1086,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         <li><strong>Duration:</strong> ${durationString}</li>
         <li><strong>Reason:</strong> ${newRequestData.reason}</li>
       </ul>
-      <p>Please review this request in the Opano system.</p>
+      <p>Please review this request:</p>
+      <p>
+        <a href="${approveLink}" style="background-color: #4CAF50; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; margin-right: 10px;">Approve Request</a>
+        <a href="${declineLink}" style="background-color: #f44336; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Decline Request</a>
+      </p>
+      <p>Alternatively, you can manage this request in the Opano app.</p>
     `;
 
     try {
-      console.log(`[AppContext] Attempting to send leave request email to: ${adminEmail}`);
       const emailResult = await sendInvitationEmailFlow({
         to: adminEmail,
         subject: emailSubject,
         htmlBody: emailHtmlBody,
-        joinUrl: `${window.location.origin}/attendance`, // Changed to /attendance as leave is part of it
+        joinUrl: `${appBaseUrl}/attendance`, // A relevant fallback URL
       });
 
       if (emailResult.success) {
@@ -1090,8 +1128,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const systemMessageContent = `${currentUser.name} has submitted a leave request:
 Start: ${format(newRequestData.startDate, 'MMM d, yyyy')}
 End: ${format(newRequestData.endDate, 'MMM d, yyyy')}
-Duration: ${durationString}
-Reason: ${newRequestData.reason}`;
+Reason: ${newRequestData.reason}
+Please review in the admin section or via email.`; // Updated message
 
         const systemMessage: Message = {
             id: `sys-leave-${Date.now()}`,
@@ -1108,14 +1146,48 @@ Reason: ${newRequestData.reason}`;
         if (activeConversation?.type === 'dm' && activeConversation.id === adminUser.id) {
             setMessages(fetchMockMessages(adminUser.id));
         }
-         console.log(`[AppContext] System message about leave request added to admin (${adminUser.name}) DM.`);
-    } else if (adminUser && adminUser.id === currentUser.id) {
-        console.log("[AppContext] Admin requested leave, no in-app system message to self needed (email sent).");
-    } else {
-        console.log("[AppContext] No admin found to send in-app system message for leave request.");
     }
   }, [currentUser, toast, allUsersWithCurrent, activeConversation]);
 
+  const approveLeaveRequest = useCallback((requestId: string, adminNotes?: string) => {
+    setLeaveRequests(prevRequests =>
+      prevRequests.map(req =>
+        req.id === requestId ? { ...req, status: 'approved', adminNotes: adminNotes || 'Approved via email link' } : req
+      )
+    );
+    const request = leaveRequests.find(r => r.id === requestId);
+    const user = allUsersWithCurrent.find(u => u.id === request?.userId);
+    setTimeout(() => toast({ title: "Leave Request Approved", description: `Request for ${user?.name || 'user'} has been approved.` }), 0);
+  }, [leaveRequests, allUsersWithCurrent, toast]);
+
+  const declineLeaveRequest = useCallback((requestId: string, adminNotes: string) => {
+    setLeaveRequests(prevRequests =>
+      prevRequests.map(req =>
+        req.id === requestId ? { ...req, status: 'rejected', adminNotes } : req
+      )
+    );
+    const request = leaveRequests.find(r => r.id === requestId);
+    const user = allUsersWithCurrent.find(u => u.id === request?.userId);
+    setTimeout(() => toast({ title: "Leave Request Declined", description: `Request for ${user?.name || 'user'} has been declined. Reason: ${adminNotes}` }), 0);
+  }, [leaveRequests, allUsersWithCurrent, toast]);
+
+  // --- Attendance Log Functions ---
+  const addAttendanceLogEntry = useCallback((entry: AttendanceLogEntry) => {
+    setAttendanceLog(prevLog => 
+      [entry, ...prevLog].sort((a, b) => new Date(b.clockInTime).getTime() - new Date(a.clockInTime).getTime())
+    );
+  }, []);
+
+  const updateAttendanceLogEntry = useCallback((updatedEntry: AttendanceLogEntry) => {
+    setAttendanceLog(prevLog =>
+      prevLog.map(entry => (entry.id === updatedEntry.id ? updatedEntry : entry))
+             .sort((a, b) => new Date(b.clockInTime).getTime() - new Date(a.clockInTime).getTime())
+    );
+  }, []);
+
+  const deleteAttendanceLogEntry = useCallback((entryId: string) => {
+    setAttendanceLog(prevLog => prevLog.filter(entry => entry.id !== entryId));
+  }, []);
 
   const contextValue = useMemo(() => ({
     currentUser,
@@ -1127,6 +1199,8 @@ Reason: ${newRequestData.reason}`;
     setActiveConversation,
     messages,
     addMessage,
+    editMessage,
+    deleteMessage,
     addChannel,
     toggleReaction,
     currentView,
@@ -1169,9 +1243,15 @@ Reason: ${newRequestData.reason}`;
     updateUserRole,
     leaveRequests,
     handleAddLeaveRequest,
+    approveLeaveRequest,
+    declineLeaveRequest,
+    attendanceLog, 
+    addAttendanceLogEntry,
+    updateAttendanceLogEntry,
+    deleteAttendanceLogEntry,
   }), [
     currentUser, isLoadingAuth, users, allUsersWithCurrent, channels, activeConversation, setActiveConversation,
-    messages, addMessage, addChannel, toggleReaction, currentView, setActiveSpecialView,
+    messages, addMessage, editMessage, deleteMessage, addChannel, toggleReaction, currentView, setActiveSpecialView,
     isUserProfilePanelOpen, viewingUserProfile, openUserProfilePanel, closeUserProfilePanel, isEditProfileDialogOpen, setIsEditProfileDialogOpen, openEditProfileDialog,
     updateUserProfile, toggleCurrentUserStatus, signOutUser, getConversationName,
     sendInvitation, pendingInvitations, verifyInviteToken, acceptInvitation, addMembersToChannel, removeUserFromChannel,
@@ -1179,7 +1259,8 @@ Reason: ${newRequestData.reason}`;
     replyingToMessage, setReplyingToMessage, drafts, saveDraft, deleteDraft, activities, replies,
     documentCategories, addDocumentCategory, findDocumentCategoryById, addFileDocumentToCategory,
     addTextDocumentToCategory, addLinkedDocumentToCategory, deleteDocumentFromCategory, searchAllDocuments,
-    updateUserRole, leaveRequests, handleAddLeaveRequest
+    updateUserRole, leaveRequests, handleAddLeaveRequest, approveLeaveRequest, declineLeaveRequest,
+    attendanceLog, addAttendanceLogEntry, updateAttendanceLogEntry, deleteAttendanceLogEntry
   ]);
 
   return (

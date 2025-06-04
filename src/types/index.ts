@@ -106,6 +106,7 @@ export interface AttendanceLogEntry {
   clockOutTime: Date;
   totalHoursWorked: number; // in seconds
   totalActivityPercent: number; // 0-100
+  totalBreakDuration?: number; // in seconds
 }
 
 export interface LeaveRequest {
@@ -115,5 +116,7 @@ export interface LeaveRequest {
   startDate: Date;
   endDate: Date;
   reason: string;
-  status: 'pending' | 'approved' | 'rejected'; // Mock status
+  status: 'pending' | 'approved' | 'rejected';
+  adminNotes?: string; // For admin's reason for approval/rejection
 }
+
