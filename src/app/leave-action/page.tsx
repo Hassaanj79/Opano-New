@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CheckCircle, XCircle, AlertTriangle, Hourglass } from 'lucide-react';
 import { OpanoLogo } from '@/components/OpanoLogo';
+import { cn } from '@/lib/utils'; // Added this import
 
 function LeaveActionContent() {
   const router = useRouter();
