@@ -96,8 +96,8 @@ export function MessageItem({ message }: MessageItemProps) {
 
 
     return (
-      <Card className="mt-2 max-w-xs bg-card/80 shadow-none border-border/50">
-        <CardContent className="p-2">
+      <Card className="mt-2 max-w-xs bg-card/50 shadow-sm border-border/60">
+        <CardContent className="p-2.5">
           {isImage && (
             <a href={message.file.url} target="_blank" rel="noopener noreferrer" className="block">
               <Image
@@ -147,13 +147,13 @@ export function MessageItem({ message }: MessageItemProps) {
 
   return (
     <div className={cn(
-      "group flex gap-2.5 py-1.5 px-4 hover:bg-muted/20 relative",
+      "group flex gap-2.5 py-1.5 px-4 hover:bg-muted/30 relative", // Increased hover opacity for better visibility
       isCurrentUserSender ? "justify-end" : "justify-start"
     )}>
       {!isCurrentUserSender && <UserAvatar user={sender} className="h-8 w-8 flex-shrink-0 mt-0.5" />}
 
       <div className={cn(
-        "flex flex-col max-w-[70%]",
+        "flex flex-col max-w-[75%] md:max-w-[70%]", // Slightly increased max-width for wider screens
         isCurrentUserSender ? "items-end" : "items-start"
       )}>
         {!isCurrentUserSender && (
@@ -165,8 +165,8 @@ export function MessageItem({ message }: MessageItemProps) {
 
         {message.replyToMessageId && (
           <div className={cn(
-            "text-xs text-muted-foreground mb-1 pl-2 py-1 border-l-2 rounded-r-sm w-full",
-             isCurrentUserSender ? "border-primary/30 bg-primary/5" : "border-primary/50 bg-muted/30"
+            "text-xs text-muted-foreground mb-1 pl-2.5 pr-2 py-1.5 border-l-2 rounded-r-md w-full", // Adjusted padding
+             isCurrentUserSender ? "border-primary/40 bg-primary/10" : "border-primary/60 bg-muted/40" // Enhanced visual distinction
             )}>
             Replying to <strong className="text-foreground/80">{message.originalMessageSenderName || 'Unknown User'}</strong>:
             <em className="ml-1 truncate block italic">"{message.originalMessageContent?.substring(0,50)}{message.originalMessageContent && message.originalMessageContent.length > 50 ? '...' : ''}"</em>
@@ -174,10 +174,10 @@ export function MessageItem({ message }: MessageItemProps) {
         )}
 
         <div className={cn(
-          "relative rounded-lg px-3 py-2 text-sm shadow-sm w-full",
+          "relative rounded-xl px-3.5 py-2.5 text-sm shadow-md w-fit", // Increased padding and rounding, w-fit for better sizing
           isCurrentUserSender
-            ? "bg-user-message-background text-user-message-foreground rounded-br-none"
-            : "bg-other-message-background text-other-message-foreground rounded-bl-none"
+            ? "bg-user-message-background text-user-message-foreground rounded-br-sm" // Softer round for current user's last bubble corner
+            : "bg-other-message-background text-other-message-foreground rounded-bl-sm" // Softer round for other user's last bubble corner
         )}>
           {isEditing ? (
             <div className="space-y-2">
@@ -210,35 +210,35 @@ export function MessageItem({ message }: MessageItemProps) {
 
           {currentUser && !isEditing && ( 
             <div className={cn(
-                "absolute top-[-12px] opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 p-0.5 rounded-full border bg-background shadow-sm",
+                "absolute top-[-14px] opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 p-1 rounded-full border bg-background/80 backdrop-blur-sm shadow-lg", // Enhanced toolbar style
                 isCurrentUserSender ? "right-2" : "left-2"
             )}>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => handleReactionClick('👍')} aria-label="Thumbs Up">
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-110 transition-transform" onClick={() => handleReactionClick('👍')} aria-label="Thumbs Up">
                     <ThumbsUp className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => handleReactionClick('❤️')} aria-label="Heart">
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-110 transition-transform" onClick={() => handleReactionClick('❤️')} aria-label="Heart">
                     <Heart className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => handleReactionClick('🤯')} aria-label="Mind Blown">
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-110 transition-transform" onClick={() => handleReactionClick('🤯')} aria-label="Mind Blown">
                     <Brain className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => handleReactionClick('😮')} aria-label="Shocked">
+                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-110 transition-transform" onClick={() => handleReactionClick('😮')} aria-label="Shocked">
                     <AlertCircle className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => handleReactionClick('🎉')} aria-label="Party Popper">
+                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-110 transition-transform" onClick={() => handleReactionClick('🎉')} aria-label="Party Popper">
                     <PartyPopper className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={() => { setReplyingToMessage?.(message); toast({ title: "Replying", description: "Your next message will be a reply."}); }} aria-label="Reply">
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-110 transition-transform" onClick={() => { setReplyingToMessage?.(message); toast({ title: "Replying", description: "Your next message will be a reply."}); }} aria-label="Reply">
                     <MessageSquareReply className="h-3.5 w-3.5 text-muted-foreground"/>
                 </Button>
                 {isCurrentUserSender && (
                   <>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" onClick={handleEdit} aria-label="Edit message">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-110 transition-transform" onClick={handleEdit} aria-label="Edit message">
                       <Edit3 className="h-3.5 w-3.5 text-muted-foreground"/>
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-125 transition-transform" aria-label="Delete message">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-accent hover:scale-110 transition-transform" aria-label="Delete message">
                           <Trash2 className="h-3.5 w-3.5 text-destructive"/>
                         </Button>
                       </AlertDialogTrigger>
@@ -263,7 +263,7 @@ export function MessageItem({ message }: MessageItemProps) {
 
         {message.reactions && Object.keys(message.reactions).length > 0 && currentUser && !isEditing && (
             <div className={cn(
-                "flex gap-1 mt-1 flex-wrap",
+                "flex gap-1 mt-1.5 flex-wrap", // Added mt-1.5
                 isCurrentUserSender ? "justify-end" : ""
             )}>
                 {Object.entries(message.reactions).map(([emoji, userIds]) => (
@@ -272,9 +272,9 @@ export function MessageItem({ message }: MessageItemProps) {
                             key={emoji}
                             onClick={() => handleReactionClick(emoji)}
                             className={cn(
-                                "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs shadow-sm transition-all hover:shadow-md",
+                                "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs shadow-sm transition-all hover:shadow-md hover:brightness-110", // Added hover:brightness-110
                                 getReactionBadgeStyle(emoji),
-                                userIds.includes(currentUser.id) ? "ring-1 ring-offset-1 ring-offset-background ring-current" : "opacity-80 hover:opacity-100"
+                                userIds.includes(currentUser.id) ? "ring-2 ring-offset-1 ring-offset-background ring-current" : "opacity-80 hover:opacity-100"
                             )}
                             aria-label={`React with ${emoji}`}
                         >
