@@ -112,6 +112,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
 
+  useEffect(() => {
+    console.log('[AppContext] Leave requests state updated:', leaveRequests);
+  }, [leaveRequests]);
+
   const setActiveConversation = useCallback((type: 'channel' | 'dm', id: string) => {
     setCurrentSummary(null);
     setReplyingToMessage(null);
@@ -1051,6 +1055,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [currentUser, toast]);
 
   const handleAddLeaveRequest = useCallback(async (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status' | 'adminNotes'>) => {
+    console.log('[AppContext] handleAddLeaveRequest called with:', newRequestData);
     if (!currentUser) return;
 
     const newLeaveRequest: LeaveRequest = {
@@ -1062,10 +1067,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       reason: newRequestData.reason,
       status: 'pending',
     };
+    console.log('[AppContext] New leave request object:', newLeaveRequest);
 
-    setLeaveRequests(prevRequests => 
-      [...prevRequests, newLeaveRequest].sort((a, b) => b.requestDate.getTime() - a.requestDate.getTime())
-    );
+    setLeaveRequests(prevRequests => {
+      const updatedRequests = [...prevRequests, newLeaveRequest].sort((a, b) => b.requestDate.getTime() - a.requestDate.getTime());
+      console.log('[AppContext] leaveRequests state updated in setLeaveRequests:', updatedRequests);
+      return updatedRequests;
+    });
 
     const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "hassyku786@gmail.com";
     const durationMs = endOfDay(newRequestData.endDate).getTime() - startOfDay(newRequestData.startDate).getTime();
@@ -1150,23 +1158,29 @@ Please review in the admin section or via email.`; // Updated message
   }, [currentUser, toast, allUsersWithCurrent, activeConversation]);
 
   const approveLeaveRequest = useCallback((requestId: string, adminNotes?: string) => {
-    setLeaveRequests(prevRequests =>
-      prevRequests.map(req =>
+    console.log(`[AppContext] Approving leave request: ${requestId}`);
+    setLeaveRequests(prevRequests => {
+      const updated = prevRequests.map(req =>
         req.id === requestId ? { ...req, status: 'approved', adminNotes: adminNotes || 'Approved via email link' } : req
-      )
-    );
-    const request = leaveRequests.find(r => r.id === requestId);
+      );
+      console.log('[AppContext] leaveRequests state after approve:', updated);
+      return updated;
+    });
+    const request = leaveRequests.find(r => r.id === requestId); // Find from old state before update for user name
     const user = allUsersWithCurrent.find(u => u.id === request?.userId);
     setTimeout(() => toast({ title: "Leave Request Approved", description: `Request for ${user?.name || 'user'} has been approved.` }), 0);
   }, [leaveRequests, allUsersWithCurrent, toast]);
 
   const declineLeaveRequest = useCallback((requestId: string, adminNotes: string) => {
-    setLeaveRequests(prevRequests =>
-      prevRequests.map(req =>
+    console.log(`[AppContext] Declining leave request: ${requestId}`);
+    setLeaveRequests(prevRequests => {
+      const updated = prevRequests.map(req =>
         req.id === requestId ? { ...req, status: 'rejected', adminNotes } : req
-      )
-    );
-    const request = leaveRequests.find(r => r.id === requestId);
+      );
+      console.log('[AppContext] leaveRequests state after decline:', updated);
+      return updated;
+    });
+    const request = leaveRequests.find(r => r.id === requestId); // Find from old state before update
     const user = allUsersWithCurrent.find(u => u.id === request?.userId);
     setTimeout(() => toast({ title: "Leave Request Declined", description: `Request for ${user?.name || 'user'} has been declined. Reason: ${adminNotes}` }), 0);
   }, [leaveRequests, allUsersWithCurrent, toast]);
@@ -1278,3 +1292,4 @@ export const useAppContext = (): AppContextType => {
   return context;
 };
 
+    

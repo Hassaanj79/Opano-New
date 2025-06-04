@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CheckCircle, XCircle, AlertTriangle, Hourglass } from 'lucide-react';
 import { OpanoLogo } from '@/components/OpanoLogo';
-import { cn } from '@/lib/utils'; // Added this import
+import { cn } from '@/lib/utils';
 
 function LeaveActionContent() {
   const router = useRouter();
@@ -29,6 +29,11 @@ function LeaveActionContent() {
     const act = searchParams.get('action');
     setRequestId(reqId);
     setAction(act);
+
+    console.log('[LeaveActionContent] useEffect triggered. Req ID:', reqId, 'Action:', act);
+    console.log('[LeaveActionContent] isLoadingAuth:', isLoadingAuth, 'currentUser:', !!currentUser);
+    console.log('[LeaveActionContent] leaveRequests from context at effect start:', JSON.stringify(leaveRequests.map(lr => lr.id)));
+
 
     if (isLoadingAuth) {
       setStatus('loading');
@@ -49,8 +54,11 @@ function LeaveActionContent() {
     }
 
     if (reqId && act) {
+      console.log(`[LeaveActionContent] Searching for request ID: "${reqId}" in `, leaveRequests.map(r => r.id));
       const leaveRequestExists = leaveRequests.find(lr => lr.id === reqId);
+      
       if (!leaveRequestExists) {
+        console.error(`[LeaveActionContent] Leave request with ID ${reqId} not found in current context's leaveRequests.`);
         setStatus('error');
         setMessage(`Leave request with ID ${reqId} not found.`);
         return;
@@ -76,7 +84,7 @@ function LeaveActionContent() {
       setStatus('error');
       setMessage('Missing required information (request ID or action) in the link.');
     }
-  }, [searchParams, approveLeaveRequest, declineLeaveRequest, currentUser, isLoadingAuth, leaveRequests]);
+  }, [searchParams, approveLeaveRequest, declineLeaveRequest, currentUser, isLoadingAuth, leaveRequests]); // Added leaveRequests here
 
   const handleDeclineSubmit = () => {
     if (requestId && reason.trim()) {
@@ -155,3 +163,5 @@ export default function LeaveActionPage() {
         </Suspense>
     );
 }
+
+    
