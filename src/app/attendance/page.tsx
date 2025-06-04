@@ -1,30 +1,58 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { UserAvatar } from '@/components/UserAvatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EditAttendanceLogDialog } from '@/components/dialogs/EditAttendanceLogDialog';
-// LeaveRequestDialog will now be managed by the dedicated /leave-requests page
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, MoreHorizontal, ArrowLeft, Clock, Pause, Play, Coffee, CalendarDays, BarChart, FileText as ReportIcon, Edit2, Trash, PlusCircle, LogOut, Activity, Clock10, Percent, UserCog } from "lucide-react";
-import { format, differenceInSeconds, intervalToDuration, formatDuration, add, sub, isSameDay, startOfDay, endOfDay, isValid, isWithinInterval } from "date-fns";
+import { Calendar as CalendarIcon, MoreHorizontal, ArrowLeft, Clock, Pause, Play, Coffee, CalendarDays, BarChart as BarChartIcon, FileText as ReportIcon, Edit2, Trash, PlusCircle, LogOut, Activity, Clock10, Percent, UserCog, TrendingUp, Briefcase, Hourglass } from "lucide-react";
+import { format, differenceInSeconds, intervalToDuration, formatDuration, add, sub, isSameDay, startOfDay, endOfDay, isValid, isWithinInterval, eachDayOfInterval } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import type { AttendanceLogEntry, LeaveRequest } from '@/types';
+import type { AttendanceLogEntry } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from "@/components/ui/progress";
+
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+} from "recharts";
 
 
 type AttendanceStatus = 'not-clocked-in' | 'working' | 'on-break' | 'clocked-out';
+
+interface DailyHoursData {
+  date: string;
+  hours: number;
+}
+
+interface AttendanceSummaryData {
+  totalHoursWorked: number;
+  averageDailyHours: number;
+  totalBreakDuration: number;
+  loggedDays: number;
+  dailyWorkData: DailyHoursData[];
+}
 
 const WorkTimerDisplay = React.memo(({ currentSeconds, status }: { currentSeconds: number; status: AttendanceStatus }) => {
   const hours = String(Math.floor(currentSeconds / 3600)).padStart(2, '0');
@@ -129,6 +157,61 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
     }
   }, [masterAttendanceLog, reportDateRange]);
 
+  const attendanceSummary = useMemo<AttendanceSummaryData>(() => {
+    if (!displayedAttendanceLog.length || !reportDateRange?.from) {
+      return { totalHoursWorked: 0, averageDailyHours: 0, totalBreakDuration: 0, loggedDays: 0, dailyWorkData: [] };
+    }
+
+    const dailyDataMap = new Map<string, { totalWork: number; totalBreak: number }>();
+    const uniqueLoggedDays = new Set<string>();
+
+    displayedAttendanceLog.forEach(log => {
+      const dateStr = format(new Date(log.clockInTime), 'yyyy-MM-dd');
+      uniqueLoggedDays.add(dateStr);
+      const dayData = dailyDataMap.get(dateStr) || { totalWork: 0, totalBreak: 0 };
+      dayData.totalWork += log.totalHoursWorked;
+      dayData.totalBreak += log.totalBreakDuration || 0;
+      dailyDataMap.set(dateStr, dayData);
+    });
+    
+    let totalWorkOverall = 0;
+    let totalBreakOverall = 0;
+    
+    dailyDataMap.forEach(data => {
+        totalWorkOverall += data.totalWork;
+        totalBreakOverall += data.totalBreak;
+    });
+
+    const loggedDaysCount = uniqueLoggedDays.size;
+    const averageDailyHours = loggedDaysCount > 0 ? totalWorkOverall / loggedDaysCount : 0;
+
+    const chartData: DailyHoursData[] = [];
+    if (reportDateRange?.from) {
+      const startDate = startOfDay(reportDateRange.from);
+      const endDate = reportDateRange.to ? endOfDay(reportDateRange.to) : startDate; // if to is undefined, range is 1 day
+      
+      const daysInInterval = eachDayOfInterval({ start: startDate, end: endDate });
+
+      daysInInterval.forEach(day => {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const daySummary = dailyDataMap.get(dateStr);
+        chartData.push({
+          date: format(day, 'MMM d'),
+          hours: daySummary ? daySummary.totalWork / 3600 : 0, // Convert seconds to hours
+        });
+      });
+    }
+
+
+    return {
+      totalHoursWorked: totalWorkOverall,
+      averageDailyHours,
+      totalBreakDuration: totalBreakOverall,
+      loggedDays: loggedDaysCount,
+      dailyWorkData: chartData,
+    };
+  }, [displayedAttendanceLog, reportDateRange]);
+
 
   const handleClockIn = () => {
     const now = new Date();
@@ -206,9 +289,15 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
     const formatted = formatDuration(duration, { format: ['hours', 'minutes', 'seconds'] });
     return formatted || "0 seconds";
   };
+  
+  const formatHoursForDisplay = (seconds: number) => {
+    if (seconds < 0) seconds = 0;
+    const hours = seconds / 3600;
+    return `${hours.toFixed(1)} hr${hours !== 1 ? 's' : ''}`;
+  };
 
   useEffect(() => {
-    if (!reportDateRange?.from && !isLoadingAuth && currentUser) { // Only set default if user is loaded
+    if (!reportDateRange?.from && !isLoadingAuth && currentUser) {
       const today = startOfDay(new Date());
       setReportDateRange({ from: today, to: endOfDay(today) });
     }
@@ -243,6 +332,9 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
       default: return <Badge variant="outline" className="border-blue-400 text-blue-600">Ready to Work</Badge>;
     }
   };
+  
+  const workProgressPercent = WORK_TARGET_SECONDS > 0 ? Math.min(100, (workedSeconds / WORK_TARGET_SECONDS) * 100) : 0;
+
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme(spacing.16))] bg-muted/30 p-4 md:p-6 w-full overflow-y-auto">
@@ -271,13 +363,13 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem onClick={() => toast({ title: "Analytics (Coming Soon)", description: "Detailed attendance analytics will be available soon." })}>
-                <BarChart className="mr-2 h-4 w-4" /> Analytics
+                <BarChartIcon className="mr-2 h-4 w-4" /> Analytics
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => toast({ title: "Reports (Coming Soon)", description: "Downloadable reports will be available soon." })}>
                 <ReportIcon className="mr-2 h-4 w-4" /> Reports
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push('/leave-requests')}>
-                <CalendarDays className="mr-2 h-4 w-4" /> Leave request
+                <CalendarDays className="mr-2 h-4 w-4" /> Leave Request
             </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
@@ -286,7 +378,17 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
 
       <div className="flex flex-col items-center gap-3 md:gap-4 py-6">
         <WorkTimerDisplay currentSeconds={workedSeconds} status={status} />
-        <div className="mb-4">{getStatusBadge()}</div>
+        <div className="mb-2">{getStatusBadge()}</div>
+        
+        {status === 'working' && (
+          <div className="w-full max-w-lg mb-4">
+            <Progress value={workProgressPercent} className="h-2.5 rounded-full" />
+            <p className="text-xs text-muted-foreground text-center mt-1.5">
+              {formatDurationForDisplay(workedSeconds)} of {formatDurationForDisplay(WORK_TARGET_SECONDS)} ({workProgressPercent.toFixed(0)}%)
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-lg text-sm">
           <InfoRow icon={Clock} label="Clocked In At" value={formatTimeWithZone(clockInTime)} />
           <InfoRow icon={Coffee} label="Total Break" value={formatDurationForDisplay(accumulatedBreakDuration)} />
@@ -334,20 +436,9 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
       </div>
 
       <div className="mt-10 pt-6 border-t">
-        <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
-          <h2 className="text-lg font-semibold text-foreground">
-            Clock In / Clock Out Report of{" "}
-            {reportDateRange?.from ? (
-              reportDateRange.to && !isSameDay(reportDateRange.from, reportDateRange.to) ? (
-                <>
-                  {format(reportDateRange.from, "dd-MMM-yyyy")} to {format(reportDateRange.to, "dd-MMM-yyyy")}
-                </>
-              ) : (
-                format(reportDateRange.from, "dd-MMM-yyyy")
-              )
-            ) : (
-              "No date range selected"
-            )}
+        <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+          <h2 className="text-xl font-semibold text-foreground">
+            Attendance Dashboard
           </h2>
           <Popover>
             <PopoverTrigger asChild>
@@ -382,6 +473,85 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
             </PopoverContent>
           </Popover>
         </div>
+
+        {/* Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Hours Worked</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatHoursForDisplay(attendanceSummary.totalHoursWorked)}</div>
+              <p className="text-xs text-muted-foreground">in selected range</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Average Daily Hours</CardTitle>
+              <Clock10 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatHoursForDisplay(attendanceSummary.averageDailyHours)}</div>
+              <p className="text-xs text-muted-foreground">based on logged days</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Break Duration</CardTitle>
+              <Coffee className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatDurationForDisplay(attendanceSummary.totalBreakDuration)}</div>
+              <p className="text-xs text-muted-foreground">across all sessions</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Logged Days</CardTitle>
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{attendanceSummary.loggedDays}</div>
+              <p className="text-xs text-muted-foreground">with attendance entries</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Daily Work Hours Chart */}
+        {reportDateRange?.from && attendanceSummary.dailyWorkData.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Daily Work Hours</CardTitle>
+              <CardDescription>
+                Total hours worked per day in the selected range.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px] w-full p-2">
+              <ChartContainer config={{
+                  hours: { label: "Hours", color: "hsl(var(--primary))" },
+                }}
+                className="w-full h-full"
+              >
+                <BarChart accessibilityLayer data={attendanceSummary.dailyWorkData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
+                  <YAxis tickFormatter={(value) => `${value}h`} />
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent indicator="line" />}
+                  />
+                  <Bar dataKey="hours" fill="var(--color-hours)" radius={4} />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Clock In / Clock Out Report Table */}
+        <h2 className="text-lg font-semibold text-foreground mb-4">
+          Detailed Log Report
+        </h2>
         {reportDateRange?.from && displayedAttendanceLog.length > 0 ? (
           <div className="overflow-x-auto">
             <Table>
@@ -430,7 +600,7 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete this log entry.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel onClick={() => setDeletingLogEntryId(null)}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleConfirmDelete}>Delete</AlertDialogAction></AlertDialogFooter>
+                            <AlertDialogFooter><AlertDialogCancel onClick={() => setDeletingLogEntryId(null)}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Delete</AlertDialogAction></AlertDialogFooter>
                         </AlertDialogContent>
                         </AlertDialog>
                     </TableCell>
@@ -441,7 +611,7 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
           </div>
         ) : (
            <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg">
-            <Clock className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+            <Hourglass className="mx-auto h-12 w-12 text-gray-400 mb-3" />
             <p className="font-medium text-lg">
               {reportDateRange?.from ? `No attendance records for the selected date range.` : "Please select a date range to view the report."}
             </p>
@@ -449,7 +619,6 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
         )}
       </div>
 
-      {/* Dialogs */}
       {editingLogEntry && (
         <EditAttendanceLogDialog
           isOpen={isEditLogDialogOpen}
@@ -458,7 +627,9 @@ export default function AttendancePage({ params, searchParams }: AttendancePageP
           onSave={handleSaveEdit}
         />
       )}
-      {/* LeaveRequestDialog removed from here */}
     </div>
   );
 }
+
+
+    
