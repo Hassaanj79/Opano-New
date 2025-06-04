@@ -72,6 +72,7 @@ interface AppContextType {
   deleteDocumentFromCategory: (categoryId: string, docId: string) => void;
   searchAllDocuments: (query: string) => Array<{ doc: Document, category: DocumentCategory }>;
   updateUserRole: (targetUserId: string, newRole: UserRole) => void;
+  leaveRequests: LeaveRequest[];
   handleAddLeaveRequest: (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => void;
 }
 
@@ -95,6 +96,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>(initialMockDrafts);
   const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(initialDocumentCategories);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+
 
   const { toast } = useToast();
   const router = useRouter();
@@ -1012,8 +1015,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const handleAddLeaveRequest = useCallback(async (newRequestData: Omit<LeaveRequest, 'id' | 'userId' | 'requestDate' | 'status'>) => {
     if (!currentUser) return;
-    console.log("[AppContext] handleAddLeaveRequest called with data:", newRequestData, "by user:", currentUser.name);
 
+    const newLeaveRequest: LeaveRequest = {
+      id: `lr-${Date.now()}`,
+      userId: currentUser.id,
+      requestDate: new Date(),
+      startDate: startOfDay(newRequestData.startDate),
+      endDate: endOfDay(newRequestData.endDate),
+      reason: newRequestData.reason,
+      status: 'pending',
+    };
+
+    setLeaveRequests(prevRequests => 
+      [...prevRequests, newLeaveRequest].sort((a, b) => b.requestDate.getTime() - a.requestDate.getTime())
+    );
+
+    console.log("[AppContext] handleAddLeaveRequest called with data:", newRequestData, "by user:", currentUser.name);
     const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "hassyku786@gmail.com";
     if (process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
       console.log(`[AppContext] Using admin email from .env.local: ${adminEmail}`);
@@ -1021,7 +1038,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.log(`[AppContext] NEXT_PUBLIC_ADMIN_EMAIL not set, defaulting to: ${adminEmail}`);
     }
 
-    const durationDays = formatDistanceToNowStrict(newRequestData.endDate, { unit: 'day', roundingMethod: 'ceil', addSuffix: false }).replace(' days', ' day(s)');
+    const durationMs = endOfDay(newRequestData.endDate).getTime() - startOfDay(newRequestData.startDate).getTime();
+    const durationDays = Math.max(1, Math.floor(durationMs / (1000 * 60 * 60 * 24)) + 1);
+    const durationString = `${durationDays} day${durationDays !== 1 ? 's' : ''}`;
 
     const emailSubject = `New Leave Request from ${currentUser.name}`;
     const emailHtmlBody = `
@@ -1030,7 +1049,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       <ul>
         <li><strong>Start Date:</strong> ${format(newRequestData.startDate, 'PPP')}</li>
         <li><strong>End Date:</strong> ${format(newRequestData.endDate, 'PPP')}</li>
-        <li><strong>Duration:</strong> ${durationDays}</li>
+        <li><strong>Duration:</strong> ${durationString}</li>
         <li><strong>Reason:</strong> ${newRequestData.reason}</li>
       </ul>
       <p>Please review this request in the Opano system.</p>
@@ -1042,7 +1061,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         to: adminEmail,
         subject: emailSubject,
         htmlBody: emailHtmlBody,
-        joinUrl: `${window.location.origin}/attendance`,
+        joinUrl: `${window.location.origin}/attendance`, // Changed to /attendance as leave is part of it
       });
 
       if (emailResult.success) {
@@ -1071,7 +1090,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const systemMessageContent = `${currentUser.name} has submitted a leave request:
 Start: ${format(newRequestData.startDate, 'MMM d, yyyy')}
 End: ${format(newRequestData.endDate, 'MMM d, yyyy')}
-Duration: ${durationDays}
+Duration: ${durationString}
 Reason: ${newRequestData.reason}`;
 
         const systemMessage: Message = {
@@ -1081,13 +1100,13 @@ Reason: ${newRequestData.reason}`;
             timestamp: Date.now(),
             isSystemMessage: true,
         };
-        if (mockMessages[adminUser.id]) { // Send DM to admin
+        if (mockMessages[adminUser.id]) { 
             mockMessages[adminUser.id].push(systemMessage);
         } else {
             mockMessages[adminUser.id] = [systemMessage];
         }
         if (activeConversation?.type === 'dm' && activeConversation.id === adminUser.id) {
-            setMessages(fetchMockMessages(adminUser.id)); // Refresh if admin's DM is active
+            setMessages(fetchMockMessages(adminUser.id));
         }
          console.log(`[AppContext] System message about leave request added to admin (${adminUser.name}) DM.`);
     } else if (adminUser && adminUser.id === currentUser.id) {
@@ -1095,7 +1114,6 @@ Reason: ${newRequestData.reason}`;
     } else {
         console.log("[AppContext] No admin found to send in-app system message for leave request.");
     }
-
   }, [currentUser, toast, allUsersWithCurrent, activeConversation]);
 
 
@@ -1149,6 +1167,7 @@ Reason: ${newRequestData.reason}`;
     deleteDocumentFromCategory,
     searchAllDocuments,
     updateUserRole,
+    leaveRequests,
     handleAddLeaveRequest,
   }), [
     currentUser, isLoadingAuth, users, allUsersWithCurrent, channels, activeConversation, setActiveConversation,
@@ -1160,7 +1179,7 @@ Reason: ${newRequestData.reason}`;
     replyingToMessage, setReplyingToMessage, drafts, saveDraft, deleteDraft, activities, replies,
     documentCategories, addDocumentCategory, findDocumentCategoryById, addFileDocumentToCategory,
     addTextDocumentToCategory, addLinkedDocumentToCategory, deleteDocumentFromCategory, searchAllDocuments,
-    updateUserRole, handleAddLeaveRequest
+    updateUserRole, leaveRequests, handleAddLeaveRequest
   ]);
 
   return (
