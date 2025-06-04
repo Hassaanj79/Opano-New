@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -78,48 +79,47 @@ body {
   }
 
   .dark {
-    /* Keeping dark mode a bit more standard for now, can be themed later if needed */
-    --background: 220 13% 10%; 
-    --foreground: 210 40% 92%; 
+    --background: 220 15% 9%;
+    --foreground: 210 30% 90%;
 
-    --card: 220 13% 18%; 
-    --card-foreground: 210 40% 92%;
+    --card: 220 13% 13%;
+    --card-foreground: 210 30% 90%;
 
-    --popover: 220 13% 10%;
-    --popover-foreground: 210 40% 92%;
+    --popover: 220 13% 11%;
+    --popover-foreground: 210 30% 90%;
 
-    --primary: 35 85% 65%; /* Orange for dark mode */
-    --primary-foreground: 210 10% 15%;
+    --primary: 35 90% 60%; /* Orange for dark mode */
+    --primary-foreground: 0 0% 100%; /* White text on orange for dark mode */
 
-    --secondary: 220 13% 22%;
-    --secondary-foreground: 210 40% 92%;
+    --secondary: 220 10% 18%;
+    --secondary-foreground: 210 30% 90%;
 
-    --muted: 220 13% 28%;
+    --muted: 220 10% 22%;
     --muted-foreground: 210 20% 65%;
 
-    --accent: 35 75% 70%; /* Lighter orange for dark mode accent */
-    --accent-foreground: 210 10% 15%;
+    --accent: 35 80% 55%; /* Adjusted orange accent for dark mode */
+    --accent-foreground: 0 0% 100%; /* White text on dark accent */
     
-    --user-message-background: 35 85% 55%; 
+    --user-message-background: 35 90% 58%; 
     --user-message-foreground: 0 0% 100%;
-    --other-message-background: 220 13% 25%;
-    --other-message-foreground: 210 40% 92%;
+    --other-message-background: 220 10% 18%;
+    --other-message-foreground: 210 30% 90%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 70% 50%; /* Slightly adjusted destructive for dark */
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 25%;
-    --input: 220 13% 25%;
-    --ring: 35 85% 65%; 
+    --border: 220 10% 20%;
+    --input: 220 10% 20%;
+    --ring: 35 90% 60%; 
     
-    --sidebar-background: 220 13% 12%; /* Darker sidebar for dark mode */
-    --sidebar-foreground: 210 40% 92%;
-    --sidebar-primary: 35 85% 65%; /* Orange for active items in dark mode */
-    --sidebar-primary-foreground: 210 10% 15%;
-    --sidebar-accent: 220 13% 20%; 
+    --sidebar-background: 220 13% 11%; 
+    --sidebar-foreground: 210 30% 88%;
+    --sidebar-primary: 35 90% 60%; 
+    --sidebar-primary-foreground: 0 0% 100%; /* White text on orange for dark sidebar */
+    --sidebar-accent: 220 10% 16%; 
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 220 13% 10%;
-    --sidebar-ring: 35 85% 65%;
+    --sidebar-border: 220 10% 15%;
+    --sidebar-ring: 35 90% 60%;
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;

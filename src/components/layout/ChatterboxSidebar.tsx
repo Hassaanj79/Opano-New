@@ -19,7 +19,7 @@ import { OpanoLogo } from '@/components/OpanoLogo';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Settings, Edit, UserCheck, UserX, Plus, LogOut, MessageSquareReply, Bell, Send, Clock, Folder, Users as UsersIcon, CalendarDays } from 'lucide-react';
+import { Settings, Edit, UserCheck, UserX, Plus, LogOut, MessageSquareReply, Bell, Send, Clock, Folder, Users as UsersIcon, CalendarDays, Palette } from 'lucide-react'; // Added Palette
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,10 +27,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal
 } from "@/components/ui/dropdown-menu";
 import { AddChannelDialog } from '@/components/dialogs/AddChannelDialog';
 import { InviteUserDialog } from '@/components/dialogs/InviteUserDialog';
 import { EditProfileDialog } from '@/components/dialogs/EditProfileDialog'; 
+import { ThemeToggle } from '@/components/ThemeToggle'; // Import ThemeToggle
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, usePathname } from 'next/navigation';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
@@ -59,7 +64,7 @@ export function ChatterboxSidebar() {
     { label: 'Attendance', icon: Clock, path: '/attendance', isDropdown: true, 
       subItems: [
         { label: 'Clock In / Clock Out', icon: Clock, path: '/attendance'},
-        { label: 'Leave Request', icon: CalendarDays, path: '/leave-requests'} // Updated path
+        { label: 'Leave Request', icon: CalendarDays, path: '/leave-requests'} 
       ] 
     },
     { label: 'Documents', icon: Folder, path: '/documents' },
@@ -274,6 +279,19 @@ export function ChatterboxSidebar() {
                       )}
                       <span>{currentUser.isOnline ? 'Set to Away' : 'Set to Online'}</span>
                     </DropdownMenuItem>
+                    {/* Theme Toggle Submenu */}
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Palette className="mr-2 h-4 w-4" />
+                        <span>Theme</span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                           <ThemeToggle />
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+
                     {currentUser.role === 'admin' && (
                         <DropdownMenuItem onClick={handleManageUsersClick}>
                           <UsersIcon className="mr-2 h-4 w-4" />
