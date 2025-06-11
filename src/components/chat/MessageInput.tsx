@@ -54,6 +54,16 @@ export function MessageInput() {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
+  // Automatically resize the textarea based on its content
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      // Limit the growth to match the existing max-h-32 class (~8rem)
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 128)}px`;
+    }
+  }, [messageContent]);
+
   const availableUsersForMention = allUsers.filter(u => u.id !== currentUser?.id);
 
   const handleSendMessage = () => {
@@ -347,6 +357,7 @@ export function MessageInput() {
                         onChange={handleInputChange}
                         onKeyDown={handleKeyDown}
                         placeholder="Type a message or /share for documents..."
+                        aria-label="Message input"
                         className="w-full resize-none border-0 shadow-none focus-visible:ring-0 p-1.5 min-h-[2.25rem] max-h-32 bg-transparent"
                         rows={1}
                     />
